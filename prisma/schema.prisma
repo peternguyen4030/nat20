@@ -1,8 +1,233 @@
+datasource db {
+  provider = "postgresql"
+}
+
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+// Avoid deep include chains when serializing (e.g. character -> campaign -> characters)
+// to prevent circular refs and large payloads. Use select/include with a fixed depth.
+
+/////////////////////////////////////////////////
+// USER & CAMPAIGN
+/////////////////////////////////////////////////
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+
+  campaignsOwned Campaign[] @relation("CampaignOwner")
+  memberships     CampaignMember[]
+  characters      Character[]
+}
+
+model Campaign {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+
+  owner     User            @relation("CampaignOwner", fields: [ownerId], references: [id])
+  members   CampaignMember[]
+  characters Character[]
+  sessions  CombatSession[]
+
+  @@index([ownerId])
+}
+
+model CampaignMember {
+  id         String @id @default(uuid())
+  campaignId String
+  userId     String
+  role       String // "DM" | "PLAYER"
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@index([campaignId])
+  @@index([userId])
+}
+
+/////////////////////////////////////////////////
+// CHARACTER CORE
+/////////////////////////////////////////////////
+
+model Character {
+  id          String   @id @default(uuid())
+  name        String
+  level       Int      // total level; keep in sync with sum(CharacterClass.level) if using multiclass
+  maxHp       Int
+  currentHp   Int
+  armorClass  Int
+  proficiencyBonus Int
+
+  userId      String
+  campaignId  String
+  raceId      String?
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign  Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  race      Race?     @relation(fields: [raceId], references: [id])
+
+  abilityScores AbilityScore?
+  classes       CharacterClass[]
+  features      CharacterFeature[]
+  inventory     CharacterItem[]
+  actionsAsActor  CombatAction[] @relation("Actor")
+  actionsAsTarget CombatAction[] @relation("Target")
+
+  @@index([userId])
+  @@index([campaignId])
+  @@index([raceId])
+}
+
+/////////////////////////////////////////////////
+// ABILITY SCORES (1-1)
+/////////////////////////////////////////////////
+
+model AbilityScore {
+  id           String @id @default(uuid())
+  characterId  String @unique
+
+  strength     Int
+  dexterity    Int
+  constitution Int
+  intelligence Int
+  wisdom       Int
+  charisma     Int
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+}
+
+/////////////////////////////////////////////////
+// RACE & FEATURES
+/////////////////////////////////////////////////
+
+model Race {
+  id          String @id @default(uuid())
+  name        String
+  description String?
+
+  characters Character[]
+  features   Feature[]
+}
+
+model Feature {
+  id          String @id @default(uuid())
+  name        String
+  description String
+  type        String // "CLASS" | "RACE" | "FEAT"
+
+  raceId   String?
+  classId  String?
+
+  race     Race?     @relation(fields: [raceId], references: [id])
+  class    Class?    @relation(fields: [classId], references: [id])
+
+  characters CharacterFeature[]
+
+  @@index([raceId])
+  @@index([classId])
+}
+
+model CharacterFeature {
+  id          String @id @default(uuid())
+  characterId String
+  featureId   String
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  feature   Feature   @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, featureId])
+}
+
+/////////////////////////////////////////////////
+// CLASS (supports multiclass)
+/////////////////////////////////////////////////
+
+model Class {
+  id          String @id @default(uuid())
+  name        String
+  hitDie      Int
+
+  features    Feature[]
+  characters  CharacterClass[]
+}
+
+model CharacterClass {
+  id          String @id @default(uuid())
+  characterId String
+  classId     String
+  level       Int
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  class     Class     @relation(fields: [classId], references: [id])
+
+  @@unique([characterId, classId])
+}
+
+/////////////////////////////////////////////////
+// ITEMS & INVENTORY
+/////////////////////////////////////////////////
+
+model Item {
+  id          String @id @default(uuid())
+  name        String
+  description String?
+  type        String // "WEAPON" | "ARMOR" | "CONSUMABLE"
+
+  characters CharacterItem[]
+}
+
+model CharacterItem {
+  id          String @id @default(uuid())
+  characterId String
+  itemId      String
+  quantity    Int @default(1)
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  item      Item      @relation(fields: [itemId], references: [id])
+
+  @@unique([characterId, itemId])
+}
+
+/////////////////////////////////////////////////
+// COMBAT (MVP: One Guided Round)
+/////////////////////////////////////////////////
+
+model CombatSession {
+  id         String   @id @default(uuid())
+  campaignId String
+  active     Boolean  @default(true)
+  round      Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  actions  CombatAction[]
+
+  @@index([campaignId])
+  @@index([active])
+}
+
+model CombatAction {
+  id              String @id @default(uuid())
+  sessionId       String
+  actorId         String
+  targetId        String?
+  actionType      String // "ATTACK", "CAST", etc.
+  attackRoll      Int?
+  damageDealt     Int?
+  createdAt       DateTime @default(now())
+
+  session CombatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  actor   Character     @relation("Actor", fields: [actorId], references: [id])
+  target  Character?    @relation("Target", fields: [targetId], references: [id])
+
+  @@index([sessionId])
+  @@index([actorId])
+  @@index([targetId])
 }
