@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function proxy(_request: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Next.js requires this signature
+export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }

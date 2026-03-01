@@ -1,7 +1,8 @@
 # Tech Stack
 - Frontend:
-  - Next
-  - Tailwind CSS
+  - Next.js (Framework)
+  - Tailwind CSS (Styling)
+- Database:
+  - PostgreSQL
 - Backend:
-  - Nano
-  - Prisma
+  - Prisma (ORM)

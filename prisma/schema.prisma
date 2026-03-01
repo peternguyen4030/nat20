@@ -6,43 +6,89 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Avoid deep include chains when serializing (e.g. character -> campaign -> characters)
-// to prevent circular refs and large payloads. Use select/include with a fixed depth.
-
 /////////////////////////////////////////////////
 // USER & CAMPAIGN
 /////////////////////////////////////////////////
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String
-  createdAt    DateTime  @default(now())
+  id            String   @id @default(uuid())
+  name          String?
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  passwordHash  String?
+  displayName   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  campaignsOwned Campaign[] @relation("CampaignOwner")
-  memberships     CampaignMember[]
-  characters      Character[]
+  campaignsOwned Campaign[]       @relation("CampaignOwner")
+  memberships    CampaignMember[]
+  characters     Character[]
+  sessions Session[]
+  accounts Account[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
 }
 
 model Campaign {
-  id        String   @id @default(uuid())
-  name      String
-  ownerId   String
-  createdAt DateTime @default(now())
+  id           String    @id @default(uuid())
+  name         String
+  description  String?
+  emoji        String?
+  ownerId      String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastPlayedAt DateTime?
 
-  owner     User            @relation("CampaignOwner", fields: [ownerId], references: [id])
-  members   CampaignMember[]
+  owner      User             @relation("CampaignOwner", fields: [ownerId], references: [id])
+  members    CampaignMember[]
   characters Character[]
-  sessions  CombatSession[]
+  sessions   CombatSession[]
 
   @@index([ownerId])
 }
 
 model CampaignMember {
-  id         String @id @default(uuid())
+  id         String             @id @default(uuid())
   campaignId String
   userId     String
-  role       String // "DM" | "PLAYER"
+  role       CampaignMemberRole @default(PLAYER)
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -52,37 +98,51 @@ model CampaignMember {
   @@index([userId])
 }
 
+enum CampaignMemberRole {
+  DM
+  PLAYER
+}
+
 /////////////////////////////////////////////////
 // CHARACTER CORE
 /////////////////////////////////////////////////
 
 model Character {
-  id          String   @id @default(uuid())
-  name        String
-  level       Int      // total level; keep in sync with sum(CharacterClass.level) if using multiclass
-  maxHp       Int
-  currentHp   Int
-  armorClass  Int
-  proficiencyBonus Int
+  id               String   @id @default(uuid())
+  name             String
+  level            Int      @default(1)
+  maxHp            Int
+  currentHp        Int
+  armorClass       Int      @default(10)
+  proficiencyBonus Int      @default(2)
+  speed            Int      @default(30)
+  inspiration      Boolean  @default(false)
+  backgroundId     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  userId      String
-  campaignId  String
-  raceId      String?
+  userId     String
+  campaignId String
+  raceId     String?
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campaign  Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  race      Race?     @relation(fields: [raceId], references: [id])
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign   Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  race       Race?       @relation(fields: [raceId], references: [id])
+  background Background? @relation(fields: [backgroundId], references: [id])
 
-  abilityScores AbilityScore?
-  classes       CharacterClass[]
-  features      CharacterFeature[]
-  inventory     CharacterItem[]
-  actionsAsActor  CombatAction[] @relation("Actor")
-  actionsAsTarget CombatAction[] @relation("Target")
+  abilityScores   AbilityScore?
+  classes         CharacterClass[]
+  features        CharacterFeature[]
+  inventory       CharacterItem[]
+  proficiencies   CharacterProficiency[]
+  spells          CharacterSpell[]
+  actionsAsActor  CombatAction[]         @relation("Actor")
+  actionsAsTarget CombatAction[]         @relation("Target")
 
   @@index([userId])
   @@index([campaignId])
   @@index([raceId])
+  @@index([backgroundId])
 }
 
 /////////////////////////////////////////////////
@@ -90,15 +150,15 @@ model Character {
 /////////////////////////////////////////////////
 
 model AbilityScore {
-  id           String @id @default(uuid())
-  characterId  String @unique
+  id          String @id @default(uuid())
+  characterId String @unique
 
-  strength     Int
-  dexterity    Int
-  constitution Int
-  intelligence Int
-  wisdom       Int
-  charisma     Int
+  strength     Int @default(10)
+  dexterity    Int @default(10)
+  constitution Int @default(10)
+  intelligence Int @default(10)
+  wisdom       Int @default(10)
+  charisma     Int @default(10)
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 }
@@ -108,30 +168,59 @@ model AbilityScore {
 /////////////////////////////////////////////////
 
 model Race {
-  id          String @id @default(uuid())
+  id          String  @id @default(uuid())
+  index       String  @unique
   name        String
+  speed       Int     @default(30)
+  size        String?
   description String?
+
+  abilityBonuses Json?
+  traitNames     String[]
 
   characters Character[]
   features   Feature[]
+  subraces   Subrace[]
+}
+
+model Subrace {
+  id          String  @id @default(uuid())
+  index       String  @unique
+  name        String
+  raceId      String
+  description String?
+
+  abilityBonuses Json?
+
+  race Race @relation(fields: [raceId], references: [id], onDelete: Cascade)
+
+  @@index([raceId])
 }
 
 model Feature {
-  id          String @id @default(uuid())
+  id          String      @id @default(uuid())
+  index       String?     @unique
   name        String
   description String
-  type        String // "CLASS" | "RACE" | "FEAT"
+  type        FeatureType
 
-  raceId   String?
-  classId  String?
+  raceId  String?
+  classId String?
 
-  race     Race?     @relation(fields: [raceId], references: [id])
-  class    Class?    @relation(fields: [classId], references: [id])
+  race  Race?  @relation(fields: [raceId], references: [id])
+  class Class? @relation(fields: [classId], references: [id])
 
   characters CharacterFeature[]
 
   @@index([raceId])
   @@index([classId])
+}
+
+enum FeatureType {
+  CLASS
+  RACE
+  FEAT
+  BACKGROUND
 }
 
 model CharacterFeature {
@@ -150,19 +239,33 @@ model CharacterFeature {
 /////////////////////////////////////////////////
 
 model Class {
-  id          String @id @default(uuid())
-  name        String
-  hitDie      Int
+  id                  String  @id @default(uuid())
+  index               String  @unique
+  name                String
+  hitDie              Int
+  spellcastingAbility String?
 
-  features    Feature[]
-  characters  CharacterClass[]
+  features   Feature[]
+  characters CharacterClass[]
+  subclasses Subclass[]
+}
+
+model Subclass {
+  id      String @id @default(uuid())
+  index   String @unique
+  name    String
+  classId String
+
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
 }
 
 model CharacterClass {
   id          String @id @default(uuid())
   characterId String
   classId     String
-  level       Int
+  level       Int    @default(1)
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
   class     Class     @relation(fields: [classId], references: [id])
@@ -171,23 +274,124 @@ model CharacterClass {
 }
 
 /////////////////////////////////////////////////
+// BACKGROUND
+/////////////////////////////////////////////////
+
+model Background {
+  id          String  @id @default(uuid())
+  index       String  @unique
+  name        String
+  description String?
+  feature     String?
+
+  skillProficiencies String[]
+  languages          Int      @default(0)
+
+  characters Character[]
+}
+
+/////////////////////////////////////////////////
+// PROFICIENCIES
+/////////////////////////////////////////////////
+
+model Proficiency {
+  id    String @id @default(uuid())
+  index String @unique
+  name  String
+  type  String
+
+  characters CharacterProficiency[]
+}
+
+model CharacterProficiency {
+  id            String  @id @default(uuid())
+  characterId   String
+  proficiencyId String
+  expertise     Boolean @default(false)
+
+  character   Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  proficiency Proficiency @relation(fields: [proficiencyId], references: [id])
+
+  @@unique([characterId, proficiencyId])
+  @@index([characterId])
+}
+
+/////////////////////////////////////////////////
+// SPELLS
+/////////////////////////////////////////////////
+
+model Spell {
+  id           String  @id @default(uuid())
+  index        String  @unique
+  name         String
+  level        Int
+  school       String
+  castingTime  String
+  range        String
+  duration     String
+  description  String
+  higherLevels String?
+
+  characters    CharacterSpell[]
+  combatActions CombatAction[]
+}
+
+model CharacterSpell {
+  id          String               @id @default(uuid())
+  characterId String
+  spellId     String
+  status      CharacterSpellStatus @default(KNOWN)
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  spell     Spell     @relation(fields: [spellId], references: [id])
+
+  @@unique([characterId, spellId])
+  @@index([characterId])
+}
+
+enum CharacterSpellStatus {
+  KNOWN
+  PREPARED
+}
+
+/////////////////////////////////////////////////
 // ITEMS & INVENTORY
 /////////////////////////////////////////////////
 
 model Item {
-  id          String @id @default(uuid())
+  id          String   @id @default(uuid())
+  index       String   @unique
   name        String
   description String?
-  type        String // "WEAPON" | "ARMOR" | "CONSUMABLE"
+  type        ItemType
+  weight      Float?
+  cost        String?
+
+  damageDice  String?
+  damageType  String?
+  weaponRange String?
+
+  armorClass Int?
 
   characters CharacterItem[]
 }
 
+enum ItemType {
+  WEAPON
+  ARMOR
+  CONSUMABLE
+  TOOL
+  GEAR
+  MAGIC_ITEM
+}
+
 model CharacterItem {
-  id          String @id @default(uuid())
+  id          String  @id @default(uuid())
   characterId String
   itemId      String
-  quantity    Int @default(1)
+  quantity    Int     @default(1)
+  equipped    Boolean @default(false)
+  attuned     Boolean @default(false)
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
   item      Item      @relation(fields: [itemId], references: [id])
@@ -196,7 +400,7 @@ model CharacterItem {
 }
 
 /////////////////////////////////////////////////
-// COMBAT (MVP: One Guided Round)
+// COMBAT 
 /////////////////////////////////////////////////
 
 model CombatSession {
@@ -206,7 +410,12 @@ model CombatSession {
   round      Int      @default(1)
   createdAt  DateTime @default(now())
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  currentTurnCharacterId String?
+  actionUsed             Boolean @default(false)
+  bonusActionUsed        Boolean @default(false)
+  reactionUsed           Boolean @default(false)
+
+  campaign Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   actions  CombatAction[]
 
   @@index([campaignId])
@@ -214,20 +423,42 @@ model CombatSession {
 }
 
 model CombatAction {
-  id              String @id @default(uuid())
-  sessionId       String
-  actorId         String
-  targetId        String?
-  actionType      String // "ATTACK", "CAST", etc.
-  attackRoll      Int?
-  damageDealt     Int?
-  createdAt       DateTime @default(now())
+  id          String           @id @default(uuid())
+  sessionId   String
+  actorId     String
+  targetId    String?
+  actionType  CombatActionType
+  actionSlot  ActionSlot       @default(ACTION)
+  spellId     String?
+  attackRoll  Int?
+  damageDealt Int?
+  notes       String?
+  createdAt   DateTime         @default(now())
 
   session CombatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   actor   Character     @relation("Actor", fields: [actorId], references: [id])
   target  Character?    @relation("Target", fields: [targetId], references: [id])
+  spell   Spell?        @relation(fields: [spellId], references: [id])
 
   @@index([sessionId])
   @@index([actorId])
   @@index([targetId])
+}
+
+enum ActionSlot {
+  ACTION
+  BONUS_ACTION
+  REACTION
+  FREE
+}
+
+enum CombatActionType {
+  ATTACK
+  CAST
+  DASH
+  DODGE
+  HELP
+  HIDE
+  READY
+  OTHER
 }
