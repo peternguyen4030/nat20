@@ -4,9 +4,11 @@ import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/db";
 
 export const auth = betterAuth({
+  secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
   trustedOrigins: [
     process.env.BETTER_AUTH_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
     "http://localhost:3000",
   ].filter(Boolean) as string[],
   database: prismaAdapter(prisma, {
