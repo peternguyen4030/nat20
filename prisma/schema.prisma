@@ -24,8 +24,8 @@ model User {
   campaignsOwned Campaign[]       @relation("CampaignOwner")
   memberships    CampaignMember[]
   characters     Character[]
-  sessions Session[]
-  accounts Account[]
+  sessions       Session[]
+  accounts       Account[]
 }
 
 model Session {
@@ -33,10 +33,10 @@ model Session {
   userId    String
   token     String   @unique
   expiresAt DateTime
-  ipAddress  String?
-  userAgent  String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
