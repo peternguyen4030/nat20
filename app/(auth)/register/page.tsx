@@ -206,13 +206,21 @@ export default function RegisterPage() {
         if (error.message?.toLowerCase().includes("email")) {
           setErrors({ email: "An account with this email already exists" });
         } else {
-          setErrors({ form: error.message ?? "Registration failed. Please try again." });
+          const message = error.message ?? (error as { code?: string }).code ?? "Registration failed. Please try again.";
+          setErrors({ form: message });
+          if (process.env.NODE_ENV === "development") {
+            console.error("[Register] signUp.email error:", error);
+          }
         }
       } else {
         router.push("/dashboard");
       }
-    } catch {
-      setErrors({ form: "Something went wrong. Please try again." });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setErrors({ form: message });
+      if (process.env.NODE_ENV === "development") {
+        console.error("[Register] exception:", err);
+      }
     } finally {
       setLoading(false);
     }
