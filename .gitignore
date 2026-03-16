@@ -43,3 +43,6 @@ next-env.d.ts
 # project-local docs (not for repo)
 CLAUDE.md
 INTEGRATION.md
+
+# style guide
+sketchbook-style-guide.jsx
