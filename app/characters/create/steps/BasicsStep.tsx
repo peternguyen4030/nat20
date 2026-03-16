@@ -3,7 +3,7 @@
 import { useWizard } from "@/context/WizardContext";
 
 const PRONOUN_OPTIONS = ["He/Him", "She/Her", "They/Them", "He/They", "She/They", "Any/All", "Other"];
-const GENDER_OPTIONS  = ["Male", "Female", "Non-binary", "Genderfluid", "Agender", "Other", "Prefer not to say"];
+const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Genderfluid", "Agender", "Other", "Prefer not to say"];
 
 export function BasicsStep() {
   const { state, dispatch } = useWizard();
@@ -12,8 +12,8 @@ export function BasicsStep() {
     dispatch({
       type: "SET_BASICS",
       payload: {
-        name:     field === "name"     ? value : state.name,
-        gender:   field === "gender"   ? value : state.gender,
+        name: field === "name" ? value : state.name,
+        gender: field === "gender" ? value : state.gender,
         pronouns: field === "pronouns" ? value : state.pronouns,
       },
     });
@@ -66,11 +66,10 @@ export function BasicsStep() {
                 key={g}
                 type="button"
                 onClick={() => update("gender", state.gender === g ? "" : g)}
-                className={`font-sans text-sm px-3 py-1.5 rounded-sketch border-2 transition-all duration-150 ${
-                  state.gender === g
-                    ? "bg-blush border-blush text-white shadow-sketch-accent"
-                    : "bg-parchment border-sketch text-ink-soft hover:bg-paper hover:border-blush/50"
-                }`}
+                className={`font-sans text-sm px-3 py-1.5 rounded-sketch border-2 transition-all duration-150 ${state.gender === g
+                  ? "bg-blush border-blush text-white shadow-sketch-accent"
+                  : "bg-parchment border-sketch text-ink-soft hover:bg-paper hover:border-blush/50"
+                  }`}
               >
                 {g}
               </button>
@@ -88,11 +87,10 @@ export function BasicsStep() {
                 key={p}
                 type="button"
                 onClick={() => update("pronouns", state.pronouns === p ? "" : p)}
-                className={`font-sans text-sm px-3 py-1.5 rounded-sketch border-2 transition-all duration-150 ${
-                  state.pronouns === p
-                    ? "bg-blush border-blush text-white shadow-sketch-accent"
-                    : "bg-parchment border-sketch text-ink-soft hover:bg-paper hover:border-blush/50"
-                }`}
+                className={`font-sans text-sm px-3 py-1.5 rounded-sketch border-2 transition-all duration-150 ${state.pronouns === p
+                  ? "bg-blush border-blush text-white shadow-sketch-accent"
+                  : "bg-parchment border-sketch text-ink-soft hover:bg-paper hover:border-blush/50"
+                  }`}
               >
                 {p}
               </button>
@@ -118,7 +116,7 @@ export function BasicsStep() {
               Over the next few steps you'll define who they are. Each choice shapes
               how they interact with the world.
             </p>
-            <div className="border-t border-sketch pt-4">
+            <div className="border-t border-sketch p-4">
               <p className="font-sans text-xs font-bold uppercase tracking-widest text-ink-faded mb-3">Naming tips</p>
               <ul className="space-y-2">
                 <li className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start">

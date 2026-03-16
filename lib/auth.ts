@@ -3,11 +3,6 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/db";
 
-/**
- * Server auth base URL. Use BETTER_AUTH_URL to match the app URL per environment
- * (e.g. http://localhost:3000 locally, https://yourdomain.com in production).
- * If unset, falls back to NEXT_PUBLIC_APP_URL or localhost so redirects stay on the same origin.
- */
 const authBaseURL =
   process.env.BETTER_AUTH_URL ??
   process.env.NEXT_PUBLIC_APP_URL ??
@@ -33,19 +28,35 @@ export const auth = betterAuth({
         required: false,
         input: true,
       },
+      avatarUrl: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      bio: {
+        type: "string",
+        required: false,
+        input: true,
+      },
     },
   },
   emailAndPassword: {
     enabled: true,
   },
   socialProviders: {
-    discord: { 
-        clientId: process.env.DISCORD_CLIENT_ID as string, 
-        clientSecret: process.env.DISCORD_CLIENT_SECRET as string, 
+    discord: {
+      clientId: process.env.DISCORD_CLIENT_ID as string,
+      clientSecret: process.env.DISCORD_CLIENT_SECRET as string,
+      mapProfileToUser: (profile) => ({
+        image: profile.image ?? null,
+      }),
     },
-    google: { 
-        clientId: process.env.GOOGLE_CLIENT_ID as string, 
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET as string, 
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+      mapProfileToUser: (profile) => ({
+        image: profile.picture ?? null,
+      }),
     },
   },
   plugins: [nextCookies()],
