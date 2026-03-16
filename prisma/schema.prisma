@@ -18,6 +18,8 @@ model User {
   image         String?
   passwordHash  String?
   displayName   String?
+  avatarUrl     String? // uploaded via Uploadthing
+  bio           String? // short profile bio
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -82,6 +84,7 @@ model Campaign {
   name         String
   description  String?
   emoji        String?
+  bannerUrl    String? // uploaded via Uploadthing
   ownerId      String
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -119,18 +122,46 @@ enum CampaignMemberRole {
 /////////////////////////////////////////////////
 
 model Character {
-  id               String   @id @default(uuid())
+  id               String  @id @default(uuid())
   name             String
-  level            Int      @default(1)
+  level            Int     @default(1)
   maxHp            Int
   currentHp        Int
-  armorClass       Int      @default(10)
-  proficiencyBonus Int      @default(2)
-  speed            Int      @default(30)
-  inspiration      Boolean  @default(false)
+  temporaryHp      Int     @default(0)
+  armorClass       Int     @default(10)
+  proficiencyBonus Int     @default(2)
+  speed            Int     @default(30)
+  initiative       Int     @default(0)
+  inspiration      Boolean @default(false)
+  avatarUrl        String? // uploaded via Uploadthing
   backgroundId     String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  gender           String?
+  pronouns         String?
+  notes            String?
+
+  // Personality — populated during wizard step 8
+  personalityTrait String?
+  ideal            String?
+  bond             String?
+  flaw             String?
+
+  // Combat state — JSON for MVP simplicity
+  deathSaves Json? // { successes: 0, failures: 0 }
+  hitDice    Json? // { total: 1, used: 0 }
+  spellSlots Json? // { "1": { max: 2, used: 0 }, "2": { max: 0, used: 0 } }
+
+  // Bonus overrides — additive on top of calculated values
+  savingThrowBonuses Json? // { strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0 }
+  skillBonuses       Json? // { acrobatics: 0, athletics: 0, ... keyed by skill index }
+
+  // Languages — named list rather than just a count
+  languages String[] @default([])
+
+  // Conditions — enum array for type safety
+  conditions Condition[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   userId     String
   campaignId String
@@ -154,6 +185,25 @@ model Character {
   @@index([campaignId])
   @@index([raceId])
   @@index([backgroundId])
+}
+
+// D&D 5e standard conditions
+enum Condition {
+  BLINDED
+  CHARMED
+  DEAFENED
+  EXHAUSTION
+  FRIGHTENED
+  GRAPPLED
+  INCAPACITATED
+  INVISIBLE
+  PARALYZED
+  PETRIFIED
+  POISONED
+  PRONE
+  RESTRAINED
+  STUNNED
+  UNCONSCIOUS
 }
 
 /////////////////////////////////////////////////
@@ -215,6 +265,11 @@ model Feature {
   description String
   type        FeatureType
 
+  // Combat classification — populated by seed script
+  category     ActionCategory?
+  actionType   ActionType?
+  combatUsable Boolean         @default(false)
+
   raceId  String?
   classId String?
 
@@ -234,6 +289,24 @@ enum FeatureType {
   BACKGROUND
 }
 
+enum ActionCategory {
+  ATTACK
+  DAMAGING
+  HEALING
+  SUPPORT
+  DEFENSIVE
+  MOVEMENT
+  UTILITY
+}
+
+enum ActionType {
+  ACTION
+  BONUS_ACTION
+  REACTION
+  FREE
+  PASSIVE
+}
+
 model CharacterFeature {
   id          String @id @default(uuid())
   characterId String
@@ -246,7 +319,7 @@ model CharacterFeature {
 }
 
 /////////////////////////////////////////////////
-// CLASS (supports multiclass)
+// CLASS
 /////////////////////////////////////////////////
 
 model Class {
@@ -332,8 +405,8 @@ model CharacterProficiency {
 /////////////////////////////////////////////////
 
 model Spell {
-  id           String  @id @default(uuid())
-  index        String  @unique
+  id           String        @id @default(uuid())
+  index        String        @unique
   name         String
   level        Int
   school       String
@@ -342,9 +415,20 @@ model Spell {
   duration     String
   description  String
   higherLevels String?
+  category     SpellCategory @default(UTILITY)
 
   characters    CharacterSpell[]
   combatActions CombatAction[]
+}
+
+enum SpellCategory {
+  DAMAGING
+  HEALING
+  CONTROL
+  BUFF
+  DEBUFF
+  UTILITY
+  DEFENSE
 }
 
 model CharacterSpell {
@@ -381,8 +465,7 @@ model Item {
   damageDice  String?
   damageType  String?
   weaponRange String?
-
-  armorClass Int?
+  armorClass  Int?
 
   characters CharacterItem[]
 }
@@ -399,19 +482,25 @@ enum ItemType {
 model CharacterItem {
   id          String  @id @default(uuid())
   characterId String
-  itemId      String
+  itemId      String? // nullable — allows custom items not in the Item table
   quantity    Int     @default(1)
   equipped    Boolean @default(false)
   attuned     Boolean @default(false)
 
+  // Custom item fields — used when itemId is null
+  customName        String?
+  customDescription String?
+  customType        String?
+
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  item      Item      @relation(fields: [itemId], references: [id])
+  item      Item?     @relation(fields: [itemId], references: [id])
 
   @@unique([characterId, itemId])
+  @@index([characterId])
 }
 
 /////////////////////////////////////////////////
-// COMBAT 
+// COMBAT
 /////////////////////////////////////////////////
 
 model CombatSession {

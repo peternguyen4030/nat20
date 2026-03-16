@@ -11,78 +11,46 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
 }
 
-const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
-  primary: {
-    background: "#C97B5A",
-    color: "#fff",
-    border: "2px solid #C97B5A",
-    boxShadow: "2px 2px 0px #9B5A3A",
-  },
-  secondary: {
-    background: "#FAF7F2",
-    color: "#5C4F3A",
-    border: "2px solid #C4B49A",
-    boxShadow: "2px 2px 0px #C4B49A",
-  },
-  ghost: {
-    background: "transparent",
-    color: "#9B8E7A",
-    border: "none",
-    boxShadow: "none",
-    textDecoration: "underline",
-    textDecorationStyle: "dotted",
-    textUnderlineOffset: "3px",
-  },
-  danger: {
-    background: "#FAF7F2",
-    color: "#C97B5A",
-    border: "2px solid #C97B5A44",
-    boxShadow: "none",
-  },
+const variantClasses: Record<ButtonVariant, string> = {
+  primary:
+    "bg-blush text-white border-2 border-blush shadow-sketch-accent hover:opacity-90",
+  secondary:
+    "bg-warm-white text-ink-soft border-2 border-sketch shadow-sketch hover:opacity-90",
+  ghost:
+    "bg-transparent text-ink-faded border-none shadow-none underline decoration-dotted underline-offset-[3px] hover:text-ink-soft",
+  danger:
+    "bg-warm-white text-blush border-2 border-blush/30 shadow-none hover:bg-blush/10",
 };
 
-const sizeStyles: Record<ButtonSize, React.CSSProperties> = {
-  sm: { padding: "4px 12px", fontSize: "0.75rem" },
-  md: { padding: "8px 16px", fontSize: "0.875rem" },
-  lg: { padding: "10px 22px", fontSize: "1rem" },
+const sizeClasses: Record<ButtonSize, string> = {
+  sm: "px-3 py-1 text-[0.75rem]",
+  md: "px-4 py-2 text-[0.875rem]",
+  lg: "px-[22px] py-2.5 text-base",
 };
-
-const sketchRadius = "4px 8px 6px 5px / 6px 4px 8px 5px";
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = "primary", size = "md", loading = false, children, style, ...props }, ref) => {
+  ({ variant = "primary", size = "md", loading = false, children, className = "", ...props }, ref) => {
     return (
       <button
         ref={ref}
-        style={{
-          fontFamily: "'Nunito', sans-serif",
-          fontWeight: 600,
-          borderRadius: sketchRadius,
-          cursor: props.disabled || loading ? "not-allowed" : "pointer",
-          opacity: props.disabled || loading ? 0.6 : 1,
-          transition: "opacity 0.15s, transform 0.1s",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "6px",
-          lineHeight: 1,
-          ...variantStyles[variant],
-          ...sizeStyles[size],
-          ...style,
-        }}
-        onMouseEnter={(e) => {
-          if (!props.disabled && !loading) {
-            (e.currentTarget as HTMLButtonElement).style.opacity = "0.85";
-            (e.currentTarget as HTMLButtonElement).style.transform = "translate(-1px, -1px)";
-          }
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.opacity = "1";
-          (e.currentTarget as HTMLButtonElement).style.transform = "translate(0, 0)";
-        }}
+        className={`
+          font-sans font-semibold rounded-sketch
+          inline-flex items-center gap-1.5 leading-none
+          transition-[opacity,transform] duration-150
+          disabled:opacity-60 disabled:cursor-not-allowed
+          cursor-pointer
+          hover:-translate-x-px hover:-translate-y-px
+          ${variantClasses[variant]} ${sizeClasses[size]}
+          ${className}
+        `.trim().replace(/\s+/g, " ")}
         disabled={props.disabled || loading}
         {...props}
       >
-        {loading ? <span style={{ opacity: 0.7 }}>...</span> : children}
+        {loading ? (
+          <span className="opacity-70">...</span>
+        ) : (
+          children
+        )}
       </button>
     );
   }

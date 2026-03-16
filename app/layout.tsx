@@ -22,7 +22,7 @@ export default function RootLayout({
       lang="en"
       className={`${caveat.variable} ${nunito.variable} ${GeistMono.variable}`}
     >
-      <body className="font-sans antialiased bg-parchment text-ink">
+      <body className="font-sans antialiased bg-parchment text-ink" suppressHydrationWarning>
         {children}
       </body>
     </html>

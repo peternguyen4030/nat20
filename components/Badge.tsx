@@ -7,44 +7,42 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   dot?: boolean;
 }
 
-const variantStyles: Record<BadgeVariant, React.CSSProperties> = {
-  active:    { background: "#7A9E7E22", color: "#7A9E7E", border: "1.5px solid #7A9E7E44" },
-  idle:      { background: "#9B8E7A22", color: "#9B8E7A", border: "1.5px solid #9B8E7A44" },
-  session:   { background: "#7A8FA622", color: "#7A8FA6", border: "1.5px solid #7A8FA644" },
-  attention: { background: "#C97B5A22", color: "#C97B5A", border: "1.5px solid #C97B5A44" },
-  archived:  { background: "#EDE6D6",   color: "#9B8E7A", border: "1.5px solid #C4B49A"   },
+const variantClasses: Record<BadgeVariant, string> = {
+  active: "bg-sage/15 text-sage border border-sage/30",
+  idle: "bg-ink-faded/15 text-ink-faded border border-ink-faded/30",
+  session: "bg-dusty-blue/15 text-dusty-blue border border-dusty-blue/30",
+  attention: "bg-blush/15 text-blush border border-blush/30",
+  archived: "bg-paper text-ink-faded border border-sketch",
 };
 
 const variantLabels: Record<BadgeVariant, string> = {
-  active:    "Active",
-  idle:      "Idle",
-  session:   "In Session",
+  active: "Active",
+  idle: "Idle",
+  session: "In Session",
   attention: "Needs Attention",
-  archived:  "Archived",
+  archived: "Archived",
 };
 
-export function Badge({ variant = "idle", dot = false, children, style, ...props }: BadgeProps) {
+export function Badge({
+  variant = "idle",
+  dot = false,
+  children,
+  className = "",
+  ...props
+}: BadgeProps) {
   const label = children ?? variantLabels[variant];
   const showDot = dot || variant === "active" || variant === "idle";
 
   return (
     <span
-      style={{
-        fontFamily: "'Nunito', sans-serif",
-        fontSize: "0.68rem",
-        fontWeight: 700,
-        padding: "3px 10px",
-        borderRadius: "20px",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "4px",
-        whiteSpace: "nowrap",
-        ...variantStyles[variant],
-        ...style,
-      }}
+      className={`
+        font-sans text-[0.68rem] font-bold py-0.5 px-2.5 rounded-badge
+        inline-flex items-center gap-1 whitespace-nowrap
+        ${variantClasses[variant]} ${className}
+      `.trim().replace(/\s+/g, " ")}
       {...props}
     >
-      {showDot && <span style={{ fontSize: "0.5rem" }}>●</span>}
+      {showDot && <span className="text-[0.5rem]">●</span>}
       {label}
     </span>
   );

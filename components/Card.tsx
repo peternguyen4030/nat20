@@ -3,25 +3,26 @@
 import { HTMLAttributes } from "react";
 import { Badge } from "./Badge";
 
-// ─── SketchBox ────────────────────────────────────────────────────────────────
-
 interface SketchBoxProps extends HTMLAttributes<HTMLDivElement> {
   accent?: boolean;
   raised?: boolean;
 }
 
-const sketchRadius = "4px 8px 6px 5px / 6px 4px 8px 5px";
-
-export function SketchBox({ accent = false, raised = false, children, style, ...props }: SketchBoxProps) {
+export function SketchBox({
+  accent = false,
+  raised = false,
+  children,
+  className = "",
+  ...props
+}: SketchBoxProps) {
   return (
     <div
-      style={{
-        border: `2px solid ${accent ? "#C97B5A" : "#C4B49A"}`,
-        borderRadius: sketchRadius,
-        boxShadow: `2px 2px 0px ${accent ? "#C97B5A44" : "#C4B49A88"}`,
-        background: raised ? "#FAF7F2" : "#EDE6D6",
-        ...style,
-      }}
+      className={`
+        border-2 rounded-sketch
+        ${accent ? "border-blush shadow-sketch-accent" : "border-sketch shadow-sketch"}
+        ${raised ? "bg-warm-white" : "bg-paper"}
+        ${className}
+      `.trim().replace(/\s+/g, " ")}
       {...props}
     >
       {children}
@@ -29,46 +30,30 @@ export function SketchBox({ accent = false, raised = false, children, style, ...
   );
 }
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
-
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   hoverable?: boolean;
 }
 
-export function Card({ hoverable = false, children, style, ...props }: CardProps) {
+export function Card({
+  hoverable = false,
+  children,
+  className = "",
+  ...props
+}: CardProps) {
   return (
     <SketchBox
       raised
-      style={{
-        padding: "16px",
-        transition: "transform 0.15s, box-shadow 0.15s, border-color 0.15s",
-        cursor: hoverable ? "pointer" : "default",
-        ...style,
-      }}
-      onMouseEnter={(e) => {
-        if (hoverable) {
-          const el = e.currentTarget as HTMLDivElement;
-          el.style.transform = "translate(-2px, -2px)";
-          el.style.boxShadow = "4px 4px 0px #C97B5A44";
-          el.style.borderColor = "#C97B5A66";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (hoverable) {
-          const el = e.currentTarget as HTMLDivElement;
-          el.style.transform = "translate(0, 0)";
-          el.style.boxShadow = "2px 2px 0px #C4B49A88";
-          el.style.borderColor = "#C4B49A";
-        }
-      }}
+      className={`
+        p-4 transition-[transform,box-shadow,border-color] duration-150
+        ${hoverable ? "cursor-pointer hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_rgba(201,123,90,0.27)] hover:border-blush/40" : "cursor-default"}
+        ${className}
+      `.trim().replace(/\s+/g, " ")}
       {...props}
     >
       {children}
     </SketchBox>
   );
 }
-
-// ─── CampaignCard ─────────────────────────────────────────────────────────────
 
 type CampaignStatus = "active" | "idle" | "session" | "attention" | "archived";
 
@@ -94,43 +79,30 @@ export function CampaignCard({
   onClick,
 }: CampaignCardProps) {
   return (
-    <Card hoverable={!!onClick} style={{ maxWidth: 260 }} onClick={onClick}>
-      <div
-        style={{
-          width: "100%",
-          height: 80,
-          background: "#EDE6D6",
-          border: "1.5px dashed #C4B49A",
-          borderRadius: "3px 7px 5px 4px / 5px 3px 7px 4px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "1.8rem",
-          marginBottom: 12,
-        }}
-      >
+    <Card hoverable={!!onClick} className="max-w-[260px]" onClick={onClick}>
+      <div className="w-full h-20 bg-paper border border-dashed border-sketch rounded-input flex items-center justify-center text-[1.8rem] mb-3">
         {emoji}
       </div>
 
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4, gap: 8 }}>
-        <span style={{ fontFamily: "'Caveat', cursive", fontSize: "1.15rem", color: "#2C2416", fontWeight: 600, lineHeight: 1.2 }}>
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <span className="font-display text-[1.15rem] font-semibold text-ink leading-tight">
           {title}
         </span>
         <Badge variant={status} />
       </div>
 
-      <p style={{ fontFamily: "'Nunito', sans-serif", fontSize: "0.72rem", color: "#9B8E7A", marginBottom: 10 }}>
+      <p className="font-sans text-[0.72rem] text-ink-faded mb-2.5">
         DM: {dmName} · {playerCount} player{playerCount !== 1 ? "s" : ""}
       </p>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="flex justify-between items-center">
         {lastPlayed && (
-          <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: "0.7rem", color: "#9B8E7A" }}>
+          <span className="font-sans text-[0.7rem] text-ink-faded">
             {lastPlayed}
           </span>
         )}
         {level !== undefined && (
-          <span style={{ fontFamily: "'Courier Prime', monospace", fontSize: "0.7rem", color: "#5C4F3A" }}>
+          <span className="font-mono text-[0.7rem] text-ink-soft">
             Lv. {level}
           </span>
         )}

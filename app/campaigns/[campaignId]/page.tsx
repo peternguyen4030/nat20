@@ -1,3 +1,1 @@
-export default function CampaignPage() {
-  return null;
-}
+export { default } from "./combat/page";

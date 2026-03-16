@@ -26,6 +26,7 @@ const config: Config = {
         'blush-light':'#E8A882',  // blush hover state
         sage:         '#7A9E7E',  // success, active status
         'dusty-blue': '#7A8FA6',  // info, secondary accent
+        gold:         '#D4A853',  // warning / medium states (HP, conditions, difficulty)
       },
       borderRadius: {
         // Sketchy irregular border radius — the core visual signature
@@ -46,6 +47,9 @@ const config: Config = {
       },
       spacing: {
         '13': '3.25rem', // used for the 52px logo icon (w-13 / h-13)
+        'card':   '1rem',      // p-card = 16px
+        'card-sm': '0.75rem',  // p-card-sm = 12px for nested
+        'drawer': '1.25rem',   // px-drawer = 20px
       },
     },
   },

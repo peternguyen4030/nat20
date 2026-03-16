@@ -2,83 +2,63 @@
 
 import { InputHTMLAttributes, TextareaHTMLAttributes, forwardRef, useState } from "react";
 
-const sketchRadius = "3px 7px 5px 4px / 5px 3px 7px 4px";
-
-// ─── Shared label ─────────────────────────────────────────────────────────────
-
 function Label({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
   return (
     <label
       htmlFor={htmlFor}
-      style={{
-        fontFamily: "'Nunito', sans-serif",
-        fontSize: "0.7rem",
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: "0.08em",
-        color: "#9B8E7A",
-        display: "block",
-        marginBottom: 6,
-      }}
+      className="block font-sans text-[0.7rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5"
     >
       {children}
     </label>
   );
 }
 
-// ─── Helper / error text ──────────────────────────────────────────────────────
-
 function HelperText({ error, children }: { error?: boolean; children: React.ReactNode }) {
   return (
     <p
-      style={{
-        fontFamily: "'Caveat', cursive",
-        fontSize: "0.85rem",
-        color: error ? "#C97B5A" : "#9B8E7A",
-        marginTop: 4,
-      }}
+      className={`font-display text-[0.85rem] mt-1 ${
+        error ? "text-blush" : "text-ink-faded"
+      }`}
     >
       {children}
     </p>
   );
 }
 
-// ─── Input ────────────────────────────────────────────────────────────────────
-
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   helperText?: string;
   error?: boolean;
-  wrapperStyle?: React.CSSProperties;
+  wrapperClassName?: string;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, helperText, error = false, wrapperStyle, style, id, ...props }, ref) => {
+  ({ label, helperText, error = false, wrapperClassName, className = "", id, ...props }, ref) => {
     const [focused, setFocused] = useState(false);
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, "-");
+    const borderClass =
+      error || focused ? "border-blush" : "border-sketch";
 
     return (
-      <div style={wrapperStyle}>
+      <div className={wrapperClassName}>
         {label && <Label htmlFor={inputId}>{label}</Label>}
         <input
           ref={ref}
           id={inputId}
-          style={{
-            fontFamily: "'Nunito', sans-serif",
-            fontSize: "0.875rem",
-            width: "100%",
-            background: "#F5F0E8",
-            border: `2px solid ${error ? "#C97B5A" : focused ? "#C97B5A" : "#C4B49A"}`,
-            borderRadius: sketchRadius,
-            padding: "8px 12px",
-            color: "#2C2416",
-            outline: "none",
-            transition: "border-color 0.15s",
-            boxSizing: "border-box",
-            ...style,
+          className={`
+            w-full font-sans text-[0.875rem] bg-parchment text-ink
+            rounded-input px-3 py-2 border-2 outline-none
+            transition-colors duration-150 box-border
+            ${borderClass} ${className}
+          `.trim().replace(/\s+/g, " ")}
+          onFocus={(e) => {
+            setFocused(true);
+            props.onFocus?.(e);
           }}
-          onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
-          onBlur={(e)  => { setFocused(false); props.onBlur?.(e); }}
+          onBlur={(e) => {
+            setFocused(false);
+            props.onBlur?.(e);
+          }}
           {...props}
         />
         {helperText && <HelperText error={error}>{helperText}</HelperText>}
@@ -89,44 +69,41 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
 Input.displayName = "Input";
 
-// ─── Textarea ─────────────────────────────────────────────────────────────────
-
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   helperText?: string;
   error?: boolean;
-  wrapperStyle?: React.CSSProperties;
+  wrapperClassName?: string;
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, helperText, error = false, wrapperStyle, style, id, ...props }, ref) => {
+  ({ label, helperText, error = false, wrapperClassName, className = "", id, ...props }, ref) => {
     const [focused, setFocused] = useState(false);
     const textareaId = id ?? label?.toLowerCase().replace(/\s+/g, "-");
+    const borderClass =
+      error || focused ? "border-blush" : "border-sketch";
 
     return (
-      <div style={wrapperStyle}>
+      <div className={wrapperClassName}>
         {label && <Label htmlFor={textareaId}>{label}</Label>}
         <textarea
           ref={ref}
           id={textareaId}
           rows={4}
-          style={{
-            fontFamily: "'Nunito', sans-serif",
-            fontSize: "0.875rem",
-            width: "100%",
-            background: "#F5F0E8",
-            border: `2px solid ${error ? "#C97B5A" : focused ? "#C97B5A" : "#C4B49A"}`,
-            borderRadius: sketchRadius,
-            padding: "8px 12px",
-            color: "#2C2416",
-            outline: "none",
-            resize: "vertical",
-            transition: "border-color 0.15s",
-            boxSizing: "border-box",
-            ...style,
+          className={`
+            w-full font-sans text-[0.875rem] bg-parchment text-ink
+            rounded-input px-3 py-2 border-2 outline-none resize-y
+            transition-colors duration-150 box-border
+            ${borderClass} ${className}
+          `.trim().replace(/\s+/g, " ")}
+          onFocus={(e) => {
+            setFocused(true);
+            props.onFocus?.(e);
           }}
-          onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
-          onBlur={(e)  => { setFocused(false); props.onBlur?.(e); }}
+          onBlur={(e) => {
+            setFocused(false);
+            props.onBlur?.(e);
+          }}
           {...props}
         />
         {helperText && <HelperText error={error}>{helperText}</HelperText>}
