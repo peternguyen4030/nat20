@@ -1,18 +1,18 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
-import { useRouter }           from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { WizardProvider, useWizard } from "@/context/WizardContext";
 import { WIZARD_STEPS, CLASS_SKILL_OPTIONS } from "@/types/character-creation";
-import { isSpellcaster }       from "@/lib/starter-spells";
-import { BasicsStep }          from "./steps/BasicsStep";
-import { RaceStep }            from "./steps/RaceStep";
-import { ClassStep }           from "./steps/ClassStep";
-import { BackgroundStep }      from "./steps/BackgroundStep";
-import { SkillsStep }          from "./steps/SkillsStep";
-import { AbilityScoreStep }    from "./steps/AbilityScoreStep";
-import { SpellsStep }          from "./steps/SpellsStep";
-import { PersonalityStep }     from "./steps/PersonalityStep";
+import { isSpellcaster } from "@/lib/starter-spells";
+import { BasicsStep } from "./steps/BasicsStep";
+import { RaceStep } from "./steps/RaceStep";
+import { ClassStep } from "./steps/ClassStep";
+import { BackgroundStep } from "./steps/BackgroundStep";
+import { SkillsStep } from "./steps/SkillsStep";
+import { AbilityScoreStep } from "./steps/AbilityScoreStep";
+import { SpellsStep } from "./steps/SpellsStep";
+import { PersonalityStep } from "./steps/PersonalityStep";
 
 // ── Step validator ────────────────────────────────────────────────────────────
 
@@ -41,43 +41,48 @@ function canAdvance(
 
 // ── Progress bar ──────────────────────────────────────────────────────────────
 
-function ProgressBar({ classIndex }: { classIndex: string }) {
+function ProgressBar({ classIndex, campaignId }: { classIndex: string; campaignId: string }) {
   const { state, dispatch } = useWizard();
 
   return (
     <div className="w-full bg-warm-white border-b-2 border-sketch px-4 py-3 sticky top-0 z-40">
       <div className="max-w-4xl mx-auto">
+        {campaignId && (
+          <a
+            href={`/campaigns/${campaignId}`}
+            className="font-sans text-xs text-ink-faded hover:text-ink transition-colors flex items-center gap-1 w-fit mb-2"
+          >
+            ← Back to Campaign
+          </a>
+        )}
         <div className="flex items-center">
           {WIZARD_STEPS.map((step, i) => {
             const isSpellStep = step.id === 7;
-            const skipped     = isSpellStep && !isSpellcaster(classIndex) && state.currentStep > 3;
-            const isComplete  = state.currentStep > step.id;
-            const isCurrent   = state.currentStep === step.id;
-            const isLocked    = state.currentStep < step.id;
+            const skipped = isSpellStep && !isSpellcaster(classIndex) && state.currentStep > 3;
+            const isComplete = state.currentStep > step.id;
+            const isCurrent = state.currentStep === step.id;
+            const isLocked = state.currentStep < step.id;
 
             return (
               <div key={step.id} className="flex items-center flex-1">
                 <button
                   onClick={() => isComplete && dispatch({ type: "GO_TO_STEP", payload: { step: step.id } })}
                   disabled={isLocked}
-                  className={`flex flex-col items-center gap-1 transition-all duration-200 ${
-                    isLocked ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
-                  }`}
+                  className={`flex flex-col items-center gap-1 transition-all duration-200 ${isLocked ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                    }`}
                 >
-                  <div className={`w-8 h-8 rounded-sketch border-2 flex items-center justify-center text-xs transition-all duration-200 ${
-                    skipped
+                  <div className={`w-8 h-8 rounded-sketch border-2 flex items-center justify-center text-xs transition-all duration-200 ${skipped
                       ? "bg-parchment border-sketch/40 opacity-40"
                       : isComplete
-                      ? "bg-sage border-sage text-white"
-                      : isCurrent
-                      ? "bg-blush border-blush text-white shadow-sketch-accent"
-                      : "bg-parchment border-sketch text-ink-faded"
-                  }`}>
+                        ? "bg-sage border-sage text-white"
+                        : isCurrent
+                          ? "bg-blush border-blush text-white shadow-sketch-accent"
+                          : "bg-parchment border-sketch text-ink-faded"
+                    }`}>
                     {!skipped && isComplete ? "✓" : step.icon}
                   </div>
-                  <span className={`font-sans text-[0.55rem] font-semibold uppercase tracking-wider hidden md:block ${
-                    isCurrent ? "text-blush" : isComplete ? "text-sage" : "text-ink-faded"
-                  }`}>
+                  <span className={`font-sans text-[0.55rem] font-semibold uppercase tracking-wider hidden md:block ${isCurrent ? "text-blush" : isComplete ? "text-sage" : "text-ink-faded"
+                    }`}>
                     {step.label}
                   </span>
                 </button>
@@ -108,11 +113,11 @@ function NavBar({
   submitting,
 }: {
   classIndex: string;
-  onSubmit:   () => void;
+  onSubmit: () => void;
   submitting: boolean;
 }) {
   const { state, dispatch } = useWizard();
-  const ready  = canAdvance(state, classIndex);
+  const ready = canAdvance(state, classIndex);
   const isLast = state.currentStep === 8;
 
   function handleNext() {
@@ -154,11 +159,10 @@ function NavBar({
           <button
             onClick={onSubmit}
             disabled={submitting}
-            className={`font-sans font-bold text-sm text-white rounded-sketch px-6 py-2 border-2 transition-all duration-150 flex items-center gap-2 ${
-              !submitting
+            className={`font-sans font-bold text-sm text-white rounded-sketch px-6 py-2 border-2 transition-all duration-150 flex items-center gap-2 ${!submitting
                 ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
                 : "bg-tan border-sketch cursor-not-allowed opacity-60"
-            }`}
+              }`}
           >
             {submitting ? (
               <>
@@ -171,11 +175,10 @@ function NavBar({
           <button
             onClick={handleNext}
             disabled={!ready}
-            className={`font-sans font-bold text-sm text-white rounded-sketch px-6 py-2 border-2 transition-all duration-150 ${
-              ready
+            className={`font-sans font-bold text-sm text-white rounded-sketch px-6 py-2 border-2 transition-all duration-150 ${ready
                 ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
                 : "bg-tan border-sketch cursor-not-allowed opacity-50"
-            }`}
+              }`}
           >
             Next →
           </button>
@@ -205,49 +208,47 @@ function StepRenderer() {
 // ── Inner wizard ──────────────────────────────────────────────────────────────
 
 function WizardInner() {
-  const { state }   = useWizard();
-  const router      = useRouter();
-  const [classes, setClasses]         = useState<any[]>([]);
-  const [submitting, setSubmitting]   = useState(false);
-  const [error, setError]             = useState<string | null>(null);
+  const { state } = useWizard();
+  const router = useRouter();
+  const campaignId = state.campaignId;
+  const [classes, setClasses] = useState<any[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/classes").then((r) => r.json()).then(setClasses).catch(console.error);
   }, []);
 
   const selectedClass = classes.find((c) => c.id === state.classId);
-  const classIndex    = selectedClass?.index ?? "";
+  const classIndex = selectedClass?.index ?? "";
 
   async function handleSubmit() {
     setSubmitting(true);
     setError(null);
     try {
       const res = await fetch("/api/characters", {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name:             state.name,
-          gender:           state.gender,
-          pronouns:         state.pronouns,
-          raceId:           state.raceId,
-          subraceId:        state.subraceId,
-          classId:          state.classId,
-          backgroundId:     state.backgroundId,
-          campaignId:       state.campaignId,
-          abilityScores:    state.abilityScores,
-          selectedSkills:   state.selectedSkills,
+          name: state.name,
+          gender: state.gender,
+          pronouns: state.pronouns,
+          raceId: state.raceId,
+          subraceId: state.subraceId,
+          classId: state.classId,
+          backgroundId: state.backgroundId,
+          campaignId: state.campaignId,
+          abilityScores: state.abilityScores,
+          selectedSkills: state.selectedSkills,
           selectedCantrips: state.selectedCantrips,
-          selectedSpells:   state.selectedSpells,
-          personality:      state.personality,
+          selectedSpells: state.selectedSpells,
+          personality: state.personality,
         }),
       });
 
       if (!res.ok) {
-        const contentType = res.headers.get("content-type") ?? "";
-        const data = contentType.includes("json")
-          ? await res.json()
-          : {};
-        throw new Error((data as { error?: string }).error ?? "Failed to create character");
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to create character");
       }
 
       const character = await res.json();
@@ -260,7 +261,7 @@ function WizardInner() {
 
   return (
     <div className="min-h-screen bg-parchment bg-paper-texture flex flex-col font-sans antialiased">
-      <ProgressBar classIndex={classIndex} />
+      <ProgressBar classIndex={classIndex} campaignId={campaignId} />
 
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 py-8">
@@ -283,10 +284,9 @@ function WizardInner() {
 export default function CreateCharacterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ campaignId?: string }>;
+  searchParams: { campaignId?: string };
 }) {
-  const params = use(searchParams);
-  const campaignId = params.campaignId ?? "";
+  const campaignId = searchParams.campaignId ?? "";
 
   if (!campaignId) {
     return (
