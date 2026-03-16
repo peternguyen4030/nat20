@@ -500,7 +500,6 @@ export default function CharacterSheetPage() {
                   currentUrl={character.avatarUrl}
                   endpoint="characterAvatar"
                   size={80}
-                  label="Change portrait"
                   onUploadComplete={(url) => {
                     setCharacter((prev) => prev ? { ...prev, avatarUrl: url } : prev);
                     save({ avatarUrl: url });
