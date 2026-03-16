@@ -58,11 +58,11 @@ function LongRestTooltip() {
 
 function HpWidget({ character, onUpdate }: {
   character: Character;
-  onUpdate:  (updates: Partial<Character>) => void;
+  onUpdate: (updates: Partial<Character>) => void;
 }) {
   const [input, setInput] = useState("");
   const { currentHp, maxHp, temporaryHp } = character;
-  const pct   = Math.min(100, Math.round((currentHp / maxHp) * 100));
+  const pct = Math.min(100, Math.round((currentHp / maxHp) * 100));
   const color = pct > 60 ? "bg-sage" : pct > 30 ? "bg-gold" : "bg-blush";
 
   function apply(delta: number) {
@@ -132,7 +132,7 @@ function HpWidget({ character, onUpdate }: {
 
       {/* Death saves */}
       {currentHp === 0 && (
-        <div className="border-t border-sketch pt-3 space-y-2">
+        <div className="border-t border-sketch p-3 space-y-2">
           <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">Death Saves</p>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -156,13 +156,13 @@ function HpWidget({ character, onUpdate }: {
       )}
 
       {/* Rest buttons */}
-      <div className="border-t border-sketch pt-3 flex gap-2">
+      <div className="border-t border-sketch p-3 flex gap-2">
         <Tooltip content={<ShortRestTooltip />} side="top">
           <button
             onClick={() => {
               const hitDie = character.classes?.[0]?.class.hitDie ?? 8;
               const conMod = modNum(character.abilityScores?.constitution ?? 10);
-              const roll   = Math.ceil(Math.random() * hitDie) + conMod;
+              const roll = Math.ceil(Math.random() * hitDie) + conMod;
               const healed = Math.max(1, roll);
               onUpdate({ currentHp: Math.min(maxHp, currentHp + healed) });
             }}
@@ -174,13 +174,13 @@ function HpWidget({ character, onUpdate }: {
         <Tooltip content={<LongRestTooltip />} side="top">
           <button
             onClick={() => {
-              const hitDie  = character.classes?.[0]?.class.hitDie ?? 8;
+              const hitDie = character.classes?.[0]?.class.hitDie ?? 8;
               const newSlots = character.spellSlots
                 ? Object.fromEntries(Object.entries(character.spellSlots).map(([k, v]) => [k, { ...v, used: 0 }]))
                 : null;
               onUpdate({
-                currentHp:  maxHp,
-                hitDice:    { total: character.level, used: 0 },
+                currentHp: maxHp,
+                hitDice: { total: character.level, used: 0 },
                 spellSlots: newSlots ?? character.spellSlots,
               });
             }}
@@ -202,15 +202,15 @@ type DrawerType =
   | "skills" | "savingThrows" | "proficiencies" | null;
 
 export default function CharacterSheetPage() {
-  const params      = useParams();
+  const params = useParams();
   const characterId = params.characterId as string;
-  const router      = useRouter();
+  const router = useRouter();
 
   const [character, setCharacter] = useState<Character | null>(null);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
-  const [saving, setSaving]       = useState(false);
-  const [drawer, setDrawer]       = useState<DrawerType>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [drawer, setDrawer] = useState<DrawerType>(null);
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
   const [showDelete, setShowDelete] = useState(false);
 
@@ -431,11 +431,11 @@ export default function CharacterSheetPage() {
     </div>
   );
 
-  const scores         = character?.abilityScores;
-  const primaryClass   = character?.classes?.[0];
-  const classIndex     = primaryClass?.class.name.toLowerCase() ?? "";
-  const profBonus      = character?.proficiencyBonus ?? 2;
-  const isSpellcaster  = (character?.spells?.length ?? 0) > 0;
+  const scores = character?.abilityScores;
+  const primaryClass = character?.classes?.[0];
+  const classIndex = primaryClass?.class.name.toLowerCase() ?? "";
+  const profBonus = character?.proficiencyBonus ?? 2;
+  const isSpellcaster = (character?.spells?.length ?? 0) > 0;
 
   const proficientSkills = new Set(
     character?.proficiencies
@@ -544,10 +544,10 @@ export default function CharacterSheetPage() {
               {/* Header stat pills */}
               <div className="flex items-center gap-3 flex-wrap">
                 {[
-                  { label: "AC",      value: character.armorClass,      accent: false },
-                  { label: "Speed",   value: `${character.speed}ft`,    accent: false },
-                  { label: "Init",    value: character.initiative >= 0 ? `+${character.initiative}` : character.initiative, accent: false },
-                  { label: "Prof",    value: `+${character.proficiencyBonus}`, accent: false },
+                  { label: "AC", value: character.armorClass, accent: false },
+                  { label: "Speed", value: `${character.speed}ft`, accent: false },
+                  { label: "Init", value: character.initiative >= 0 ? `+${character.initiative}` : character.initiative, accent: false },
+                  { label: "Prof", value: `+${character.proficiencyBonus}`, accent: false },
                   { label: "Hit Die", value: `d${primaryClass?.class.hitDie ?? 8}`, accent: false },
                 ].map((stat) => (
                   <div key={stat.label} className="text-center bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 shadow-sketch min-w-[52px]">
@@ -585,8 +585,8 @@ export default function CharacterSheetPage() {
                 <div className="grid grid-cols-2 gap-2">
                   {ABILITY_KEYS.map(({ key, label, abbr }) => {
                     const score = scores?.[key as keyof typeof scores] ?? 10;
-                    const m     = mod(score);
-                    const mn    = modNum(score);
+                    const m = mod(score);
+                    const mn = modNum(score);
                     return (
                       <div key={key} className="bg-parchment border border-sketch rounded-sketch p-2 text-center group relative overflow-hidden">
                         <div className={`absolute top-0 left-0 w-1 h-full ${mn >= 0 ? "bg-sage/30" : "bg-blush/30"}`} />
@@ -605,9 +605,9 @@ export default function CharacterSheetPage() {
               {loading ? <Skeleton className="h-32" /> : (
                 <div className="space-y-1.5">
                   {ABILITY_KEYS.map(({ key, abbr }) => {
-                    const score        = scores?.[key as keyof typeof scores] ?? 10;
+                    const score = scores?.[key as keyof typeof scores] ?? 10;
                     const isProficient = SAVING_THROW_ABILITY[classIndex] === key;
-                    const bonus        = modNum(score) + (isProficient ? profBonus : 0) + (character?.savingThrowBonuses?.[key] ?? 0);
+                    const bonus = modNum(score) + (isProficient ? profBonus : 0) + (character?.savingThrowBonuses?.[key] ?? 0);
                     return (
                       <div key={key} className="flex items-center gap-2 py-0.5">
                         <div className={`w-3 h-3 rounded-full border-2 shrink-0 ${isProficient ? "bg-blush border-blush" : "bg-parchment border-sketch"}`} />
@@ -628,19 +628,18 @@ export default function CharacterSheetPage() {
               {loading ? <Skeleton className="h-64" /> : (
                 <div className="space-y-0.5">
                   {SKILLS_MAP.map((skill) => {
-                    const score      = scores?.[skill.ability as keyof typeof scores] ?? 10;
+                    const score = scores?.[skill.ability as keyof typeof scores] ?? 10;
                     const proficient = proficientSkills.has(skill.key);
-                    const expertise  = expertiseSkills.has(skill.key);
-                    const bonus      = modNum(score) + (expertise ? profBonus * 2 : proficient ? profBonus : 0) + ((character?.skillBonuses?.[skill.key] ?? 0));
+                    const expertise = expertiseSkills.has(skill.key);
+                    const bonus = modNum(score) + (expertise ? profBonus * 2 : proficient ? profBonus : 0) + ((character?.skillBonuses?.[skill.key] ?? 0));
                     return (
                       <div key={skill.key} className="flex items-center gap-1.5 py-0.5 group">
-                        <div className={`w-2.5 h-2.5 rounded-full border-2 shrink-0 transition-all ${
-                          expertise  ? "bg-blush border-blush" :
+                        <div className={`w-2.5 h-2.5 rounded-full border-2 shrink-0 transition-all ${expertise ? "bg-blush border-blush" :
                           proficient ? "bg-blush/50 border-blush/60" :
-                          "bg-parchment border-sketch"
-                        }`} />
+                            "bg-parchment border-sketch"
+                          }`} />
                         <span className="font-sans text-xs text-ink-soft flex-1 leading-tight">{skill.label}</span>
-                        <span className="font-mono text-[0.6rem] text-ink-faded/60">{skill.ability.slice(0,3).toUpperCase()}</span>
+                        <span className="font-mono text-[0.6rem] text-ink-faded/60">{skill.ability.slice(0, 3).toUpperCase()}</span>
                         <span className={`font-mono text-xs font-bold w-7 text-right ${bonus >= 0 ? "text-sage" : "text-blush"}`}>
                           {bonus >= 0 ? `+${bonus}` : bonus}
                         </span>
@@ -798,11 +797,10 @@ export default function CharacterSheetPage() {
                         className="w-full px-3 py-2.5 flex items-center justify-between gap-2 bg-parchment hover:bg-paper transition-colors duration-150"
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className={`font-sans text-[0.55rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
-                            f.feature.type === "CLASS" ? "text-blush border-blush/30 bg-blush/10" :
-                            f.feature.type === "RACE"  ? "text-sage border-sage/30 bg-sage/10" :
-                            "text-ink-faded border-sketch bg-parchment"
-                          }`}>{f.feature.type}</span>
+                          <span className={`font-sans text-[0.55rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${f.feature.type === "CLASS" ? "text-blush border-blush/30 bg-blush/10" :
+                            f.feature.type === "RACE" ? "text-sage border-sage/30 bg-sage/10" :
+                              "text-ink-faded border-sketch bg-parchment"
+                            }`}>{f.feature.type}</span>
                           <span className="font-sans text-sm font-semibold text-ink truncate">{f.feature.name}</span>
                           {f.feature.combatUsable && (
                             <span className="font-sans text-[0.5rem] font-bold uppercase text-blush border border-blush/20 bg-blush/5 rounded px-1 py-0.5 shrink-0">
@@ -893,11 +891,10 @@ export default function CharacterSheetPage() {
                   {/* Proficiencies */}
                   <div className="flex flex-wrap gap-1.5">
                     {character?.proficiencies?.map((p) => (
-                      <span key={p.proficiency.name} className={`font-sans text-xs px-2 py-0.5 rounded-badge border capitalize ${
-                        p.expertise
-                          ? "text-blush border-blush/30 bg-blush/10 font-semibold"
-                          : "text-ink-soft border-sketch bg-parchment"
-                      }`}>
+                      <span key={p.proficiency.name} className={`font-sans text-xs px-2 py-0.5 rounded-badge border capitalize ${p.expertise
+                        ? "text-blush border-blush/30 bg-blush/10 font-semibold"
+                        : "text-ink-soft border-sketch bg-parchment"
+                        }`}>
                         {p.expertise ? "★ " : ""}{p.proficiency.name}
                       </span>
                     ))}
@@ -916,10 +913,10 @@ export default function CharacterSheetPage() {
               ) : (
                 <div className="space-y-3">
                   {[
-                    { key: "personalityTrait", label: "Trait",  icon: "🎭" },
-                    { key: "ideal",            label: "Ideal",  icon: "⭐" },
-                    { key: "bond",             label: "Bond",   icon: "🔗" },
-                    { key: "flaw",             label: "Flaw",   icon: "⚡" },
+                    { key: "personalityTrait", label: "Trait", icon: "🎭" },
+                    { key: "ideal", label: "Ideal", icon: "⭐" },
+                    { key: "bond", label: "Bond", icon: "🔗" },
+                    { key: "flaw", label: "Flaw", icon: "⚡" },
                   ].map(({ key, label, icon }) => {
                     const value = character?.[key as keyof Character] as string | null;
                     return (

@@ -281,12 +281,13 @@ function WizardInner() {
 
 // ── Page export ───────────────────────────────────────────────────────────────
 
-export default function CreateCharacterPage({
+export default async function CreateCharacterPage({
   searchParams,
 }: {
-  searchParams: { campaignId?: string };
+  searchParams: Promise<{ campaignId?: string }>;
 }) {
-  const campaignId = searchParams.campaignId ?? "";
+  const { campaignId: rawCampaignId } = await searchParams;
+  const campaignId = rawCampaignId ?? "";
 
   if (!campaignId) {
     return (

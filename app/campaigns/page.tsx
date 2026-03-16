@@ -58,10 +58,10 @@ interface CampaignDetail {
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
-  const days  = Math.floor(diff / 86400000);
+  const days = Math.floor(diff / 86400000);
   if (days === 0) return "Today";
   if (days === 1) return "Yesterday";
-  if (days < 30)  return `${days} days ago`;
+  if (days < 30) return `${days} days ago`;
   return new Date(dateStr).toLocaleDateString();
 }
 
@@ -92,20 +92,20 @@ function Avatar({ src, size = 36, className = "" }: {
 // ── Edit Campaign Modal (DM only) ─────────────────────────────────────────────
 
 const EMOJI_OPTIONS = [
-  "⚔️","🐉","🏰","🗡️","🛡️","🧙","🧝","🧛","🗺️","🌋",
-  "🏔️","🌊","🔮","📜","💀","🪄","🎲","⚗️","🌙","🔥",
+  "⚔️", "🐉", "🏰", "🗡️", "🛡️", "🧙", "🧝", "🧛", "🗺️", "🌋",
+  "🏔️", "🌊", "🔮", "📜", "💀", "🪄", "🎲", "⚗️", "🌙", "🔥",
 ];
 
 function EditCampaignModal({ campaign, onClose, onSaved }: {
   campaign: CampaignDetail;
-  onClose:  () => void;
-  onSaved:  (updated: Partial<CampaignDetail>) => void;
+  onClose: () => void;
+  onSaved: (updated: Partial<CampaignDetail>) => void;
 }) {
-  const [name,        setName]        = useState(campaign.name);
-  const [emoji,       setEmoji]       = useState(campaign.emoji ?? "⚔️");
+  const [name, setName] = useState(campaign.name);
+  const [emoji, setEmoji] = useState(campaign.emoji ?? "⚔️");
   const [description, setDescription] = useState(campaign.description ?? "");
-  const [saving,      setSaving]      = useState(false);
-  const [error,       setError]       = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
     if (!name.trim()) return setError("Name is required");
@@ -176,15 +176,14 @@ function CharacterCard({ character, currentUserId, isDM }: {
   character: Character; currentUserId: string; isDM: boolean;
 }) {
   const primaryClass = character.classes?.[0];
-  const hpPercent    = Math.round((character.currentHp / character.maxHp) * 100);
-  const hpColor      = hpPercent > 60 ? "bg-sage" : hpPercent > 30 ? "bg-gold" : "bg-blush";
-  const isMyChar     = character.user.id === currentUserId;
+  const hpPercent = Math.round((character.currentHp / character.maxHp) * 100);
+  const hpColor = hpPercent > 60 ? "bg-sage" : hpPercent > 30 ? "bg-[#D4A853]" : "bg-blush";
+  const isMyChar = character.user.id === currentUserId;
 
   return (
     <Link href={`/characters/${character.id}`}>
-      <div className={`group bg-warm-white border-2 rounded-sketch shadow-sketch p-4 hover:-translate-x-px hover:-translate-y-px transition-all duration-150 cursor-pointer ${
-        isMyChar ? "border-blush/30 bg-blush/5" : "border-sketch hover:border-blush/40"
-      }`}>
+      <div className={`group bg-warm-white border-2 rounded-sketch shadow-sketch p-4 hover:-translate-x-px hover:-translate-y-px transition-all duration-150 cursor-pointer ${isMyChar ? "border-blush/30 bg-blush/5" : "border-sketch hover:border-blush/40"
+        }`}>
         <div className="flex items-start gap-3">
           <div className="relative shrink-0">
             <Avatar src={character.avatarUrl} size={44}
@@ -309,8 +308,8 @@ function DMView({ campaign, currentUserId, onEdit, onRefresh }: {
           <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-3">Campaign Stats</p>
           {[
             { label: "Characters", value: campaign.characters.length },
-            { label: "Members",    value: campaign.members.length },
-            { label: "Sessions",   value: campaign.sessions.length },
+            { label: "Members", value: campaign.members.length },
+            { label: "Sessions", value: campaign.sessions.length },
           ].map((stat) => (
             <div key={stat.label} className="flex items-center justify-between py-1.5 border-b border-sketch/50 last:border-0">
               <span className="font-sans text-xs text-ink-faded">{stat.label}</span>
@@ -329,15 +328,14 @@ function DMView({ campaign, currentUserId, onEdit, onRefresh }: {
                 <div className="flex-1 min-w-0">
                   <p className="font-sans text-xs text-ink truncate">{member.user.displayName ?? member.user.name ?? "Player"}</p>
                 </div>
-                <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
-                  member.role === "DM" ? "bg-blush/10 text-blush border-blush/30" : "bg-dusty-blue/10 text-dusty-blue border-dusty-blue/30"
-                }`}>{member.role}</span>
+                <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${member.role === "DM" ? "bg-blush/10 text-blush border-blush/30" : "bg-dusty-blue/10 text-dusty-blue border-dusty-blue/30"
+                  }`}>{member.role}</span>
                 {/* DM management controls — don't show for self */}
                 {member.user.id !== currentUserId && (
                   <div className="flex gap-1 shrink-0">
                     {member.role === "PLAYER" && (
                       <button onClick={() => promoteMember(member.user.id)} title="Promote to DM"
-                        className="w-6 h-6 rounded border border-sketch text-ink-faded hover:text-gold hover:border-gold/40 transition-all flex items-center justify-center text-xs">
+                        className="w-6 h-6 rounded border border-sketch text-ink-faded hover:text-[#D4A853] hover:border-[#D4A853]/40 transition-all flex items-center justify-center text-xs">
                         ↑
                       </button>
                     )}
@@ -370,7 +368,7 @@ function DMView({ campaign, currentUserId, onEdit, onRefresh }: {
 function PlayerView({ campaign, currentUserId }: {
   campaign: CampaignDetail; currentUserId: string;
 }) {
-  const myCharacters    = campaign.characters.filter((c) => c.user.id === currentUserId);
+  const myCharacters = campaign.characters.filter((c) => c.user.id === currentUserId);
   const partyCharacters = campaign.characters.filter((c) => c.user.id !== currentUserId);
 
   return (
@@ -445,9 +443,8 @@ function PlayerView({ campaign, currentUserId }: {
                     {member.user.id === currentUserId && <span className="text-ink-faded ml-1">(you)</span>}
                   </p>
                 </div>
-                <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
-                  member.role === "DM" ? "bg-blush/10 text-blush border-blush/30" : "bg-dusty-blue/10 text-dusty-blue border-dusty-blue/30"
-                }`}>{member.role}</span>
+                <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${member.role === "DM" ? "bg-blush/10 text-blush border-blush/30" : "bg-dusty-blue/10 text-dusty-blue border-dusty-blue/30"
+                  }`}>{member.role}</span>
               </div>
             ))}
           </div>
@@ -476,26 +473,27 @@ function PlayerView({ campaign, currentUserId }: {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function CampaignPage() {
-  const params     = useParams();
-  const router     = useRouter();
+  const params = useParams();
+  const router = useRouter();
   const campaignId = params.campaignId as string;
 
-  const [campaign,     setCampaign]     = useState<CampaignDetail | null>(null);
-  const [currentUser,  setCurrentUser]  = useState<any>(null);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState<string | null>(null);
-  const [showEdit,     setShowEdit]     = useState(false);
+  const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showEdit, setShowEdit] = useState(false);
 
   async function loadData() {
-    const [sessionRes, campaignRes] = await Promise.all([
+    const [sessionRes, campaignRes, profileRes] = await Promise.all([
       authClient.getSession(),
       fetch(`/api/campaigns/${campaignId}`).then((r) => {
         if (!r.ok) throw new Error("Campaign not found");
         return r.json();
       }),
+      fetch("/api/profile").then((r) => r.ok ? r.json() : {}),
     ]);
     if (!sessionRes?.data?.user) { router.push("/login"); return; }
-    setCurrentUser(sessionRes.data.user);
+    setCurrentUser({ ...sessionRes.data.user, ...profileRes });
     setCampaign(campaignRes);
   }
 
@@ -516,7 +514,7 @@ export default function CampaignPage() {
 
   // Determine role from CampaignMember.role
   const myMembership = campaign?.members.find((m) => m.user.id === currentUser?.id);
-  const isDM         = myMembership?.role === "DM";
+  const isDM = myMembership?.role === "DM";
 
   return (
     <div className="min-h-screen bg-parchment bg-paper-texture font-sans antialiased">
