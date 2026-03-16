@@ -52,7 +52,7 @@ function StandardArrayPanel() {
   };
   const assignments = state.standardAssignments ?? defaultAssignments();
 
-  const usedValues      = Object.values(assignments).filter(Boolean) as number[];
+  const usedValues = Object.values(assignments).filter(Boolean) as number[];
   const availableValues = STANDARD_ARRAY.filter((v) => !usedValues.includes(v));
 
   function assignValue(abilityKey: string, value: number | null) {
@@ -70,12 +70,12 @@ function StandardArrayPanel() {
     const allAssigned = Object.values(newAssignments).every((v) => v !== null);
     if (allAssigned) {
       const scores: AbilityScores = {
-        strength:     newAssignments["strength"]!,
-        dexterity:    newAssignments["dexterity"]!,
+        strength: newAssignments["strength"]!,
+        dexterity: newAssignments["dexterity"]!,
         constitution: newAssignments["constitution"]!,
         intelligence: newAssignments["intelligence"]!,
-        wisdom:       newAssignments["wisdom"]!,
-        charisma:     newAssignments["charisma"]!,
+        wisdom: newAssignments["wisdom"]!,
+        charisma: newAssignments["charisma"]!,
       };
       dispatch({ type: "SET_ABILITY_SCORES", payload: scores });
     }
@@ -99,11 +99,10 @@ function StandardArrayPanel() {
                 draggable
                 onDragStart={() => setDragging(val)}
                 onDragEnd={() => setDragging(null)}
-                className={`w-12 h-12 rounded-sketch border-2 flex items-center justify-center font-mono font-bold text-lg transition-all duration-150 cursor-grab active:cursor-grabbing select-none ${
-                  isUsed
+                className={`w-12 h-12 rounded-sketch border-2 flex items-center justify-center font-mono font-bold text-lg transition-all duration-150 cursor-grab active:cursor-grabbing select-none ${isUsed
                     ? "bg-parchment border-sketch text-ink-faded opacity-40"
                     : "bg-blush/10 border-blush text-blush shadow-sketch-accent"
-                }`}
+                  }`}
               >
                 {val}
               </div>
@@ -121,9 +120,8 @@ function StandardArrayPanel() {
               key={ability.key}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => { if (dragging) assignValue(ability.key, dragging); }}
-              className={`bg-warm-white border-2 rounded-sketch p-4 flex items-center gap-4 transition-all duration-150 ${
-                dragging ? "border-blush/50 bg-blush/5" : "border-sketch"
-              }`}
+              className={`bg-warm-white border-2 rounded-sketch p-4 flex items-center gap-4 transition-all duration-150 ${dragging ? "border-blush/50 bg-blush/5" : "border-sketch"
+                }`}
             >
               {/* Score dropdown */}
               <select
@@ -185,8 +183,8 @@ function PointBuyPanel() {
   const remaining = POINT_BUY_BUDGET - spent;
 
   function adjust(key: keyof AbilityScores, delta: number) {
-    const current  = scores[key];
-    const next     = current + delta;
+    const current = scores[key];
+    const next = current + delta;
     if (next < 8 || next > 15) return;
     const nextCost = POINT_BUY_COSTS[next] ?? 0;
     const currCost = POINT_BUY_COSTS[current] ?? 0;
@@ -220,8 +218,8 @@ function PointBuyPanel() {
       {/* Score controls */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {ABILITY_NAMES.map((ability) => {
-          const score   = scores[ability.key as keyof AbilityScores];
-          const canUp   = score < 15 && remaining >= (POINT_BUY_COSTS[score + 1] ?? 0) - (POINT_BUY_COSTS[score] ?? 0);
+          const score = scores[ability.key as keyof AbilityScores];
+          const canUp = score < 15 && remaining >= (POINT_BUY_COSTS[score + 1] ?? 0) - (POINT_BUY_COSTS[score] ?? 0);
           const canDown = score > 8;
 
           return (
@@ -273,11 +271,11 @@ function PointBuyPanel() {
 // ── Roll for Stats ────────────────────────────────────────────────────────────
 function RollPanel() {
   const { state, dispatch } = useWizard();
-  const [rolling, setRolling]   = useState(false);
+  const [rolling, setRolling] = useState(false);
   const [dragging, setDragging] = useState<number | null>(null);
 
   // Rolls and assignments live in context so they survive backtracking
-  const rolls  = state.rolledDice ?? [];
+  const rolls = state.rolledDice ?? [];
   const rolled = rolls.length > 0;
 
   const defaultAssignments = () => {
@@ -306,10 +304,12 @@ function RollPanel() {
     const emptyAssignments: Record<string, number | null> = {};
     ABILITY_NAMES.forEach((a) => { emptyAssignments[a.key] = null; });
     dispatch({ type: "SET_ROLL_ASSIGNMENTS", payload: { assignments: emptyAssignments } });
-    dispatch({ type: "SET_ABILITY_SCORES", payload: {
-      strength: 8, dexterity: 8, constitution: 8,
-      intelligence: 8, wisdom: 8, charisma: 8,
-    }});
+    dispatch({
+      type: "SET_ABILITY_SCORES", payload: {
+        strength: 8, dexterity: 8, constitution: 8,
+        intelligence: 8, wisdom: 8, charisma: 8,
+      }
+    });
   }
 
   function assignRoll(abilityKey: string, rollIndex: number | null) {
@@ -326,19 +326,19 @@ function RollPanel() {
     const allAssigned = Object.values(newAssignments).every((v) => v !== null);
     if (allAssigned) {
       const scores: AbilityScores = {
-        strength:     statTotal(rolls[newAssignments["strength"]!]),
-        dexterity:    statTotal(rolls[newAssignments["dexterity"]!]),
+        strength: statTotal(rolls[newAssignments["strength"]!]),
+        dexterity: statTotal(rolls[newAssignments["dexterity"]!]),
         constitution: statTotal(rolls[newAssignments["constitution"]!]),
         intelligence: statTotal(rolls[newAssignments["intelligence"]!]),
-        wisdom:       statTotal(rolls[newAssignments["wisdom"]!]),
-        charisma:     statTotal(rolls[newAssignments["charisma"]!]),
+        wisdom: statTotal(rolls[newAssignments["wisdom"]!]),
+        charisma: statTotal(rolls[newAssignments["charisma"]!]),
       };
       dispatch({ type: "SET_ABILITY_SCORES", payload: scores });
     }
   }
 
   const usedRollIndices = Object.values(assignments).filter((v) => v !== null) as number[];
-  const allAssigned     = rolled && Object.values(assignments).every((v) => v !== null);
+  const allAssigned = rolled && Object.values(assignments).every((v) => v !== null);
 
   return (
     <div className="space-y-6">
@@ -375,7 +375,7 @@ function RollPanel() {
             </p>
             <div className="flex flex-wrap gap-2">
               {rolls.map((dice, i) => {
-                const total  = statTotal(dice);
+                const total = statTotal(dice);
                 const isUsed = usedRollIndices.includes(i);
                 return (
                   <div
@@ -383,11 +383,10 @@ function RollPanel() {
                     draggable={!isUsed}
                     onDragStart={() => !isUsed && setDragging(i)}
                     onDragEnd={() => setDragging(null)}
-                    className={`relative rounded-sketch border-2 px-3 py-2 text-center transition-all duration-150 select-none ${
-                      isUsed
+                    className={`relative rounded-sketch border-2 px-3 py-2 text-center transition-all duration-150 select-none ${isUsed
                         ? "bg-parchment border-sketch opacity-40 cursor-not-allowed"
                         : "bg-blush/10 border-blush shadow-sketch-accent cursor-grab active:cursor-grabbing hover:-translate-y-px"
-                    }`}
+                      }`}
                   >
                     <p className="font-mono font-bold text-xl text-ink leading-none">{total}</p>
                     {/* Individual dice shown below total */}
@@ -395,11 +394,10 @@ function RollPanel() {
                       {dice.map((d, di) => (
                         <span
                           key={di}
-                          className={`font-mono text-[0.55rem] ${
-                            di === 3
+                          className={`font-mono text-[0.55rem] ${di === 3
                               ? "text-blush line-through opacity-60"
                               : "text-ink-faded"
-                          }`}
+                            }`}
                         >
                           {d}
                         </span>
@@ -416,7 +414,7 @@ function RollPanel() {
             {ABILITY_NAMES.map((ability) => {
               const assignedIndex = assignments[ability.key];
               const assignedScore = assignedIndex !== null ? statTotal(rolls[assignedIndex]) : null;
-              const isDragTarget  = dragging !== null;
+              const isDragTarget = dragging !== null;
 
               return (
                 <div
@@ -428,13 +426,12 @@ function RollPanel() {
                       setDragging(null);
                     }
                   }}
-                  className={`bg-warm-white border-2 rounded-sketch p-4 flex items-center gap-3 transition-all duration-150 ${
-                    isDragTarget
+                  className={`bg-warm-white border-2 rounded-sketch p-4 flex items-center gap-3 transition-all duration-150 ${isDragTarget
                       ? "border-blush/50 bg-blush/5"
                       : assignedIndex !== null
-                      ? "border-sage/50"
-                      : "border-sketch"
-                  }`}
+                        ? "border-sage/50"
+                        : "border-sketch"
+                    }`}
                 >
                   {/* Score display / dropdown */}
                   <div className="relative">
@@ -519,11 +516,10 @@ export function AbilityScoreStep() {
                 key={m.id}
                 type="button"
                 onClick={() => dispatch({ type: "SET_ABILITY_METHOD", payload: { method: m.id } })}
-                className={`p-4 rounded-sketch border-2 text-left transition-all duration-150 ${
-                  method === m.id
+                className={`p-4 rounded-sketch border-2 text-left transition-all duration-150 ${method === m.id
                     ? "bg-blush/10 border-blush shadow-sketch-accent"
                     : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
-                }`}
+                  }`}
               >
                 <div className="text-2xl mb-2">{m.emoji}</div>
                 <p className={`font-display text-base leading-tight ${method === m.id ? "text-blush" : "text-ink"}`}>
@@ -538,8 +534,8 @@ export function AbilityScoreStep() {
 
           {/* Active method panel */}
           {method === "standard_array" && <StandardArrayPanel />}
-          {method === "point_buy"      && <PointBuyPanel />}
-          {method === "roll"           && <RollPanel />}
+          {method === "point_buy" && <PointBuyPanel />}
+          {method === "roll" && <RollPanel />}
         </div>
 
         {/* ── Right: help panel ── */}
@@ -573,7 +569,7 @@ export function AbilityScoreStep() {
                 ))}
               </div>
 
-              <div className="border-t border-sketch pt-3 space-y-1.5 text-xs">
+              <div className="border-t border-sketch p-3 space-y-1.5 text-xs">
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Not sure?</strong> Use Standard Array — it's balanced and fast</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Want control?</strong> Point Buy lets you plan your stats precisely</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Feeling lucky?</strong> Rolling is exciting but results vary wildly</p>

@@ -17,17 +17,17 @@ function formatBonuses(bonuses: { ability: string; bonus: number }[] | null) {
 
 export function RaceStep() {
   const { state, dispatch } = useWizard();
-  const [races, setRaces]           = useState<Race[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
-  const [hovered, setHovered]       = useState<Race | null>(null);
+  const [races, setRaces] = useState<Race[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<Race | null>(null);
   const [hoveredSubrace, setHoveredSubrace] = useState<Subrace | null>(null);
-  const [showSubrace, setShowSubrace]       = useState(false);
+  const [showSubrace, setShowSubrace] = useState(false);
 
-  const selectedRace    = races.find((r) => r.id === state.raceId) ?? null;
+  const selectedRace = races.find((r) => r.id === state.raceId) ?? null;
   const selectedSubrace = selectedRace?.subraces.find((s) => s.id === state.subraceId) ?? null;
-  const displaySubrace  = hoveredSubrace ?? (showSubrace ? selectedSubrace : null);
-  const displayRace  = hovered ?? selectedRace;
+  const displaySubrace = hoveredSubrace ?? (showSubrace ? selectedSubrace : null);
+  const displayRace = hovered ?? selectedRace;
 
   useEffect(() => {
     fetch("/api/races")
@@ -42,7 +42,7 @@ export function RaceStep() {
   }
 
   if (loading) return <LoadingGrid count={9} />;
-  if (error)   return <ErrorState message={error} />;
+  if (error) return <ErrorState message={error} />;
 
   return (
     <div className="space-y-6">
@@ -59,8 +59,8 @@ export function RaceStep() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {races.map((race) => {
               const isSelected = state.raceId === race.id;
-              const emoji      = RACE_EMOJI[race.index] ?? "🧬";
-              const bonuses    = formatBonuses(race.abilityBonuses as any);
+              const emoji = RACE_EMOJI[race.index] ?? "🧬";
+              const bonuses = formatBonuses(race.abilityBonuses as any);
               return (
                 <button
                   key={race.id}
@@ -68,11 +68,10 @@ export function RaceStep() {
                   onClick={() => selectRace(race)}
                   onMouseEnter={() => setHovered(race)}
                   onMouseLeave={() => setHovered(null)}
-                  className={`relative p-4 rounded-sketch border-2 text-left transition-all duration-150 ${
-                    isSelected
+                  className={`relative p-4 rounded-sketch border-2 text-left transition-all duration-150 ${isSelected
                       ? "bg-blush/10 border-blush shadow-sketch-accent"
                       : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
-                  }`}
+                    }`}
                 >
                   <div className="text-2xl mb-2">{emoji}</div>
                   <p className={`font-display text-lg leading-tight ${isSelected ? "text-blush" : "text-ink"}`}>{race.name}</p>
@@ -101,7 +100,7 @@ export function RaceStep() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {selectedRace.subraces.map((subrace) => {
                   const isSelected = state.subraceId === subrace.id;
-                  const bonuses    = formatBonuses(subrace.abilityBonuses as any);
+                  const bonuses = formatBonuses(subrace.abilityBonuses as any);
                   return (
                     <button
                       key={subrace.id}
@@ -109,11 +108,10 @@ export function RaceStep() {
                       onClick={() => dispatch({ type: "SET_SUBRACE", payload: { subraceId: subrace.id } })}
                       onMouseEnter={() => setHoveredSubrace(subrace)}
                       onMouseLeave={() => setHoveredSubrace(null)}
-                      className={`p-3 rounded-input border-2 text-left transition-all duration-150 ${
-                        isSelected
+                      className={`p-3 rounded-input border-2 text-left transition-all duration-150 ${isSelected
                           ? "bg-dusty-blue/10 border-dusty-blue"
                           : "bg-parchment border-sketch hover:border-dusty-blue/50 hover:bg-paper"
-                      }`}
+                        }`}
                     >
                       <p className={`font-display text-base ${isSelected ? "text-dusty-blue" : "text-ink"}`}>{subrace.name}</p>
                       {bonuses && <p className="font-sans text-xs text-ink-faded mt-0.5">{bonuses}</p>}
@@ -150,7 +148,7 @@ export function RaceStep() {
                   <p className="font-sans text-sm text-ink-soft leading-relaxed">{displaySubrace.description}</p>
                 )}
                 {(displaySubrace.abilityBonuses as any[])?.length > 0 && (
-                  <div className="border-t border-sketch pt-3">
+                  <div className="border-t border-sketch p-3">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Additional Bonuses</p>
                     <div className="flex flex-wrap gap-1.5">
                       {(displaySubrace.abilityBonuses as { ability: string; bonus: number }[]).map((b) => (
@@ -174,7 +172,7 @@ export function RaceStep() {
                 </div>
                 {displayRace.description && <p className="font-sans text-sm text-ink-soft leading-relaxed">{displayRace.description}</p>}
                 {(displayRace.abilityBonuses as any[])?.length > 0 && (
-                  <div className="border-t border-sketch pt-3">
+                  <div className="border-t border-sketch p-3">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Ability Bonuses</p>
                     <div className="flex flex-wrap gap-1.5">
                       {(displayRace.abilityBonuses as { ability: string; bonus: number }[]).map((b) => (
@@ -186,7 +184,7 @@ export function RaceStep() {
                   </div>
                 )}
                 {displayRace.traitNames.length > 0 && (
-                  <div className="border-t border-sketch pt-3">
+                  <div className="border-t border-sketch p-3">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Racial Traits</p>
                     <ul className="space-y-1">
                       {displayRace.traitNames.map((trait) => (
@@ -213,12 +211,12 @@ export function RaceStep() {
                 </div>
                 <div className="space-y-3 font-sans text-sm text-ink-soft leading-relaxed">
                   <p>Your race is your character's ancestry — the people they were born into. Each race has unique traits, ability bonuses, and a place in the world.</p>
-                  <div className="border-t border-sketch pt-3 space-y-2 text-xs">
+                  <div className="border-t border-sketch p-3 space-y-2 text-xs">
                     <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span><strong className="text-ink">Ability bonuses</strong> add to your base stats</span></p>
                     <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span><strong className="text-ink">Traits</strong> give passive abilities like Darkvision</span></p>
                     <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span><strong className="text-ink">Subraces</strong> let you specialise within a broader ancestry</span></p>
                   </div>
-                  <p className="text-xs text-ink-faded italic border-t border-sketch pt-3">Hover over a race card to learn more before committing.</p>
+                  <p className="text-xs text-ink-faded italic border-t border-sketch p-3">Hover over a race card to learn more before committing.</p>
                 </div>
               </div>
             )}

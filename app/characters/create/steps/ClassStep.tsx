@@ -11,38 +11,38 @@ const CLASS_EMOJI: Record<string, string> = {
 };
 
 const CLASS_ROLE: Record<string, string> = {
-  barbarian: "Melee Damage",     bard: "Support & Versatile",
-  cleric:    "Healer & Support", druid: "Nature & Utility",
-  fighter:   "Melee & Ranged",   monk: "Melee & Mobility",
-  paladin:   "Melee & Healer",   ranger: "Ranged & Explorer",
-  rogue:     "Stealth & Damage", sorcerer: "Arcane Damage",
-  warlock:   "Eldritch Damage",  wizard: "Arcane Versatile",
+  barbarian: "Melee Damage", bard: "Support & Versatile",
+  cleric: "Healer & Support", druid: "Nature & Utility",
+  fighter: "Melee & Ranged", monk: "Melee & Mobility",
+  paladin: "Melee & Healer", ranger: "Ranged & Explorer",
+  rogue: "Stealth & Damage", sorcerer: "Arcane Damage",
+  warlock: "Eldritch Damage", wizard: "Arcane Versatile",
 };
 
 const CLASS_DIFFICULTY: Record<string, { label: string; color: string }> = {
-  barbarian: { label: "Beginner",     color: "text-sage" },
-  bard:      { label: "Intermediate", color: "text-gold" },
-  cleric:    { label: "Beginner",     color: "text-sage" },
-  druid:     { label: "Intermediate", color: "text-gold" },
-  fighter:   { label: "Beginner",     color: "text-sage" },
-  monk:      { label: "Intermediate", color: "text-gold" },
-  paladin:   { label: "Beginner",     color: "text-sage" },
-  ranger:    { label: "Intermediate", color: "text-gold" },
-  rogue:     { label: "Beginner",     color: "text-sage" },
-  sorcerer:  { label: "Intermediate", color: "text-gold" },
-  warlock:   { label: "Intermediate", color: "text-gold" },
-  wizard:    { label: "Advanced",     color: "text-blush" },
+  barbarian: { label: "Beginner", color: "text-sage" },
+  bard: { label: "Intermediate", color: "text-gold" },
+  cleric: { label: "Beginner", color: "text-sage" },
+  druid: { label: "Intermediate", color: "text-gold" },
+  fighter: { label: "Beginner", color: "text-sage" },
+  monk: { label: "Intermediate", color: "text-gold" },
+  paladin: { label: "Beginner", color: "text-sage" },
+  ranger: { label: "Intermediate", color: "text-gold" },
+  rogue: { label: "Beginner", color: "text-sage" },
+  sorcerer: { label: "Intermediate", color: "text-gold" },
+  warlock: { label: "Intermediate", color: "text-gold" },
+  wizard: { label: "Advanced", color: "text-blush" },
 };
 
 export function ClassStep() {
   const { state, dispatch } = useWizard();
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [hovered, setHovered] = useState<Class | null>(null);
 
   const selectedClass = classes.find((c) => c.id === state.classId) ?? null;
-  const displayClass  = hovered ?? selectedClass;
+  const displayClass = hovered ?? selectedClass;
 
   useEffect(() => {
     fetch("/api/classes")
@@ -52,7 +52,7 @@ export function ClassStep() {
   }, []);
 
   if (loading) return <LoadingGrid count={12} />;
-  if (error)   return <ErrorState message={error} />;
+  if (error) return <ErrorState message={error} />;
 
   return (
     <div className="space-y-6">
@@ -68,7 +68,7 @@ export function ClassStep() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {classes.map((cls) => {
               const isSelected = state.classId === cls.id;
-              const emoji      = CLASS_EMOJI[cls.index] ?? "⚔️";
+              const emoji = CLASS_EMOJI[cls.index] ?? "⚔️";
               const difficulty = CLASS_DIFFICULTY[cls.index];
               return (
                 <button
@@ -77,11 +77,10 @@ export function ClassStep() {
                   onClick={() => dispatch({ type: "SET_CLASS", payload: { classId: cls.id } })}
                   onMouseEnter={() => setHovered(cls)}
                   onMouseLeave={() => setHovered(null)}
-                  className={`relative p-4 rounded-sketch border-2 text-left transition-all duration-150 ${
-                    isSelected
-                      ? "bg-blush/10 border-blush shadow-sketch-accent"
-                      : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
-                  }`}
+                  className={`relative p-4 rounded-sketch border-2 text-left transition-all duration-150 ${isSelected
+                    ? "bg-blush/10 border-blush shadow-sketch-accent"
+                    : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
+                    }`}
                 >
                   <div className="text-2xl mb-2">{emoji}</div>
                   <p className={`font-display text-lg leading-tight ${isSelected ? "text-blush" : "text-ink"}`}>{cls.name}</p>
@@ -149,13 +148,13 @@ export function ClassStep() {
                 </div>
                 <div className="space-y-3 font-sans text-sm text-ink-soft leading-relaxed">
                   <p>Your class shapes everything about how you play — what weapons you use, whether you cast spells, and what role you fill in the party.</p>
-                  <div className="border-t border-sketch pt-3 space-y-2 text-xs">
+                  <div className="border-t border-sketch p-3 space-y-2 text-xs">
                     <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span><strong className="text-ink">Hit Die</strong> determines your HP each level</span></p>
                     <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-sage shrink-0 mt-0.5">✦</span><span><strong className="text-sage">Beginner</strong> classes are simpler to learn</span></p>
                     <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-gold shrink-0 mt-0.5">✦</span><span><strong className="text-gold">Intermediate</strong> classes have more complexity</span></p>
                     <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span><strong className="text-blush">Advanced</strong> classes reward careful planning</span></p>
                   </div>
-                  <p className="text-xs text-ink-faded italic border-t border-sketch pt-3">Hover a class to see its level 1 features.</p>
+                  <p className="text-xs text-ink-faded italic border-t border-sketch p-3">Hover a class to see its level 1 features.</p>
                 </div>
               </div>
             )}

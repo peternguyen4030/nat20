@@ -31,8 +31,8 @@ function modifier(score: number): string {
 export function SkillsStep() {
   const { state, dispatch } = useWizard();
   const [hoveredSkill, setHoveredSkill] = useState<SkillDefinition | null>(null);
-  const [classes, setClasses]           = useState<Class[]>([]);
-  const [loading, setLoading]           = useState(true);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/classes")
@@ -42,12 +42,12 @@ export function SkillsStep() {
   }, []);
 
   const selectedClass = classes.find((c) => c.id === state.classId);
-  const classIndex    = selectedClass?.index ?? "";
-  const options       = CLASS_SKILL_OPTIONS[classIndex];
+  const classIndex = selectedClass?.index ?? "";
+  const options = CLASS_SKILL_OPTIONS[classIndex];
   const availableKeys = options?.skills ?? [];
-  const pickCount     = options?.count ?? 2;
-  const selected      = state.selectedSkills;
-  const remaining     = pickCount - selected.length;
+  const pickCount = options?.count ?? 2;
+  const selected = state.selectedSkills;
+  const remaining = pickCount - selected.length;
 
   // Background grants fixed skills — show them as locked
   const bgSkills: string[] = []; // populated post-MVP from background data
@@ -103,11 +103,10 @@ export function SkillsStep() {
               {Array.from({ length: pickCount }).map((_, i) => (
                 <div
                   key={i}
-                  className={`w-7 h-7 rounded-input border-2 flex items-center justify-center text-sm transition-all duration-150 ${
-                    i < selected.length
+                  className={`w-7 h-7 rounded-input border-2 flex items-center justify-center text-sm transition-all duration-150 ${i < selected.length
                       ? "bg-blush border-blush text-white"
                       : "bg-parchment border-sketch text-ink-faded"
-                  }`}
+                    }`}
                 >
                   {i < selected.length ? "✓" : "○"}
                 </div>
@@ -133,9 +132,9 @@ export function SkillsStep() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {SKILLS.map((skill) => {
               const isAvailable = availableKeys.includes(skill.key);
-              const isSelected  = selected.includes(skill.key);
-              const isLocked    = bgSkills.includes(skill.key);
-              const isDisabled  = !isAvailable && !isSelected && !isLocked;
+              const isSelected = selected.includes(skill.key);
+              const isLocked = bgSkills.includes(skill.key);
+              const isDisabled = !isAvailable && !isSelected && !isLocked;
 
               return (
                 <button
@@ -145,29 +144,27 @@ export function SkillsStep() {
                   onMouseEnter={() => setHoveredSkill(skill)}
                   onMouseLeave={() => setHoveredSkill(null)}
                   onClick={() => toggleSkill(skill.key)}
-                  className={`p-3 rounded-sketch border-2 text-left transition-all duration-150 relative ${
-                    isLocked
+                  className={`p-3 rounded-sketch border-2 text-left transition-all duration-150 relative ${isLocked
                       ? "bg-sage/10 border-sage/40 cursor-default"
                       : isSelected
-                      ? "bg-blush/10 border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
-                      : isDisabled
-                      ? "bg-parchment border-sketch/40 opacity-35 cursor-not-allowed"
-                      : remaining <= 0
-                      ? "bg-warm-white border-sketch opacity-40 cursor-not-allowed"
-                      : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px cursor-pointer"
-                  }`}
+                        ? "bg-blush/10 border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
+                        : isDisabled
+                          ? "bg-parchment border-sketch/40 opacity-35 cursor-not-allowed"
+                          : remaining <= 0
+                            ? "bg-warm-white border-sketch opacity-40 cursor-not-allowed"
+                            : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px cursor-pointer"
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-1">
-                    <p className={`font-sans text-sm font-semibold leading-tight ${
-                      isSelected ? "text-blush" : isLocked ? "text-sage" : isDisabled ? "text-ink-faded" : "text-ink"
-                    }`}>
+                    <p className={`font-sans text-sm font-semibold leading-tight ${isSelected ? "text-blush" : isLocked ? "text-sage" : isDisabled ? "text-ink-faded" : "text-ink"
+                      }`}>
                       {skill.name}
                     </p>
                     <div className="flex items-center gap-1 shrink-0">
                       {(() => {
                         const scoreKey = ABILITY_SCORE_KEY[skill.ability] as keyof typeof state.abilityScores;
-                        const score    = state.abilityScores[scoreKey];
-                        const mod      = modifier(score);
+                        const score = state.abilityScores[scoreKey];
+                        const mod = modifier(score);
                         return (
                           <span className={`font-mono text-[0.6rem] font-bold ${mod.startsWith("+") ? "text-sage" : "text-blush"}`}>
                             {mod}
@@ -208,12 +205,12 @@ export function SkillsStep() {
                 <p className="font-sans text-sm text-ink-soft leading-relaxed">
                   {displaySkill.description}
                 </p>
-                <div className="border-t border-sketch pt-3">
+                <div className="border-t border-sketch p-3">
                   {(() => {
                     const scoreKey = ABILITY_SCORE_KEY[displaySkill.ability] as keyof typeof state.abilityScores;
-                    const score    = state.abilityScores[scoreKey];
-                    const mod      = modifier(score);
-                    const total    = (parseInt(mod) + 2).toString();
+                    const score = state.abilityScores[scoreKey];
+                    const mod = modifier(score);
+                    const total = (parseInt(mod) + 2).toString();
                     return (
                       <p className="font-sans text-xs text-ink-faded">
                         Your <strong className="text-ink">{displaySkill.ability}</strong> modifier is{" "}
@@ -237,7 +234,7 @@ export function SkillsStep() {
                   roll a d20 and add your relevant ability modifier, plus your
                   proficiency bonus if you're proficient.
                 </p>
-                <div className="border-t border-sketch pt-3 space-y-1.5 text-xs font-sans text-ink-soft">
+                <div className="border-t border-sketch p-3 space-y-1.5 text-xs font-sans text-ink-soft">
                   <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span>Greyed out skills aren't available to your class</p>
                   <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-sage mr-1">✦</span>Green skills are granted by your background</p>
                   <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span>Hover a skill to read what it does</p>

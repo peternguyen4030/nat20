@@ -6,30 +6,30 @@ import { Background, PersonalityTraits, BACKGROUND_PERSONALITY } from "@/types/c
 
 const FIELDS: { key: keyof PersonalityTraits; label: string; icon: string; placeholder: string; description: string }[] = [
   {
-    key:         "trait",
-    label:       "Personality Trait",
-    icon:        "🎭",
+    key: "trait",
+    label: "Personality Trait",
+    icon: "🎭",
     placeholder: "How does your character behave day to day?",
     description: "A general description of how your character acts, thinks, or speaks. Think about their quirks, habits, and mannerisms.",
   },
   {
-    key:         "ideal",
-    label:       "Ideal",
-    icon:        "⭐",
+    key: "ideal",
+    label: "Ideal",
+    icon: "⭐",
     placeholder: "What does your character believe in above all else?",
     description: "The principle that drives your character — justice, freedom, greed, honour. This is their moral compass.",
   },
   {
-    key:         "bond",
-    label:       "Bond",
-    icon:        "🔗",
+    key: "bond",
+    label: "Bond",
+    icon: "🔗",
     placeholder: "What person, place, or thing matters most to your character?",
     description: "Something that ties your character to the world — a person they love, a place they protect, a goal they pursue.",
   },
   {
-    key:         "flaw",
-    label:       "Flaw",
-    icon:        "⚡",
+    key: "flaw",
+    label: "Flaw",
+    icon: "⚡",
     placeholder: "What weakness or vice does your character struggle with?",
     description: "Every hero has a weakness. A flaw makes your character human — a fear, a vice, a blind spot, or a dark secret.",
   },
@@ -40,10 +40,10 @@ export function PersonalityStep() {
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
   const [activeField, setActiveField] = useState<keyof PersonalityTraits>("trait");
 
-  const selectedBg      = backgrounds.find((b) => b.id === state.backgroundId);
-  const bgIndex         = selectedBg?.index ?? "";
-  const suggestions     = BACKGROUND_PERSONALITY[bgIndex] ?? {};
-  const personality     = state.personality;
+  const selectedBg = backgrounds.find((b) => b.id === state.backgroundId);
+  const bgIndex = selectedBg?.index ?? "";
+  const suggestions = BACKGROUND_PERSONALITY[bgIndex] ?? {};
+  const personality = state.personality;
 
   // Pre-populate from background suggestions on background selection
   useEffect(() => {
@@ -96,16 +96,15 @@ export function PersonalityStep() {
         <div className="lg:col-span-2 space-y-4">
           {FIELDS.map((field) => {
             const hasSuggestion = !!suggestions[field.key];
-            const isActive      = activeField === field.key;
-            const value         = personality[field.key];
-            const isFilled      = !!value.trim();
+            const isActive = activeField === field.key;
+            const value = personality[field.key];
+            const isFilled = !!value.trim();
 
             return (
               <div
                 key={field.key}
-                className={`bg-warm-white border-2 rounded-sketch shadow-sketch p-5 transition-all duration-150 ${
-                  isActive ? "border-blush" : "border-sketch"
-                }`}
+                className={`bg-warm-white border-2 rounded-sketch shadow-sketch p-5 transition-all duration-150 ${isActive ? "border-blush" : "border-sketch"
+                  }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <label className="flex items-center gap-2 font-sans text-[0.7rem] font-bold uppercase tracking-widest text-ink-faded">
@@ -158,7 +157,7 @@ export function PersonalityStep() {
             </p>
 
             {suggestions[activeField] && (
-              <div className="border-t border-sketch pt-4 space-y-2">
+              <div className="border-t border-sketch p-4 space-y-2">
                 <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">
                   {selectedBg?.name ?? "Background"} Suggestion
                 </p>
@@ -177,7 +176,7 @@ export function PersonalityStep() {
               </div>
             )}
 
-            <div className="border-t border-sketch pt-4 space-y-1.5 text-xs font-sans text-ink-soft">
+            <div className="border-t border-sketch p-4 space-y-1.5 text-xs font-sans text-ink-soft">
               <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span>These are optional but make roleplay richer</span></p>
               <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span>Your background provides curated suggestions</span></p>
               <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span>You can edit these freely from your character sheet</span></p>

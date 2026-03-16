@@ -12,14 +12,14 @@ const BACKGROUND_EMOJI: Record<string, string> = {
 };
 
 export function BackgroundStep() {
-  const { state, dispatch }       = useWizard();
+  const { state, dispatch } = useWizard();
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState<string | null>(null);
-  const [hovered, setHovered]         = useState<Background | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<Background | null>(null);
 
   const selectedBg = backgrounds.find((b) => b.id === state.backgroundId) ?? null;
-  const displayBg  = hovered ?? selectedBg;
+  const displayBg = hovered ?? selectedBg;
 
   useEffect(() => {
     fetch("/api/backgrounds")
@@ -29,7 +29,7 @@ export function BackgroundStep() {
   }, []);
 
   if (loading) return <LoadingGrid count={12} />;
-  if (error)   return <ErrorState message={error} />;
+  if (error) return <ErrorState message={error} />;
 
   return (
     <div className="space-y-6">
@@ -45,7 +45,7 @@ export function BackgroundStep() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {backgrounds.map((bg) => {
               const isSelected = state.backgroundId === bg.id;
-              const emoji      = BACKGROUND_EMOJI[bg.index] ?? "📜";
+              const emoji = BACKGROUND_EMOJI[bg.index] ?? "📜";
               return (
                 <button
                   key={bg.id}
@@ -53,11 +53,10 @@ export function BackgroundStep() {
                   onClick={() => dispatch({ type: "SET_BACKGROUND", payload: { backgroundId: bg.id } })}
                   onMouseEnter={() => setHovered(bg)}
                   onMouseLeave={() => setHovered(null)}
-                  className={`relative p-4 rounded-sketch border-2 text-left transition-all duration-150 ${
-                    isSelected
-                      ? "bg-blush/10 border-blush shadow-sketch-accent"
-                      : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
-                  }`}
+                  className={`relative p-4 rounded-sketch border-2 text-left transition-all duration-150 ${isSelected
+                    ? "bg-blush/10 border-blush shadow-sketch-accent"
+                    : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
+                    }`}
                 >
                   <div className="text-2xl mb-2">{emoji}</div>
                   <p className={`font-display text-lg leading-tight ${isSelected ? "text-blush" : "text-ink"}`}>{bg.name}</p>
@@ -90,7 +89,7 @@ export function BackgroundStep() {
                   <p className="font-sans text-sm text-ink-soft leading-relaxed">{displayBg.description}</p>
                 )}
                 {displayBg.skillProficiencies.length > 0 && (
-                  <div className="border-t border-sketch pt-3">
+                  <div className="border-t border-sketch p-3">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Skill Proficiencies</p>
                     <div className="flex flex-wrap gap-1.5">
                       {displayBg.skillProficiencies.map((skill) => (
@@ -102,7 +101,7 @@ export function BackgroundStep() {
                   </div>
                 )}
                 {displayBg.feature && (
-                  <div className="border-t border-sketch pt-3">
+                  <div className="border-t border-sketch p-3">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Background Feature</p>
                     <div className="bg-parchment border border-sketch rounded-input px-3 py-2.5">
                       <p className="font-sans text-sm font-semibold text-ink">{displayBg.feature}</p>
@@ -110,7 +109,7 @@ export function BackgroundStep() {
                   </div>
                 )}
                 {displayBg.languages > 0 && (
-                  <div className="border-t border-sketch pt-3">
+                  <div className="border-t border-sketch p-3">
                     <p className="font-sans text-xs text-ink-soft">
                       🗣️ Grants <strong className="text-ink">{displayBg.languages}</strong> bonus language{displayBg.languages > 1 ? "s" : ""}
                     </p>
@@ -125,12 +124,12 @@ export function BackgroundStep() {
                 </div>
                 <div className="space-y-3 font-sans text-sm text-ink-soft leading-relaxed">
                   <p>Every adventurer has a past. Your background reflects your character's life before they took up adventuring.</p>
-                  <div className="border-t border-sketch pt-3 space-y-2 text-xs">
+                  <div className="border-t border-sketch p-3 space-y-2 text-xs">
                     <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span><strong className="text-ink">Skill Proficiencies</strong> are automatically granted — you'll see them on the skills step</span></p>
                     <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span><strong className="text-ink">Background Feature</strong> gives a unique social or narrative ability</span></p>
                     <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span><strong className="text-ink">Languages</strong> let you speak additional tongues</span></p>
                   </div>
-                  <p className="text-xs text-ink-faded italic border-t border-sketch pt-3">Hover a background to see what it grants.</p>
+                  <p className="text-xs text-ink-faded italic border-t border-sketch p-3">Hover a background to see what it grants.</p>
                 </div>
               </div>
             )}

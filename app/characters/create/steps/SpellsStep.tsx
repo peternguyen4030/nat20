@@ -10,25 +10,25 @@ import {
 } from "@/lib/starter-spells";
 
 const SCHOOL_COLOR: Record<string, string> = {
-  evocation:    "text-blush border-blush/30 bg-blush/10",
-  abjuration:   "text-dusty-blue border-dusty-blue/30 bg-dusty-blue/10",
-  conjuration:  "text-sage border-sage/30 bg-sage/10",
-  divination:   "text-gold border-gold/30 bg-gold/10",
-  enchantment:  "text-blush border-blush/30 bg-blush/10",
-  illusion:     "text-dusty-blue border-dusty-blue/30 bg-dusty-blue/10",
-  necromancy:   "text-ink-soft border-ink-faded/30 bg-ink-faded/10",
-  transmutation:"text-sage border-sage/30 bg-sage/10",
+  evocation: "text-blush border-blush/30 bg-blush/10",
+  abjuration: "text-dusty-blue border-dusty-blue/30 bg-dusty-blue/10",
+  conjuration: "text-sage border-sage/30 bg-sage/10",
+  divination: "text-gold border-gold/30 bg-gold/10",
+  enchantment: "text-blush border-blush/30 bg-blush/10",
+  illusion: "text-dusty-blue border-dusty-blue/30 bg-dusty-blue/10",
+  necromancy: "text-ink-soft border-ink-faded/30 bg-ink-faded/10",
+  transmutation: "text-sage border-sage/30 bg-sage/10",
 };
 
 
 const CATEGORY_CONFIG: Record<SpellCategory, { label: string; emoji: string; color: string }> = {
   DAMAGING: { label: "Damaging", emoji: "🔥", color: "text-blush border-blush/40 bg-blush/10" },
-  HEALING:  { label: "Healing",  emoji: "💚", color: "text-sage border-sage/40 bg-sage/10" },
-  CONTROL:  { label: "Control",  emoji: "🕸️", color: "text-dusty-blue border-dusty-blue/40 bg-dusty-blue/10" },
-  BUFF:     { label: "Buff",     emoji: "⬆️", color: "text-gold border-gold/40 bg-gold/10" },
-  DEBUFF:   { label: "Debuff",   emoji: "⬇️", color: "text-ink-soft border-sketch bg-parchment" },
-  DEFENSE:  { label: "Defense",  emoji: "🛡️", color: "text-dusty-blue border-dusty-blue/40 bg-dusty-blue/10" },
-  UTILITY:  { label: "Utility",  emoji: "🔧", color: "text-ink-faded border-sketch bg-parchment" },
+  HEALING: { label: "Healing", emoji: "💚", color: "text-sage border-sage/40 bg-sage/10" },
+  CONTROL: { label: "Control", emoji: "🕸️", color: "text-dusty-blue border-dusty-blue/40 bg-dusty-blue/10" },
+  BUFF: { label: "Buff", emoji: "⬆️", color: "text-gold border-gold/40 bg-gold/10" },
+  DEBUFF: { label: "Debuff", emoji: "⬇️", color: "text-ink-soft border-sketch bg-parchment" },
+  DEFENSE: { label: "Defense", emoji: "🛡️", color: "text-dusty-blue border-dusty-blue/40 bg-dusty-blue/10" },
+  UTILITY: { label: "Utility", emoji: "🔧", color: "text-ink-faded border-sketch bg-parchment" },
 };
 
 function SpellCard({
@@ -49,11 +49,10 @@ function SpellCard({
 
   return (
     <div
-      className={`rounded-sketch border-2 transition-all duration-150 ${
-        isSelected
+      className={`rounded-sketch border-2 transition-all duration-150 ${isSelected
           ? "bg-blush/10 border-blush shadow-sketch-accent"
           : "bg-warm-white border-sketch shadow-sketch"
-      }`}
+        }`}
     >
       <div className="p-3">
         <div className="flex items-start gap-2">
@@ -62,13 +61,12 @@ function SpellCard({
             type="button"
             onClick={onToggle}
             disabled={disabled && !isSelected}
-            className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all duration-150 ${
-              isSelected
+            className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all duration-150 ${isSelected
                 ? "bg-blush border-blush text-white"
                 : disabled
-                ? "bg-parchment border-sketch opacity-40 cursor-not-allowed"
-                : "bg-parchment border-sketch hover:border-blush cursor-pointer"
-            }`}
+                  ? "bg-parchment border-sketch opacity-40 cursor-not-allowed"
+                  : "bg-parchment border-sketch hover:border-blush cursor-pointer"
+              }`}
           >
             {isSelected && <span className="text-xs leading-none">✓</span>}
           </button>
@@ -85,9 +83,8 @@ function SpellCard({
               </p>
               <div className="flex items-center gap-1 shrink-0">
                 {spell.category && (
-                  <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
-                    CATEGORY_CONFIG[spell.category as SpellCategory]?.color ?? "text-ink-faded border-sketch bg-parchment"
-                  }`}>
+                  <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${CATEGORY_CONFIG[spell.category as SpellCategory]?.color ?? "text-ink-faded border-sketch bg-parchment"
+                    }`}>
                     {CATEGORY_CONFIG[spell.category as SpellCategory]?.emoji}{" "}
                     {CATEGORY_CONFIG[spell.category as SpellCategory]?.label ?? spell.category}
                   </span>
@@ -114,7 +111,7 @@ function SpellCard({
 
         {/* Expanded description */}
         {expanded && (
-          <p className="font-sans text-xs text-ink-soft leading-relaxed mt-2 pt-2 border-t border-sketch">
+          <p className="font-sans text-xs text-ink-soft leading-relaxed mt-2 p-2 border-t border-sketch">
             {spell.description}
           </p>
         )}
@@ -125,18 +122,18 @@ function SpellCard({
 
 export function SpellsStep() {
   const { state, dispatch } = useWizard();
-  const [allSpells, setAllSpells]   = useState<Spell[]>([]);
-  const [classes, setClasses]       = useState<Class[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [activeTab, setActiveTab]         = useState<"cantrips" | "spells">("cantrips");
-  const [search, setSearch]               = useState("");
+  const [allSpells, setAllSpells] = useState<Spell[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"cantrips" | "spells">("cantrips");
+  const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<SpellCategory | "ALL">("ALL");
 
   const selectedClass = classes.find((c) => c.id === state.classId);
-  const classIndex    = selectedClass?.index ?? "";
-  const spellcaster   = isSpellcaster(classIndex);
-  const defaults      = getStarterSpells(classIndex);
-  const counts        = SPELL_COUNTS[classIndex] ?? { cantrips: 0, spells: 0 };
+  const classIndex = selectedClass?.index ?? "";
+  const spellcaster = isSpellcaster(classIndex);
+  const defaults = getStarterSpells(classIndex);
+  const counts = SPELL_COUNTS[classIndex] ?? { cantrips: 0, spells: 0 };
 
   // Init default selections on mount / class change
   useEffect(() => {
@@ -190,19 +187,19 @@ export function SpellsStep() {
     );
   }
 
-  const cantrips   = allSpells.filter((s) => s.level === 0);
-  const spells     = allSpells.filter((s) => s.level === 1);
+  const cantrips = allSpells.filter((s) => s.level === 0);
+  const spells = allSpells.filter((s) => s.level === 1);
   const activeList = activeTab === "cantrips" ? cantrips : spells;
-  const filtered   = activeList.filter((s) => {
-    const matchesSearch   = s.name.toLowerCase().includes(search.toLowerCase()) || s.school.toLowerCase().includes(search.toLowerCase());
+  const filtered = activeList.filter((s) => {
+    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.school.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = activeCategory === "ALL" || s.category === activeCategory;
     return matchesSearch && matchesCategory;
   });
 
   const selectedCantrips = state.selectedCantrips;
-  const selectedSpells   = state.selectedSpells;
-  const cantripLimit     = counts.cantrips;
-  const spellLimit       = counts.spells;
+  const selectedSpells = state.selectedSpells;
+  const cantripLimit = counts.cantrips;
+  const spellLimit = counts.spells;
 
   function toggleCantrip(index: string) {
     if (selectedCantrips.includes(index)) {
@@ -221,7 +218,7 @@ export function SpellsStep() {
   }
 
   const cantripsFull = selectedCantrips.length >= cantripLimit;
-  const spellsFull   = selectedSpells.length >= spellLimit;
+  const spellsFull = selectedSpells.length >= spellLimit;
 
   return (
     <div className="space-y-6">
@@ -249,18 +246,16 @@ export function SpellsStep() {
                     key={tab}
                     type="button"
                     onClick={() => setActiveTab(tab)}
-                    className={`flex-1 py-3 font-sans font-semibold text-sm flex items-center justify-center gap-2 transition-colors duration-150 ${
-                      activeTab === tab
+                    className={`flex-1 py-3 font-sans font-semibold text-sm flex items-center justify-center gap-2 transition-colors duration-150 ${activeTab === tab
                         ? "bg-parchment text-blush border-b-2 border-blush"
                         : "text-ink-faded hover:text-ink"
-                    }`}
+                      }`}
                   >
                     {tab === "cantrips" ? "✨ Cantrips" : "📖 Level 1 Spells"}
-                    <span className={`font-mono text-xs px-1.5 py-0.5 rounded border ${
-                      count >= limit
+                    <span className={`font-mono text-xs px-1.5 py-0.5 rounded border ${count >= limit
                         ? "bg-sage/10 text-sage border-sage/30"
                         : "bg-parchment text-ink-faded border-sketch"
-                    }`}>
+                      }`}>
                       {count}/{limit}
                     </span>
                   </button>
@@ -284,27 +279,25 @@ export function SpellsStep() {
               <button
                 type="button"
                 onClick={() => setActiveCategory("ALL")}
-                className={`font-sans text-xs font-semibold px-2.5 py-1 rounded-input border transition-all duration-150 ${
-                  activeCategory === "ALL"
+                className={`font-sans text-xs font-semibold px-2.5 py-1 rounded-input border transition-all duration-150 ${activeCategory === "ALL"
                     ? "bg-ink text-warm-white border-ink"
                     : "bg-parchment text-ink-faded border-sketch hover:border-ink-faded"
-                }`}
+                  }`}
               >
                 All
               </button>
               {(Object.keys(CATEGORY_CONFIG) as SpellCategory[]).map((cat) => {
-                const cfg       = CATEGORY_CONFIG[cat];
-                const isActive  = activeCategory === cat;
+                const cfg = CATEGORY_CONFIG[cat];
+                const isActive = activeCategory === cat;
                 return (
                   <button
                     key={cat}
                     type="button"
                     onClick={() => setActiveCategory(isActive ? "ALL" : cat)}
-                    className={`font-sans text-xs font-semibold px-2.5 py-1 rounded-input border transition-all duration-150 ${
-                      isActive
+                    className={`font-sans text-xs font-semibold px-2.5 py-1 rounded-input border transition-all duration-150 ${isActive
                         ? cfg.color + " font-bold"
                         : "bg-parchment text-ink-faded border-sketch hover:border-ink-faded"
-                    }`}
+                      }`}
                   >
                     {cfg.emoji} {cfg.label}
                   </button>
@@ -330,10 +323,10 @@ export function SpellsStep() {
               </div>
             ) : (
               filtered.map((spell) => {
-                const isCantrip    = activeTab === "cantrips";
-                const isSelected   = isCantrip ? selectedCantrips.includes(spell.index) : selectedSpells.includes(spell.index);
-                const isDefault    = isCantrip ? defaults.cantrips.includes(spell.index) : defaults.spells.includes(spell.index);
-                const isFull       = isCantrip ? cantripsFull : spellsFull;
+                const isCantrip = activeTab === "cantrips";
+                const isSelected = isCantrip ? selectedCantrips.includes(spell.index) : selectedSpells.includes(spell.index);
+                const isDefault = isCantrip ? defaults.cantrips.includes(spell.index) : defaults.spells.includes(spell.index);
+                const isFull = isCantrip ? cantripsFull : spellsFull;
                 return (
                   <SpellCard
                     key={spell.id}
@@ -369,7 +362,7 @@ export function SpellsStep() {
                 </div>
               </div>
 
-              <div className="border-t border-sketch pt-3 space-y-1.5 text-xs">
+              <div className="border-t border-sketch p-3 space-y-1.5 text-xs">
                 <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-sage shrink-0 mt-0.5">✦</span><span><strong className="text-ink">Suggested</strong> spells are our starter recommendations</span></p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span>Deselect any spell to swap it for another</span></p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span>Expand a spell card to read its full description</span></p>
