@@ -22,24 +22,27 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   user: {
-    additionalFields: {
-      displayName: {
-        type: "string",
-        required: false,
-        input: true,
-      },
-      avatarUrl: {
-        type: "string",
-        required: false,
-        input: true,
-      },
-      bio: {
-        type: "string",
-        required: false,
-        input: true,
-      },
+  additionalFields: {
+    displayName: {
+      type: "string",
+      required: false,
+      input: true,
+      returned: true,
+    },
+    avatarUrl: {
+      type: "string",
+      required: false,
+      input: true,
+      returned: true,
+    },
+    bio: {
+      type: "string",
+      required: false,
+      input: true,
+      returned: true,
     },
   },
+},
   emailAndPassword: {
     enabled: true,
   },
