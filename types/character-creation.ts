@@ -216,7 +216,7 @@ export interface WizardState {
 export type WizardAction =
   | { type: "SET_BASICS";         payload: { name: string; gender: string; pronouns: string } }
   | { type: "SET_RACE";           payload: { raceId: string; subraceId?: string } }
-  | { type: "SET_SUBRACE";        payload: { subraceId: string } }
+  | { type: "SET_SUBRACE";        payload: { subraceId: string | null } }
   | { type: "SET_CLASS";          payload: { classId: string } }
   | { type: "SET_BACKGROUND";     payload: { backgroundId: string } }
   | { type: "SET_SKILLS";         payload: { skills: string[] } }
