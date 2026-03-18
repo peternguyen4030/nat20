@@ -90,7 +90,7 @@ export const SKILLS: SkillDefinition[] = [
   { key: "insight",          name: "Insight",           ability: "WIS", description: "Read people — determine their true intentions and detect lies." },
   { key: "intimidation",     name: "Intimidation",      ability: "CHA", description: "Influence others through threats, hostile actions, or shows of force." },
   { key: "investigation",    name: "Investigation",     ability: "INT", description: "Deduce information by searching, examining clues, and making logical inferences." },
-  { key: "medicine",         name: "Medicine",          ability: "WIS", description: "Stabilize the dying, diagnose illnesses, and provide first aid." },
+  { key: "medicine",         name: "Medicine",          ability: "WIS", description: "Stabilise the dying, diagnose illnesses, and provide first aid." },
   { key: "nature",           name: "Nature",            ability: "INT", description: "Recall lore about terrain, plants, animals, weather, and natural cycles." },
   { key: "perception",       name: "Perception",        ability: "WIS", description: "Notice things using your senses — spot hidden enemies, hear distant sounds." },
   { key: "performance",      name: "Performance",       ability: "CHA", description: "Delight an audience through music, dance, acting, or storytelling." },
@@ -207,7 +207,10 @@ export interface WizardState {
 
   // Meta — level always 1
   campaignId:  string;
-  currentStep: number;
+  currentStep:    number;
+  highestStep:    number;
+  completedSteps: number[];
+  visitedSteps:   number[];
 }
 
 export type WizardAction =
@@ -225,6 +228,8 @@ export type WizardAction =
   | { type: "SET_SPELLS";         payload: { cantrips: string[]; spells: string[] } }
   | { type: "SET_PERSONALITY";    payload: PersonalityTraits }
   | { type: "NEXT_STEP" }
+  | { type: "MARK_STEP_COMPLETE"; payload: { step: number } }
+  | { type: "MARK_STEP_VISITED";  payload: { step: number } }
   | { type: "PREV_STEP" }
   | { type: "GO_TO_STEP";         payload: { step: number } };
 

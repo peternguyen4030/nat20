@@ -28,7 +28,10 @@ function createInitialState(campaignId: string): WizardState {
     selectedSpells: [],
     personality: defaultPersonality,
     campaignId,
-    currentStep: 1,
+    currentStep:    1,
+    highestStep:    1,
+    completedSteps: [],
+    visitedSteps:   [1],
   };
 }
 
@@ -39,7 +42,7 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case "SET_RACE":
       return { ...state, raceId: action.payload.raceId, subraceId: action.payload.subraceId ?? null };
     case "SET_SUBRACE":
-      return { ...state, subraceId: action.payload.subraceId };
+      return { ...state, subraceId: action.payload.subraceId ?? null };
     case "SET_CLASS":
       return { ...state, classId: action.payload.classId, selectedSkills: [] };
     case "SET_BACKGROUND":
@@ -67,12 +70,42 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, selectedCantrips: action.payload.cantrips, selectedSpells: action.payload.spells };
     case "SET_PERSONALITY":
       return { ...state, personality: action.payload };
-    case "NEXT_STEP":
-      return { ...state, currentStep: Math.min(state.currentStep + 1, 8) };
+    case "MARK_STEP_VISITED":
+      return {
+        ...state,
+        visitedSteps: state.visitedSteps.includes(action.payload.step)
+          ? state.visitedSteps
+          : [...state.visitedSteps, action.payload.step],
+      };
+    case "MARK_STEP_COMPLETE":
+      return {
+        ...state,
+        completedSteps: state.completedSteps.includes(action.payload.step)
+          ? state.completedSteps
+          : [...state.completedSteps, action.payload.step],
+      };
+    case "NEXT_STEP": {
+      const next = Math.min(state.currentStep + 1, 8);
+      return {
+        ...state,
+        currentStep: next,
+        highestStep: Math.max(state.highestStep, next),
+        visitedSteps: state.visitedSteps.includes(next)
+          ? state.visitedSteps
+          : [...state.visitedSteps, next],
+      };
+    }
     case "PREV_STEP":
       return { ...state, currentStep: Math.max(state.currentStep - 1, 1) };
     case "GO_TO_STEP":
-      return { ...state, currentStep: action.payload.step };
+      return {
+        ...state,
+        currentStep: action.payload.step,
+        highestStep: Math.max(state.highestStep, action.payload.step),
+        visitedSteps: state.visitedSteps.includes(action.payload.step)
+          ? state.visitedSteps
+          : [...state.visitedSteps, action.payload.step],
+      };
     default:
       return state;
   }

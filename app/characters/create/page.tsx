@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { WizardProvider, useWizard } from "@/context/WizardContext";
 import { WIZARD_STEPS, CLASS_SKILL_OPTIONS } from "@/types/character-creation";
-import { isSpellcaster } from "@/lib/starter-spells";
-import { BasicsStep } from "./steps/BasicsStep";
-import { RaceStep } from "./steps/RaceStep";
-import { ClassStep } from "./steps/ClassStep";
-import { BackgroundStep } from "./steps/BackgroundStep";
-import { SkillsStep } from "./steps/SkillsStep";
-import { AbilityScoreStep } from "./steps/AbilityScoreStep";
-import { SpellsStep } from "./steps/SpellsStep";
-import { PersonalityStep } from "./steps/PersonalityStep";
+import { isSpellcaster }       from "@/lib/starter-spells";
+import { BasicsStep }          from "./steps/BasicsStep";
+import { RaceStep }            from "./steps/RaceStep";
+import { ClassStep }           from "./steps/ClassStep";
+import { BackgroundStep }      from "./steps/BackgroundStep";
+import { SkillsStep }          from "./steps/SkillsStep";
+import { AbilityScoreStep }    from "./steps/AbilityScoreStep";
+import { SpellsStep }          from "./steps/SpellsStep";
+import { PersonalityStep }     from "./steps/PersonalityStep";
 
 // ── Step validator ────────────────────────────────────────────────────────────
 
@@ -25,16 +25,32 @@ function canAdvance(
     case 2: return !!state.raceId;
     case 3: return !!state.classId;
     case 4: return !!state.backgroundId;
-    case 5: return (
-      !!state.abilityScoreMethod &&
-      Object.values(state.abilityScores).every((v) => v >= 8)
-    );
+    case 5: {
+      if (!state.abilityScoreMethod) return false;
+      if (state.abilityScoreMethod === "standard_array") {
+        // All 6 slots must have a value assigned from the standard array
+        return (
+          !!state.standardAssignments &&
+          Object.values(state.standardAssignments).every((v) => v !== null)
+        );
+      }
+      if (state.abilityScoreMethod === "roll") {
+        // Must have rolled and assigned all 6 rolls
+        return (
+          (state.rolledDice?.length ?? 0) === 6 &&
+          !!state.rollAssignments &&
+          Object.values(state.rollAssignments).every((v) => v !== null)
+        );
+      }
+      // Point buy — all scores valid (they start at 8 so always valid once method selected)
+      return Object.values(state.abilityScores).every((v) => v >= 8 && v <= 15);
+    }
     case 6: {
       const options = CLASS_SKILL_OPTIONS[classIndex];
       return state.selectedSkills.length >= (options?.count ?? 2);
     }
-    case 7: return true; // spellcasters need selections; non-spellcasters skip
-    case 8: return true; // personality is optional
+    case 7: return true;
+    case 8: return true;
     default: return false;
   }
 }
@@ -57,42 +73,55 @@ function ProgressBar({ classIndex, campaignId }: { classIndex: string; campaignI
         )}
         <div className="flex items-center">
           {WIZARD_STEPS.map((step, i) => {
-            const isSpellStep = step.id === 7;
-            const skipped = isSpellStep && !isSpellcaster(classIndex) && state.currentStep > 3;
-            const isComplete = state.currentStep > step.id;
-            const isCurrent = state.currentStep === step.id;
-            const isLocked = state.currentStep < step.id;
+            const isSpellStep  = step.id === 7;
+            const skipped      = isSpellStep && !isSpellcaster(classIndex) && state.completedSteps.length > 3;
+            const isComplete   = state.completedSteps.includes(step.id);
+            const isVisited    = state.visitedSteps.includes(step.id);
+            const isCurrent    = state.currentStep === step.id;
+            const canClick     = (isComplete || isVisited) && !skipped && !isCurrent;
 
             return (
-              <div key={step.id} className="flex items-center flex-1">
+              <div key={step.id} className="flex items-start flex-1">
                 <button
-                  onClick={() => isComplete && dispatch({ type: "GO_TO_STEP", payload: { step: step.id } })}
-                  disabled={isLocked}
-                  className={`flex flex-col items-center gap-1 transition-all duration-200 ${isLocked ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
-                    }`}
+                  type="button"
+                  onClick={() => {
+                    if (!canClick || isCurrent) return;
+                    dispatch({ type: "GO_TO_STEP", payload: { step: step.id } });
+                  }}
+                  className={`flex flex-col items-center gap-1 transition-all duration-200 ${
+                    isCurrent
+                      ? "cursor-default"
+                      : canClick
+                      ? "cursor-pointer hover:opacity-80"
+                      : "opacity-40 cursor-not-allowed"
+                  }`}
                 >
-                  <div className={`w-8 h-8 rounded-sketch border-2 flex items-center justify-center text-xs transition-all duration-200 ${skipped
+                  <div className={`w-8 h-8 rounded-sketch border-2 flex items-center justify-center text-xs transition-all duration-200 ${
+                    skipped
                       ? "bg-parchment border-sketch/40 opacity-40"
                       : isComplete
-                        ? "bg-sage border-sage text-white"
-                        : isCurrent
-                          ? "bg-blush border-blush text-white shadow-sketch-accent"
-                          : "bg-parchment border-sketch text-ink-faded"
-                    }`}>
+                      ? "bg-sage border-sage text-white"
+                      : isCurrent
+                      ? "bg-blush border-blush text-white shadow-sketch-accent"
+                      : isVisited
+                      ? "bg-parchment border-[#D4A853] text-[#D4A853]"
+                      : "bg-parchment border-sketch text-ink-faded"
+                  }`}>
                     {!skipped && isComplete ? "✓" : step.icon}
                   </div>
-                  <span className={`font-sans text-[0.55rem] font-semibold uppercase tracking-wider hidden md:block ${isCurrent ? "text-blush" : isComplete ? "text-sage" : "text-ink-faded"
-                    }`}>
+                  <span className={`font-sans text-[0.55rem] font-semibold uppercase tracking-wider hidden md:block ${
+                    isCurrent ? "text-blush" : isComplete ? "text-sage" : isVisited ? "text-[#D4A853]" : "text-ink-faded"
+                  }`}>
                     {step.label}
                   </span>
                 </button>
 
                 {i < WIZARD_STEPS.length - 1 && (
-                  <div className="flex-1 mx-1.5 h-0.5 relative">
+                  <div className="flex-1 mx-1.5 h-0.5 relative mt-3.5">
                     <div className="absolute inset-0 bg-sketch rounded-full" />
                     <div
                       className="absolute inset-y-0 left-0 bg-sage rounded-full transition-all duration-500"
-                      style={{ width: isComplete ? "100%" : "0%" }}
+                      style={{ width: state.completedSteps.includes(step.id) ? "100%" : state.visitedSteps.includes(step.id) ? "50%" : "0%" }}
                     />
                   </div>
                 )}
@@ -113,15 +142,15 @@ function NavBar({
   submitting,
 }: {
   classIndex: string;
-  onSubmit: () => void;
+  onSubmit:   () => void;
   submitting: boolean;
 }) {
   const { state, dispatch } = useWizard();
-  const ready = canAdvance(state, classIndex);
+  const ready  = canAdvance(state, classIndex);
   const isLast = state.currentStep === 8;
 
   function handleNext() {
-    // Skip step 7 (spells) for non-spellcasters
+    dispatch({ type: "MARK_STEP_COMPLETE", payload: { step: state.currentStep } });
     if (state.currentStep === 6 && !isSpellcaster(classIndex)) {
       dispatch({ type: "GO_TO_STEP", payload: { step: 8 } });
     } else {
@@ -159,10 +188,11 @@ function NavBar({
           <button
             onClick={onSubmit}
             disabled={submitting}
-            className={`font-sans font-bold text-sm text-white rounded-sketch px-6 py-2 border-2 transition-all duration-150 flex items-center gap-2 ${!submitting
+            className={`font-sans font-bold text-sm text-white rounded-sketch px-6 py-2 border-2 transition-all duration-150 flex items-center gap-2 ${
+              !submitting
                 ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
                 : "bg-tan border-sketch cursor-not-allowed opacity-60"
-              }`}
+            }`}
           >
             {submitting ? (
               <>
@@ -175,10 +205,11 @@ function NavBar({
           <button
             onClick={handleNext}
             disabled={!ready}
-            className={`font-sans font-bold text-sm text-white rounded-sketch px-6 py-2 border-2 transition-all duration-150 ${ready
+            className={`font-sans font-bold text-sm text-white rounded-sketch px-6 py-2 border-2 transition-all duration-150 ${
+              ready
                 ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
                 : "bg-tan border-sketch cursor-not-allowed opacity-50"
-              }`}
+            }`}
           >
             Next →
           </button>
@@ -190,14 +221,14 @@ function NavBar({
 
 // ── Step renderer ─────────────────────────────────────────────────────────────
 
-function StepRenderer() {
+function StepRenderer({ classIndex, className }: { classIndex: string; className: string }) {
   const { state } = useWizard();
   switch (state.currentStep) {
     case 1: return <BasicsStep />;
     case 2: return <RaceStep />;
     case 3: return <ClassStep />;
     case 4: return <BackgroundStep />;
-    case 5: return <AbilityScoreStep />;
+    case 5: return <AbilityScoreStep classIndex={classIndex} className={className} />;
     case 6: return <SkillsStep />;
     case 7: return <SpellsStep />;
     case 8: return <PersonalityStep />;
@@ -208,41 +239,41 @@ function StepRenderer() {
 // ── Inner wizard ──────────────────────────────────────────────────────────────
 
 function WizardInner() {
-  const { state } = useWizard();
-  const router = useRouter();
-  const campaignId = state.campaignId;
-  const [classes, setClasses] = useState<any[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { state }   = useWizard();
+  const router      = useRouter();
+  const campaignId  = state.campaignId;
+  const [classes, setClasses]         = useState<{ id: string; index: string; name: string }[]>([]);
+  const [submitting, setSubmitting]   = useState(false);
+  const [error, setError]             = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/classes").then((r) => r.json()).then(setClasses).catch(console.error);
   }, []);
 
   const selectedClass = classes.find((c) => c.id === state.classId);
-  const classIndex = selectedClass?.index ?? "";
+  const classIndex    = selectedClass?.index ?? "";
 
   async function handleSubmit() {
     setSubmitting(true);
     setError(null);
     try {
       const res = await fetch("/api/characters", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: state.name,
-          gender: state.gender,
-          pronouns: state.pronouns,
-          raceId: state.raceId,
-          subraceId: state.subraceId,
-          classId: state.classId,
-          backgroundId: state.backgroundId,
-          campaignId: state.campaignId,
-          abilityScores: state.abilityScores,
-          selectedSkills: state.selectedSkills,
+          name:             state.name,
+          gender:           state.gender,
+          pronouns:         state.pronouns,
+          raceId:           state.raceId,
+          subraceId:        state.subraceId,
+          classId:          state.classId,
+          backgroundId:     state.backgroundId,
+          campaignId:       state.campaignId,
+          abilityScores:    state.abilityScores,
+          selectedSkills:   state.selectedSkills,
           selectedCantrips: state.selectedCantrips,
-          selectedSpells: state.selectedSpells,
-          personality: state.personality,
+          selectedSpells:   state.selectedSpells,
+          personality:      state.personality,
         }),
       });
 
@@ -270,7 +301,7 @@ function WizardInner() {
               <p className="font-display text-sm text-blush">✗ {error}</p>
             </div>
           )}
-          <StepRenderer />
+          <StepRenderer classIndex={classIndex} className={selectedClass?.name ?? ""} />
         </div>
       </div>
 
@@ -281,13 +312,9 @@ function WizardInner() {
 
 // ── Page export ───────────────────────────────────────────────────────────────
 
-export default async function CreateCharacterPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ campaignId?: string }>;
-}) {
-  const { campaignId: rawCampaignId } = await searchParams;
-  const campaignId = rawCampaignId ?? "";
+function CreateCharacterInner() {
+  const params     = useSearchParams();
+  const campaignId = params.get("campaignId") ?? "";
 
   if (!campaignId) {
     return (
@@ -304,5 +331,17 @@ export default async function CreateCharacterPage({
     <WizardProvider campaignId={campaignId}>
       <WizardInner />
     </WizardProvider>
+  );
+}
+
+export default function CreateCharacterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <span className="w-6 h-6 border-2 border-blush border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <CreateCharacterInner />
+    </Suspense>
   );
 }

@@ -1,18 +1,24 @@
+// Starter spells must not exceed SPELL_COUNTS limits per class
 export const STARTER_SPELLS: Record<string, { cantrips: string[]; spells: string[] }> = {
-  wizard:   { cantrips: ["fire-bolt", "prestidigitation", "mage-hand"],        spells: ["magic-missile", "shield", "detect-magic", "sleep"] },
-  sorcerer: { cantrips: ["fire-bolt", "prestidigitation", "mage-hand"],        spells: ["magic-missile", "shield", "burning-hands", "charm-person"] },
-  warlock:  { cantrips: ["eldritch-blast", "mage-hand", "minor-illusion"],     spells: ["hex", "hellish-rebuke", "charm-person", "witch-bolt"] },
-  bard:     { cantrips: ["vicious-mockery", "minor-illusion", "prestidigitation"], spells: ["healing-word", "thunderwave", "charm-person", "sleep"] },
-  cleric:   { cantrips: ["sacred-flame", "guidance", "thaumaturgy"],           spells: ["cure-wounds", "bless", "healing-word", "guiding-bolt"] },
-  druid:    { cantrips: ["shillelagh", "guidance", "produce-flame"],           spells: ["cure-wounds", "entangle", "faerie-fire", "thunderwave"] },
-  ranger:   { cantrips: [],                                                     spells: ["hunters-mark", "cure-wounds", "entangle", "fog-cloud"] },
+  wizard:   { cantrips: ["fire-bolt", "prestidigitation", "mage-hand"],    spells: ["magic-missile", "shield", "detect-magic", "sleep"] },
+  sorcerer: { cantrips: ["fire-bolt", "prestidigitation", "mage-hand"],    spells: ["magic-missile", "shield"] },
+  warlock:  { cantrips: ["eldritch-blast", "mage-hand"],                   spells: ["hex", "hellish-rebuke"] },
+  bard:     { cantrips: ["vicious-mockery", "minor-illusion"],             spells: ["healing-word", "thunderwave", "charm-person", "sleep"] },
+  cleric:   { cantrips: ["sacred-flame", "guidance", "thaumaturgy"],       spells: ["cure-wounds", "bless", "healing-word", "guiding-bolt"] },
+  druid:    { cantrips: ["shillelagh", "guidance"],                        spells: ["cure-wounds", "entangle", "faerie-fire", "thunderwave"] },
 };
 
-export const MARTIAL_CLASSES      = ["barbarian", "fighter", "monk", "rogue"];
-export const DEFERRED_SPELLCASTERS = ["paladin"];
+export const MARTIAL_CLASSES = ["barbarian", "fighter", "monk", "rogue"];
+
+// Classes that get spells in the wizard — paladin deferred (no spells at level 1)
+// Paladin and Ranger excluded — no spells at level 1 in 5e
+export const SPELLCASTING_CLASSES = [
+  "bard", "cleric", "druid",
+  "sorcerer", "warlock", "wizard",
+];
 
 export function isSpellcaster(classIndex: string): boolean {
-  return !MARTIAL_CLASSES.includes(classIndex) && !DEFERRED_SPELLCASTERS.includes(classIndex);
+  return SPELLCASTING_CLASSES.includes(classIndex);
 }
 
 export function getStarterSpells(classIndex: string) {
@@ -26,5 +32,4 @@ export const SPELL_COUNTS: Record<string, { cantrips: number; spells: number }> 
   bard:     { cantrips: 2, spells: 4 },
   cleric:   { cantrips: 3, spells: 4 },
   druid:    { cantrips: 2, spells: 4 },
-  ranger:   { cantrips: 0, spells: 2 },
 };

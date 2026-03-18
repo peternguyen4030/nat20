@@ -17,32 +17,39 @@ function formatBonuses(bonuses: { ability: string; bonus: number }[] | null) {
 
 export function RaceStep() {
   const { state, dispatch } = useWizard();
-  const [races, setRaces] = useState<Race[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [hovered, setHovered] = useState<Race | null>(null);
+  const [races, setRaces]           = useState<Race[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
+  const [hovered, setHovered]       = useState<Race | null>(null);
   const [hoveredSubrace, setHoveredSubrace] = useState<Subrace | null>(null);
-  const [showSubrace, setShowSubrace] = useState(false);
-
-  const selectedRace = races.find((r) => r.id === state.raceId) ?? null;
+  const selectedRace    = races.find((r) => r.id === state.raceId) ?? null;
   const selectedSubrace = selectedRace?.subraces.find((s) => s.id === state.subraceId) ?? null;
-  const displaySubrace = hoveredSubrace ?? (showSubrace ? selectedSubrace : null);
-  const displayRace = hovered ?? selectedRace;
+  const displayRace     = hovered ?? selectedRace;
+
+  // Subrace panel always visible when selected race has subraces
+  const showSubrace         = (selectedRace?.subraces.length ?? 0) > 0;
+  const hoveringDifferentRace = hovered !== null && hovered.id !== state.raceId;
+
+  // Help panel: clear subrace info when hovering a different race
+  const displaySubrace      = hoveringDifferentRace ? null : (hoveredSubrace ?? selectedSubrace ?? null);
 
   useEffect(() => {
     fetch("/api/races")
       .then((r) => r.json())
-      .then((data) => { setRaces(data); setLoading(false); })
+      .then((data) => {
+        setRaces(data);
+        setLoading(false);
+        // showSubrace is now derived from selectedRace, no manual restore needed
+      })
       .catch(() => { setError("Failed to load races"); setLoading(false); });
   }, []);
 
   function selectRace(race: Race) {
     dispatch({ type: "SET_RACE", payload: { raceId: race.id } });
-    setShowSubrace(race.subraces.length > 0);
   }
 
   if (loading) return <LoadingGrid count={9} />;
-  if (error) return <ErrorState message={error} />;
+  if (error)   return <ErrorState message={error} />;
 
   return (
     <div className="space-y-6">
@@ -59,8 +66,8 @@ export function RaceStep() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {races.map((race) => {
               const isSelected = state.raceId === race.id;
-              const emoji = RACE_EMOJI[race.index] ?? "🧬";
-              const bonuses = formatBonuses(race.abilityBonuses as any);
+              const emoji      = RACE_EMOJI[race.index] ?? "🧬";
+              const bonuses    = formatBonuses(race.abilityBonuses as { ability: string; bonus: number }[] | null);
               return (
                 <button
                   key={race.id}
@@ -68,10 +75,11 @@ export function RaceStep() {
                   onClick={() => selectRace(race)}
                   onMouseEnter={() => setHovered(race)}
                   onMouseLeave={() => setHovered(null)}
-                  className={`relative p-4 rounded-sketch border-2 text-left transition-all duration-150 ${isSelected
+                  className={`relative p-4 rounded-sketch border-2 text-left transition-all duration-150 ${
+                    isSelected
                       ? "bg-blush/10 border-blush shadow-sketch-accent"
                       : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
-                    }`}
+                  }`}
                 >
                   <div className="text-2xl mb-2">{emoji}</div>
                   <p className={`font-display text-lg leading-tight ${isSelected ? "text-blush" : "text-ink"}`}>{race.name}</p>
@@ -90,17 +98,35 @@ export function RaceStep() {
           {/* Subrace mini-step */}
           {showSubrace && selectedRace && selectedRace.subraces.length > 0 && (
             <div className="bg-warm-white border-2 border-dusty-blue/40 rounded-sketch shadow-sketch p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-base">🌿</span>
-                <h3 className="font-display text-xl text-ink">Choose your {selectedRace.name} subrace</h3>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🌿</span>
+                  <h3 className="font-display text-xl text-ink">Choose your {selectedRace.name} subrace</h3>
+                </div>
+                <span className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded border border-sketch rounded px-1.5 py-0.5">Optional</span>
               </div>
               <p className="font-sans text-xs text-ink-faded mb-4">
-                Some races have distinct lineages. Pick the one that calls to you.
+                Some races have distinct lineages. Pick the one that calls to you, or leave it unselected.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* No subrace option */}
+                <button
+                  type="button"
+                  onClick={() => dispatch({ type: "SET_SUBRACE", payload: { subraceId: null } })}
+                  onMouseEnter={() => setHoveredSubrace(null)}
+                  className={`p-3 rounded-input border-2 text-left transition-all duration-150 ${
+                    state.subraceId === null
+                      ? "bg-parchment border-sketch"
+                      : "bg-parchment border-sketch hover:border-dusty-blue/50 hover:bg-paper"
+                  }`}
+                >
+                  <p className="font-display text-base text-ink-faded">No subrace</p>
+                  <p className="font-sans text-xs text-ink-faded mt-0.5">Play as a standard {selectedRace.name}</p>
+                  {state.subraceId === null && <p className="font-sans text-[0.6rem] text-ink-faded mt-1">Selected ✓</p>}
+                </button>
                 {selectedRace.subraces.map((subrace) => {
                   const isSelected = state.subraceId === subrace.id;
-                  const bonuses = formatBonuses(subrace.abilityBonuses as any);
+                  const bonuses    = formatBonuses(subrace.abilityBonuses as { ability: string; bonus: number }[] | null);
                   return (
                     <button
                       key={subrace.id}
@@ -108,10 +134,11 @@ export function RaceStep() {
                       onClick={() => dispatch({ type: "SET_SUBRACE", payload: { subraceId: subrace.id } })}
                       onMouseEnter={() => setHoveredSubrace(subrace)}
                       onMouseLeave={() => setHoveredSubrace(null)}
-                      className={`p-3 rounded-input border-2 text-left transition-all duration-150 ${isSelected
+                      className={`p-3 rounded-input border-2 text-left transition-all duration-150 ${
+                        isSelected
                           ? "bg-dusty-blue/10 border-dusty-blue"
                           : "bg-parchment border-sketch hover:border-dusty-blue/50 hover:bg-paper"
-                        }`}
+                      }`}
                     >
                       <p className={`font-display text-base ${isSelected ? "text-dusty-blue" : "text-ink"}`}>{subrace.name}</p>
                       {bonuses && <p className="font-sans text-xs text-ink-faded mt-0.5">{bonuses}</p>}
@@ -128,41 +155,10 @@ export function RaceStep() {
         <div className="lg:col-span-1">
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 sticky top-6 transition-all duration-200">
 
-            {/* Subrace detail — shown when hovering or selecting a subrace */}
-            {displaySubrace ? (
+            {displayRace ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setHoveredSubrace(null)}
-                    className="font-sans text-xs text-ink-faded hover:text-ink transition-colors"
-                  >
-                    ← Back to {selectedRace?.name}
-                  </button>
-                </div>
-                <div>
-                  <h2 className="font-display text-2xl text-ink">{displaySubrace.name}</h2>
-                  <p className="font-sans text-xs text-ink-faded">{selectedRace?.name} subrace</p>
-                </div>
-                {displaySubrace.description && (
-                  <p className="font-sans text-sm text-ink-soft leading-relaxed">{displaySubrace.description}</p>
-                )}
-                {(displaySubrace.abilityBonuses as any[])?.length > 0 && (
-                  <div className="border-t border-sketch p-3">
-                    <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Additional Bonuses</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(displaySubrace.abilityBonuses as { ability: string; bonus: number }[]).map((b) => (
-                        <span key={b.ability} className="font-mono text-xs bg-dusty-blue/10 text-dusty-blue border border-dusty-blue/30 rounded px-2 py-0.5">
-                          +{b.bonus} {b.ability}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
 
-            ) : displayRace ? (
-              <div className="space-y-4">
+                {/* Race info — always visible when a race is selected or hovered */}
                 <div className="flex items-center gap-3">
                   <span className="text-3xl">{RACE_EMOJI[displayRace.index] ?? "🧬"}</span>
                   <div>
@@ -170,8 +166,10 @@ export function RaceStep() {
                     <p className="font-sans text-xs text-ink-faded">Speed: {displayRace.speed}ft · Size: {displayRace.size ?? "Medium"}</p>
                   </div>
                 </div>
-                {displayRace.description && <p className="font-sans text-sm text-ink-soft leading-relaxed">{displayRace.description}</p>}
-                {(displayRace.abilityBonuses as any[])?.length > 0 && (
+                {displayRace.description && (
+                  <p className="font-sans text-sm text-ink-soft leading-relaxed">{displayRace.description}</p>
+                )}
+                {(displayRace.abilityBonuses as { ability: string; bonus: number }[])?.length > 0 && (
                   <div className="border-t border-sketch p-3">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Ability Bonuses</p>
                     <div className="flex flex-wrap gap-1.5">
@@ -188,17 +186,43 @@ export function RaceStep() {
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Racial Traits</p>
                     <ul className="space-y-1">
                       {displayRace.traitNames.map((trait) => (
-                        <li key={trait} className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start">
-                          <span className="text-blush shrink-0 mt-0.5">✦</span>
-                          <span>{trait}</span>
+                        <li key={trait} className="flex gap-2 font-sans text-xs text-ink-soft">
+                          <span className="text-blush mt-0.5 shrink-0">✦</span>{trait}
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-                {showSubrace && (
-                  <div className="border-t border-sketch pt-3">
-                    <p className="font-sans text-xs text-ink-faded italic">Hover a subrace below to read its full description.</p>
+
+                {/* Subrace info — shown below race info when a subrace is hovered or selected */}
+                {displaySubrace && (
+                  <div className="border-t-2 border-dusty-blue/20 p-3 bg-dusty-blue/5 rounded-sketch space-y-2">
+                    <div>
+                      <h3 className="font-display text-lg text-ink">{displaySubrace.name}</h3>
+                      <p className="font-sans text-[0.65rem] text-dusty-blue uppercase tracking-widest">{displayRace.name} subrace</p>
+                    </div>
+                    {displaySubrace.description && (
+                      <p className="font-sans text-sm text-ink-soft leading-relaxed">{displaySubrace.description}</p>
+                    )}
+                    {(displaySubrace.abilityBonuses as { ability: string; bonus: number }[])?.length > 0 && (
+                      <div>
+                        <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">Additional Bonuses</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(displaySubrace.abilityBonuses as { ability: string; bonus: number }[]).map((b) => (
+                            <span key={b.ability} className="font-mono text-xs bg-dusty-blue/10 text-dusty-blue border border-dusty-blue/30 rounded px-2 py-0.5">
+                              +{b.bonus} {b.ability}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Prompt to hover subraces if applicable, none selected, and not hovering a different race */}
+                {showSubrace && !displaySubrace && !hoveringDifferentRace && (
+                  <div className="border-t border-sketch p-3">
+                    <p className="font-sans text-xs text-ink-faded italic">Hover a subrace below to read its description.</p>
                   </div>
                 )}
               </div>
@@ -212,9 +236,9 @@ export function RaceStep() {
                 <div className="space-y-3 font-sans text-sm text-ink-soft leading-relaxed">
                   <p>Your race is your character's ancestry — the people they were born into. Each race has unique traits, ability bonuses, and a place in the world.</p>
                   <div className="border-t border-sketch p-3 space-y-2 text-xs">
-                    <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span><strong className="text-ink">Ability bonuses</strong> add to your base stats</span></p>
-                    <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span><strong className="text-ink">Traits</strong> give passive abilities like Darkvision</span></p>
-                    <p className="font-sans text-xs text-ink-soft leading-relaxed flex gap-1.5 items-start"><span className="text-blush shrink-0 mt-0.5">✦</span><span><strong className="text-ink">Subraces</strong> let you specialise within a broader ancestry</span></p>
+                    <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Ability bonuses</strong> add to your base stats</p>
+                    <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Traits</strong> give passive abilities like Darkvision</p>
+                    <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Subraces</strong> let you specialize within a broader ancestry</p>
                   </div>
                   <p className="text-xs text-ink-faded italic border-t border-sketch p-3">Hover over a race card to learn more before committing.</p>
                 </div>

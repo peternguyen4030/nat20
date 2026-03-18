@@ -68,13 +68,13 @@ export function CombatStatsDrawer({ character, onClose, onSave }: {
   }
 
   const fields = [
-    { key: "armorClass", label: "Armor Class", hint: "Base AC from armor + DEX modifier" },
-    { key: "speed", label: "Speed (ft)", hint: "Base movement per turn" },
-    { key: "initiative", label: "Initiative Bonus", hint: "Usually your DEX modifier" },
-    { key: "proficiencyBonus", label: "Proficiency Bonus", hint: "+2 at level 1, increases at 5, 9, 13, 17" },
-    { key: "maxHp", label: "Max HP", hint: "" },
-    { key: "currentHp", label: "Current HP", hint: "" },
-    { key: "temporaryHp", label: "Temporary HP", hint: "Doesn't stack — take the highest if you gain more" },
+    { key: "armorClass",       label: "Armor Class",       hint: "Base AC from armor + DEX modifier" },
+    { key: "speed",            label: "Speed (ft)",         hint: "Base movement per turn" },
+    { key: "initiative",       label: "Initiative Bonus",   hint: "Usually your DEX modifier" },
+    { key: "proficiencyBonus", label: "Proficiency Bonus",  hint: "+2 at level 1, increases at 5, 9, 13, 17" },
+    { key: "maxHp",            label: "Max HP",             hint: "" },
+    { key: "currentHp",        label: "Current HP",         hint: "" },
+    { key: "temporaryHp",      label: "Temporary HP",       hint: "Doesn't stack — take the highest if you gain more" },
   ];
 
   return (
@@ -117,10 +117,10 @@ export function SkillsDrawer({ character, onClose, onSave }: {
   );
 
   const [proficient, setProficient] = useState<Set<string>>(new Set(proficientSet));
-  const [expertise, setExpertise] = useState<Set<string>>(new Set(expertiseSet));
+  const [expertise,  setExpertise]  = useState<Set<string>>(new Set(expertiseSet));
 
   const profBonus = character.proficiencyBonus;
-  const scores = character.abilityScores;
+  const scores    = character.abilityScores;
 
   function toggleProficient(key: string) {
     setProficient((prev) => {
@@ -142,9 +142,9 @@ export function SkillsDrawer({ character, onClose, onSave }: {
 
   async function handleSave() {
     setSaving(true);
-    const add = [...proficient].filter((k) => !proficientSet.has(k));
+    const add    = [...proficient].filter((k) => !proficientSet.has(k));
     const remove = [...proficientSet].filter((k) => !proficient.has(k));
-    const exp = [...expertise];
+    const exp    = [...expertise];
     await onSave({ add, remove, expertise: exp }, bonuses);
     setSaving(false); onClose();
   }
@@ -156,11 +156,11 @@ export function SkillsDrawer({ character, onClose, onSave }: {
       </p>
       <div className="space-y-1">
         {SKILLS_MAP.map((skill) => {
-          const score = scores?.[skill.ability as keyof AbilityScores] ?? 10;
+          const score     = scores?.[skill.ability as keyof AbilityScores] ?? 10;
           const isProficient = proficient.has(`skill-${skill.key}`);
-          const isExpertise = expertise.has(`skill-${skill.key}`);
-          const bonus = modNum(score) + (isExpertise ? profBonus * 2 : isProficient ? profBonus : 0) + (bonuses[skill.key] ?? 0);
-          const total = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+          const isExpertise  = expertise.has(`skill-${skill.key}`);
+          const bonus     = modNum(score) + (isExpertise ? profBonus * 2 : isProficient ? profBonus : 0) + (bonuses[skill.key] ?? 0);
+          const total     = bonus >= 0 ? `+${bonus}` : `${bonus}`;
 
           return (
             <div key={skill.key} className="flex items-center gap-2 py-1.5 border-b border-sketch/40 last:border-0">
@@ -171,13 +171,14 @@ export function SkillsDrawer({ character, onClose, onSave }: {
               {/* Expertise dot */}
               <button type="button" onClick={() => toggleExpertise(`skill-${skill.key}`)}
                 title={isProficient ? "Toggle expertise" : "Must be proficient first"}
-                className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 transition-all ${isExpertise ? "bg-blush border-blush" :
+                className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 transition-all ${
+                  isExpertise ? "bg-blush border-blush" :
                   isProficient ? "bg-blush/20 border-blush/40 hover:border-blush" :
-                    "bg-parchment border-sketch/40 opacity-30 cursor-not-allowed"
-                  }`}
+                  "bg-parchment border-sketch/40 opacity-30 cursor-not-allowed"
+                }`}
               />
               <span className="font-sans text-xs text-ink-soft flex-1">{skill.label}</span>
-              <span className="font-mono text-[0.6rem] text-ink-faded/60 w-7">{skill.ability.slice(0, 3).toUpperCase()}</span>
+              <span className="font-mono text-[0.6rem] text-ink-faded/60 w-7">{skill.ability.slice(0,3).toUpperCase()}</span>
               {/* Bonus input */}
               <input type="number" value={bonuses[skill.key] ?? 0}
                 onChange={(e) => setBonuses((p) => ({ ...p, [skill.key]: Number(e.target.value) }))}
@@ -215,7 +216,7 @@ export function SavingThrowsDrawer({ character, onClose, onSave }: {
   );
   const [proficient, setProficient] = useState<Set<string>>(new Set(saveProfSet));
 
-  const scores = character.abilityScores;
+  const scores    = character.abilityScores;
   const profBonus = character.proficiencyBonus;
 
   function toggle(key: string) {
@@ -229,7 +230,7 @@ export function SavingThrowsDrawer({ character, onClose, onSave }: {
 
   async function handleSave() {
     setSaving(true);
-    const add = [...proficient].filter((k) => !saveProfSet.has(k));
+    const add    = [...proficient].filter((k) => !saveProfSet.has(k));
     const remove = [...saveProfSet].filter((k) => !proficient.has(k));
     await onSave({ add, remove }, bonuses);
     setSaving(false); onClose();
@@ -242,10 +243,10 @@ export function SavingThrowsDrawer({ character, onClose, onSave }: {
       </p>
       <div className="space-y-2">
         {ABILITY_KEYS.map(({ key, label, abbr }) => {
-          const score = scores?.[key as keyof AbilityScores] ?? 10;
+          const score        = scores?.[key as keyof AbilityScores] ?? 10;
           const isProficient = proficient.has(`saving-throw-${key}`);
-          const bonus = modNum(score) + (isProficient ? profBonus : 0) + (bonuses[key] ?? 0);
-          const total = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+          const bonus        = modNum(score) + (isProficient ? profBonus : 0) + (bonuses[key] ?? 0);
+          const total        = bonus >= 0 ? `+${bonus}` : `${bonus}`;
 
           return (
             <div key={key} className="flex items-center gap-3 py-1.5 border-b border-sketch/40 last:border-0">
@@ -276,10 +277,10 @@ export function ProficienciesDrawer({ character, onClose, onSave }: {
   character: Character; onClose: () => void;
   onSave: (data: { add: string[]; remove: string[]; languages: string[] }) => Promise<void>;
 }) {
-  const [saving, setSaving] = useState(false);
-  const [search, setSearch] = useState("");
+  const [saving, setSaving]     = useState(false);
+  const [search, setSearch]     = useState("");
   const [allProfs, setAllProfs] = useState<{ id: string; index: string; name: string; type: string }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]   = useState(true);
   const [languages, setLanguages] = useState<string[]>(character.languages ?? []);
   const [langInput, setLangInput] = useState("");
 
@@ -314,7 +315,7 @@ export function ProficienciesDrawer({ character, onClose, onSave }: {
 
   async function handleSave() {
     setSaving(true);
-    const add = [...selected].filter((k) => !currentProfIds.has(k));
+    const add    = [...selected].filter((k) => !currentProfIds.has(k));
     const remove = [...currentProfIds].filter((k) => !selected.has(k));
     await onSave({ add, remove, languages });
     setSaving(false); onClose();
@@ -387,10 +388,11 @@ export function ProficienciesDrawer({ character, onClose, onSave }: {
                     const isSelected = selected.has(prof.index);
                     return (
                       <button key={prof.index} type="button" onClick={() => toggleProf(prof.index)}
-                        className={`font-sans text-xs px-2 py-0.5 rounded-badge border transition-all ${isSelected
-                          ? "bg-blush/10 text-blush border-blush/40 font-semibold"
-                          : "bg-parchment text-ink-faded border-sketch hover:border-blush/40"
-                          }`}
+                        className={`font-sans text-xs px-2 py-0.5 rounded-badge border transition-all ${
+                          isSelected
+                            ? "bg-blush/10 text-blush border-blush/40 font-semibold"
+                            : "bg-parchment text-ink-faded border-sketch hover:border-blush/40"
+                        }`}
                       >
                         {isSelected ? "✓ " : ""}{prof.name}
                       </button>
@@ -425,10 +427,10 @@ export function PersonalityDrawer({ character, onClose, onSave }: {
 
   const fields = [
     { key: "personalityTrait", label: "🎭 Personality Trait", placeholder: "How does your character act day to day?" },
-    { key: "ideal", label: "⭐ Ideal", placeholder: "What principle drives your character above all else?" },
-    { key: "bond", label: "🔗 Bond", placeholder: "Who or what matters most to your character?" },
-    { key: "flaw", label: "⚡ Flaw", placeholder: "What weakness or vice does your character struggle with?" },
-    { key: "notes", label: "📝 Notes", placeholder: "Anything else worth remembering..." },
+    { key: "ideal",            label: "⭐ Ideal",              placeholder: "What principle drives your character above all else?" },
+    { key: "bond",             label: "🔗 Bond",               placeholder: "Who or what matters most to your character?" },
+    { key: "flaw",             label: "⚡ Flaw",               placeholder: "What weakness or vice does your character struggle with?" },
+    { key: "notes",            label: "📝 Notes",              placeholder: "Anything else worth remembering..." },
   ];
 
   return (
@@ -517,66 +519,75 @@ export function SpellSlotsDrawer({ character, onClose, onSave }: {
     setSlots((prev) => ({ ...prev, [level]: { max, used: Math.min(current.used, max) } }));
   }
 
+  // Only show levels the character actually has — no phantom empty slots
+  const availableLevels = Object.keys(slots)
+    .map(Number)
+    .filter((l) => slots[String(l)]?.max > 0)
+    .sort((a, b) => a - b);
+
   return (
     <EditDrawer title="Spell Slots" icon="✨" onClose={onClose} onSave={handleSave} saving={saving}>
       <p className="font-sans text-sm text-ink-faded leading-relaxed">
-        Click pips to mark slots as used. Adjust max slots per level. Restore all with a long rest.
+        Click pips to mark slots as used. Restore all with a long rest.
       </p>
-      <div className="space-y-3">
-        {Array.from({ length: 9 }, (_, i) => i + 1).map((level) => {
-          const slot = slots[String(level)] ?? { max: 0, used: 0 };
-          const isEmpty = slot.max === 0;
-          return (
-            <div key={level} className={`p-3 rounded-sketch border ${isEmpty ? "border-sketch bg-parchment opacity-50" : "border-sketch bg-warm-white"}`}>
-              <div className="flex items-center justify-between mb-2">
-                <p className="font-sans text-xs font-bold text-ink">Level {level}</p>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => updateMax(String(level), Math.max(0, slot.max - 1))} className="w-6 h-6 rounded border border-sketch bg-parchment text-ink-faded hover:text-ink text-xs flex items-center justify-center">−</button>
-                  <span className="font-mono text-sm text-ink w-4 text-center">{slot.max}</span>
-                  <button type="button" onClick={() => updateMax(String(level), Math.min(9, slot.max + 1))} className="w-6 h-6 rounded border border-sketch bg-parchment text-ink-faded hover:text-ink text-xs flex items-center justify-center">+</button>
+      {availableLevels.length === 0 ? (
+        <p className="font-sans text-sm text-ink-faded italic">No spell slots available at your current level.</p>
+      ) : (
+        <div className="space-y-3">
+          {availableLevels.map((level) => {
+            const slot = slots[String(level)];
+            return (
+              <div key={level} className="p-3 rounded-sketch border border-sketch bg-warm-white">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-sans text-xs font-bold text-ink">Level {level}</p>
+                  <span className="font-sans text-xs text-ink-faded">{slot.used}/{slot.max} used</span>
                 </div>
-              </div>
-              {slot.max > 0 && (
                 <div className="flex gap-1.5 flex-wrap items-center">
                   {Array.from({ length: slot.max }, (_, i) => (
                     <StatPip key={i} filled={i < slot.used} onClick={() => toggleSlot(String(level), i)} color="bg-dusty-blue" />
                   ))}
-                  <span className="font-sans text-xs text-ink-faded ml-1">{slot.used}/{slot.max} used</span>
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </EditDrawer>
   );
 }
 
 // ── Spells drawer ─────────────────────────────────────────────────────────────
 
-export function SpellsDrawer({ spells, onClose, onAdd, onRemove, onTogglePrepared }: {
-  spells: CharacterSpell[]; onClose: () => void;
+// Classes that prepare spells daily vs always-known
+const PREPARES_SPELLS = ["cleric", "druid", "paladin", "wizard"];
+
+export function SpellsDrawer({ spells, classIndex, onClose, onAdd, onRemove, onTogglePrepared }: {
+  spells: CharacterSpell[]; classIndex: string; onClose: () => void;
   onAdd: (spellIndex: string) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onTogglePrepared: (id: string, current: string) => Promise<void>;
 }) {
-  const [filter, setFilter] = useState("ALL");
-  const [search, setSearch] = useState("");
+  const canPrepare = PREPARES_SPELLS.includes(classIndex);
+  const [filter, setFilter]     = useState("ALL");
+  const [search, setSearch]     = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [addMode, setAddMode] = useState(false);
-  const [allSpells, setAllSpells] = useState<any[]>([]);
-  const [loadingSpells, setLoadingSpells] = useState(false);
+  const [addMode, setAddMode]   = useState(false);
+  const [allSpells, setAllSpells] = useState<{ id: string; index: string; name: string; level: number; school: string; category: string }[]>([]);
+  const loadingSpells = addMode && allSpells.length === 0;
 
   useEffect(() => {
-    if (addMode && allSpells.length === 0) {
-      setLoadingSpells(true);
-      fetch("/api/spells").then((r) => r.json()).then((d) => { setAllSpells(d); setLoadingSpells(false); }).catch(() => setLoadingSpells(false));
-    }
+    if (!addMode || allSpells.length > 0) return;
+    const controller = new AbortController();
+    fetch("/api/spells", { signal: controller.signal })
+      .then((r) => r.json())
+      .then((d) => setAllSpells(d))
+      .catch(() => {});
+    return () => controller.abort();
   }, [addMode]);
 
-  const categories = ["ALL", ...Array.from(new Set(spells.map((s) => s.spell.category))).sort()];
-  const filtered = spells.filter((s) => (filter === "ALL" || s.spell.category === filter) && s.spell.name.toLowerCase().includes(search.toLowerCase()));
-  const grouped = filtered.reduce<Record<number, CharacterSpell[]>>((acc, s) => { const lvl = s.spell.level; if (!acc[lvl]) acc[lvl] = []; acc[lvl].push(s); return acc; }, {});
+  const categories  = ["ALL", ...Array.from(new Set(spells.map((s) => s.spell.category))).sort()];
+  const filtered    = spells.filter((s) => (filter === "ALL" || s.spell.category === filter) && s.spell.name.toLowerCase().includes(search.toLowerCase()));
+  const grouped     = filtered.reduce<Record<number, CharacterSpell[]>>((acc, s) => { const lvl = s.spell.level; if (!acc[lvl]) acc[lvl] = []; acc[lvl].push(s); return acc; }, {});
   const knownIndices = new Set(spells.map((s) => s.spell.index));
 
   return (
@@ -599,6 +610,22 @@ export function SpellsDrawer({ spells, onClose, onAdd, onRemove, onTogglePrepare
 
         {!addMode ? (
           <>
+            {/* Prep explainer */}
+            {classIndex && (canPrepare ? (
+              <div className="px-4 py-2.5 bg-sage/5 border-b border-sage/20 flex items-start gap-2">
+                <span className="text-sage text-sm shrink-0 mt-0.5">✦</span>
+                <p className="font-sans text-xs text-ink-soft leading-relaxed">
+                  As a <span className="font-semibold capitalize">{classIndex}</span>, you prepare spells each day after a long rest. Toggle a spell between <span className="font-semibold text-sage">Prepared</span> and <span className="font-semibold text-ink-faded">Known</span> using the button on each spell.
+                </p>
+              </div>
+            ) : (
+              <div className="px-4 py-2.5 bg-dusty-blue/5 border-b border-dusty-blue/20 flex items-start gap-2">
+                <span className="text-dusty-blue text-sm shrink-0 mt-0.5">✦</span>
+                <p className="font-sans text-xs text-ink-soft leading-relaxed">
+                  As a <span className="font-semibold capitalize">{classIndex}</span>, all your known spells are always available — no daily preparation needed.
+                </p>
+              </div>
+            ))}
             <div className="px-4 py-3 border-b border-sketch space-y-2">
               <input type="text" placeholder="Search spells..." value={search} onChange={(e) => setSearch(e.target.value)}
                 className="w-full font-sans text-sm bg-parchment text-ink border-2 border-sketch rounded-input px-3 py-2 outline-none focus:border-blush transition-colors placeholder:text-ink-faded" />
@@ -629,10 +656,17 @@ export function SpellsDrawer({ spells, onClose, onAdd, onRemove, onTogglePrepare
                             </button>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            {cs.spell.level > 0 && (
-                              <button type="button" onClick={() => onTogglePrepared(cs.id, cs.status)}
-                                className={`font-sans text-[0.6rem] font-bold uppercase px-1.5 py-0.5 rounded border transition-all ${cs.status === "PREPARED" ? "text-sage border-sage/30 bg-sage/10" : "text-ink-faded border-sketch bg-parchment hover:border-sage/50"}`}>
-                                {cs.status === "PREPARED" ? "Prepared" : "Known"}
+                            {cs.spell.level > 0 && canPrepare && (
+                              <button
+                                type="button"
+                                onClick={() => onTogglePrepared(cs.id, cs.status)}
+                                className={`font-sans text-xs font-bold px-2 p-1 rounded-sketch border-2 transition-all ${
+                                  cs.status === "PREPARED"
+                                    ? "text-white bg-sage border-sage shadow-sketch-accent"
+                                    : "text-ink-faded border-sketch bg-parchment hover:border-sage/50 hover:text-sage"
+                                }`}
+                              >
+                                {cs.status === "PREPARED" ? "✓ Prepared" : "Prepare"}
                               </button>
                             )}
                             <button type="button" onClick={() => onRemove(cs.id)} className="w-5 h-5 rounded border border-sketch text-ink-faded hover:text-blush hover:border-blush/40 transition-all flex items-center justify-center text-xs">✕</button>
@@ -698,25 +732,28 @@ export function InventoryDrawer({ inventory, onClose, onToggleEquipped, onUpdate
   inventory: InventoryItem[]; onClose: () => void;
   onToggleEquipped: (id: string, equipped: boolean) => Promise<void>;
   onUpdateQuantity: (id: string, qty: number) => Promise<void>;
-  onRemove: (id: string) => Promise<void>;
-  onAddFromList: (itemIndex: string) => Promise<void>;
-  onAddCustom: (data: { name: string; description: string; type: string }) => Promise<void>;
+  onRemove:         (id: string) => Promise<void>;
+  onAddFromList:    (itemIndex: string) => Promise<void>;
+  onAddCustom:      (data: { name: string; description: string; type: string }) => Promise<void>;
 }) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch]   = useState("");
   const [addMode, setAddMode] = useState<"none" | "list" | "custom">("none");
-  const [allItems, setAllItems] = useState<any[]>([]);
-  const [loadingItems, setLoadingItems] = useState(false);
+  const [allItems, setAllItems] = useState<{ id: string; index: string; name: string; type: string; description: string | null; damageDice: string | null; cost: string | null }[]>([]);
+  const loadingItems = addMode === "list" && allItems.length === 0;
   const [customForm, setCustomForm] = useState({ name: "", description: "", type: "GEAR" });
 
   useEffect(() => {
-    if (addMode === "list" && allItems.length === 0) {
-      setLoadingItems(true);
-      fetch("/api/items").then((r) => r.json()).then((d) => { setAllItems(d); setLoadingItems(false); }).catch(() => setLoadingItems(false));
-    }
+    if (addMode !== "list" || allItems.length > 0) return;
+    const controller = new AbortController();
+    fetch("/api/items", { signal: controller.signal })
+      .then((r) => r.json())
+      .then((d) => setAllItems(d))
+      .catch(() => {});
+    return () => controller.abort();
   }, [addMode]);
 
   const knownItemIds = new Set(inventory.filter((i) => i.itemId).map((i) => i.itemId));
-  const filtered = inventory.filter((i) => {
+  const filtered     = inventory.filter((i) => {
     const name = i.item?.name ?? i.customName ?? "";
     return name.toLowerCase().includes(search.toLowerCase());
   });
