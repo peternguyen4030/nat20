@@ -353,25 +353,11 @@ export default function CharacterSheetPage() {
     setNoteTitle(""); setNoteBody(""); setNoteTags("");
   }
 
-  async function saveAbilityScores(scores: Record<string, number>) {
-    setCharacter((prev) => prev ? { ...prev, abilityScores: scores } : prev);
-    await save({ abilityScores: scores });
-  }
-
-  async function saveCombatStats(data: Partial<Character>) {
-    setCharacter((prev) => prev ? { ...prev, ...data } : prev);
-    await save(data);
-  }
-
   async function savePersonality(data: Partial<Character>) {
     setCharacter((prev) => prev ? { ...prev, ...data } : prev);
     await save(data);
   }
 
-  async function saveConditions(conditions: string[]) {
-    setCharacter((prev) => prev ? { ...prev, conditions } : prev);
-    await save({ conditions });
-  }
 
   async function saveSpellSlots(slots: Record<string, { max: number; used: number }>) {
     setCharacter((prev) => prev ? { ...prev, spellSlots: slots } : prev);
