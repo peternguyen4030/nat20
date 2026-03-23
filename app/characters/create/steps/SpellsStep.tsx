@@ -153,26 +153,10 @@ export function SpellsStep() {
       fetch("/api/classes").then((r) => r.json()),
       fetch("/api/spells").then((r) => r.json()),
     ])
-      .then(([cls, spells]) => { setClasses(Array.isArray(cls) ? cls : []); setAllSpells(Array.isArray(spells) ? spells : []); })
+      .then(([cls, spells]) => { setClasses(cls); setAllSpells(spells); })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-4xl text-ink mb-1">Spells</h1>
-          <p className="font-sans text-sm text-ink-faded">Loading your spells...</p>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-24 bg-warm-white border-2 border-sketch rounded-sketch animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   if (!spellcaster) {
     return (
@@ -385,7 +369,7 @@ export function SpellsStep() {
                 </div>
               </div>
 
-              <div className="border-t border-sketch p-3 space-y-1.5 text-xs">
+              <div className="border-t border-sketch pt-3 space-y-1.5 text-xs">
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-sage mr-1">✦</span><strong className="text-ink">Suggested</strong> spells are our starter recommendations</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span>Deselect any spell to swap it for another</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span>Expand a spell card to read its full description</p>

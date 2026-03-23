@@ -79,45 +79,42 @@ function ProgressBar({ classIndex, campaignId }: { classIndex: string; campaignI
             const isVisited    = state.visitedSteps.includes(step.id);
             const isCurrent    = state.currentStep === step.id;
             const canClick     = (isComplete || isVisited) && !skipped && !isCurrent;
+            const isLast       = i === WIZARD_STEPS.length - 1;
 
             return (
-              <div key={step.id} className="flex items-start flex-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!canClick || isCurrent) return;
-                    dispatch({ type: "GO_TO_STEP", payload: { step: step.id } });
-                  }}
-                  className={`flex flex-col items-center gap-1 transition-all duration-200 ${
-                    isCurrent
-                      ? "cursor-default"
-                      : canClick
-                      ? "cursor-pointer hover:opacity-80"
-                      : "opacity-40 cursor-not-allowed"
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-sketch border-2 flex items-center justify-center text-xs transition-all duration-200 ${
-                    skipped
-                      ? "bg-parchment border-sketch/40 opacity-40"
-                      : isComplete
-                      ? "bg-sage border-sage text-white"
-                      : isCurrent
-                      ? "bg-blush border-blush text-white shadow-sketch-accent"
-                      : isVisited
-                      ? "bg-parchment border-[#D4A853] text-[#D4A853]"
-                      : "bg-parchment border-sketch text-ink-faded"
-                  }`}>
+              <div key={step.id} className={`flex items-center ${isLast ? "" : "flex-1"}`}>
+                {/* Step circle + label — fixed width so connector spacing is even */}
+                <div className="flex flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!canClick || isCurrent) return;
+                      dispatch({ type: "GO_TO_STEP", payload: { step: step.id } });
+                    }}
+                    className={`w-8 h-8 rounded-sketch border-2 flex items-center justify-center text-xs transition-all duration-200 ${
+                      skipped
+                        ? "bg-parchment border-sketch/40 opacity-40 cursor-not-allowed"
+                        : isComplete
+                        ? "bg-sage border-sage text-white cursor-pointer hover:opacity-80"
+                        : isCurrent
+                        ? "bg-blush border-blush text-white shadow-sketch-accent cursor-default"
+                        : isVisited
+                        ? "bg-parchment border-[#D4A853] text-[#D4A853] cursor-pointer hover:opacity-80"
+                        : "bg-parchment border-sketch text-ink-faded opacity-40 cursor-not-allowed"
+                    }`}
+                  >
                     {!skipped && isComplete ? "✓" : step.icon}
-                  </div>
+                  </button>
                   <span className={`font-sans text-[0.55rem] font-semibold uppercase tracking-wider hidden md:block ${
                     isCurrent ? "text-blush" : isComplete ? "text-sage" : isVisited ? "text-[#D4A853]" : "text-ink-faded"
-                  }`}>
+                  } ${!isComplete && !isVisited && !isCurrent ? "opacity-40" : ""}`}>
                     {step.label}
                   </span>
-                </button>
+                </div>
 
-                {i < WIZARD_STEPS.length - 1 && (
-                  <div className="flex-1 mx-1.5 h-0.5 relative mt-3.5">
+                {/* Connector line — flex-1 fills remaining space evenly */}
+                {!isLast && (
+                  <div className="flex-1 mx-1.5 h-0.5 relative">
                     <div className="absolute inset-0 bg-sketch rounded-full" />
                     <div
                       className="absolute inset-y-0 left-0 bg-sage rounded-full transition-all duration-500"
@@ -156,6 +153,12 @@ function NavBar({
     } else {
       dispatch({ type: "NEXT_STEP" });
     }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleStepClick(step: number) {
+    dispatch({ type: "GO_TO_STEP", payload: { step } });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function handleBack() {
@@ -165,6 +168,7 @@ function NavBar({
     } else {
       dispatch({ type: "PREV_STEP" });
     }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const totalSteps = isSpellcaster(classIndex) ? 8 : 7;

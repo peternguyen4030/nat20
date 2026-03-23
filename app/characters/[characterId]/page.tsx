@@ -738,19 +738,28 @@ export default function CharacterSheetPage() {
                       const proficient = proficientSkills.has(skill.key);
                       const expertise  = expertiseSkills.has(skill.key);
                       const bonus      = modNum(score) + (expertise ? profBonus * 2 : proficient ? profBonus : 0) + ((character?.skillBonuses?.[skill.key] ?? 0));
+                      const abilityAbbr = skill.ability.slice(0,3).toUpperCase();
                       return (
-                        <div key={skill.key} className="flex items-center gap-1.5 p-0.5">
-                          <div className={`w-2.5 h-2.5 rounded-full border-2 shrink-0 ${
-                            expertise  ? "bg-blush border-blush" :
-                            proficient ? "bg-blush/50 border-blush/60" :
-                            "bg-parchment border-sketch"
-                          }`} />
-                          <span className="font-sans text-xs text-ink-soft flex-1 leading-tight">{skill.label}</span>
-                          <span className="font-mono text-[0.6rem] text-ink-faded/60">{skill.ability.slice(0,3).toUpperCase()}</span>
-                          <span className={`font-mono text-xs font-bold w-7 text-right ${bonus >= 0 ? "text-sage" : "text-blush"}`}>
-                            {bonus >= 0 ? `+${bonus}` : bonus}
-                          </span>
-                        </div>
+                        <Tooltip key={skill.key} side="right" content={
+                          <div className="space-y-0.5">
+                            <p className="font-sans font-bold text-sm text-warm-white">{skill.label}</p>
+                            <p className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-warm-white/60">{skill.ability} ({abilityAbbr}) check</p>
+                            <p className="font-sans text-xs text-warm-white/80 leading-relaxed">{skill.description}</p>
+                          </div>
+                        }>
+                          <div className="flex items-center gap-1.5 p-0.5 rounded hover:bg-parchment transition-colors cursor-help">
+                            <div className={`w-2.5 h-2.5 rounded-full border-2 shrink-0 ${
+                              expertise  ? "bg-blush border-blush" :
+                              proficient ? "bg-blush/50 border-blush/60" :
+                              "bg-parchment border-sketch"
+                            }`} />
+                            <span className="font-sans text-xs text-ink-soft flex-1 leading-tight">{skill.label}</span>
+                            <span className="font-mono text-[0.6rem] text-ink-faded/60">{abilityAbbr}</span>
+                            <span className={`font-mono text-xs font-bold w-7 text-right ${bonus >= 0 ? "text-sage" : "text-blush"}`}>
+                              {bonus >= 0 ? `+${bonus}` : bonus}
+                            </span>
+                          </div>
+                        </Tooltip>
                       );
                     })}
                   </div>

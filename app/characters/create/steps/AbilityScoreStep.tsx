@@ -227,6 +227,22 @@ function PointBuyPanel({ priority }: {
 
   return (
     <div className="space-y-4">
+      {/* Explainer */}
+      <div className="bg-parchment border-2 border-sketch rounded-sketch p-4 space-y-2">
+        <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">How Point Buy Works</p>
+        <p className="font-sans text-xs text-ink-soft leading-relaxed">
+          Every ability starts at 8. You have <strong className="text-ink">27 points</strong> to spend raising them up to 15.
+          Scores cost more points the higher they go — raising from 13 to 14 costs 2 points, and 14 to 15 costs 3.
+        </p>
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 pt-1">
+          {([8,9,10,11,12,13,14,15] as const).map((score) => (
+            <div key={score} className="text-center bg-warm-white border border-sketch rounded p-1">
+              <p className="font-mono text-xs font-bold text-ink">{score}</p>
+              <p className="font-sans text-[0.55rem] text-ink-faded">{POINT_BUY_COSTS[score]}pt</p>
+            </div>
+          ))}
+        </div>
+      </div>
       {/* Budget bar */}
       <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4 flex items-center gap-4">
         <div className="flex-1">
@@ -482,15 +498,15 @@ function RollPanel({ priority }: {
                       className="w-14 font-mono text-lg font-bold text-ink bg-parchment border-2 border-sketch rounded-input px-1 py-1 outline-none focus:border-blush transition-colors text-center appearance-none cursor-pointer"
                     >
                       <option value="">—</option>
-                      {rolls.map((dice, i) => (
-                        <option
-                          key={i}
-                          value={i}
-                          disabled={usedRollIndices.includes(i) && assignments[ability.key] !== i}
-                        >
-                          {statTotal(dice)}
-                        </option>
-                      ))}
+                      {rolls.map((dice, i) => {
+                        const isUsedElsewhere = usedRollIndices.includes(i) && assignments[ability.key] !== i;
+                        if (isUsedElsewhere) return null;
+                        return (
+                          <option key={i} value={i}>
+                            {statTotal(dice)}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -647,7 +663,7 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
                 ))}
               </div>
 
-              <div className="border-t border-sketch p-3 space-y-1.5 text-xs">
+              <div className="border-t border-sketch pt-3 space-y-1.5 text-xs">
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Not sure?</strong> Use Standard Array — it's balanced and fast</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Want control?</strong> Point Buy lets you plan your stats precisely</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Feeling lucky?</strong> Rolling is exciting but results vary wildly</p>
