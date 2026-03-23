@@ -6,17 +6,49 @@ import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { SketchBox, InputField, SubmitButton, OAuthButton, DiscordIcon, GoogleIcon } from "@/components/auth-ui";
 
-function getPasswordStrength(pw: string) {
+interface PasswordAnalysis {
+  score:    number;
+  label:    string;
+  bar:      string;
+  errors:   string[];
+  valid:    boolean;
+  rules:    { key: string; label: string; passed: boolean }[];
+}
+
+interface PasswordRule {
+  key:    string;
+  label:  string;
+  passed: boolean;
+}
+
+function analyzePassword(pw: string): PasswordAnalysis | null {
   if (!pw) return null;
-  let score = 0;
-  if (pw.length >= 8)  score++;
-  if (pw.length >= 12) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { score, label: "Too weak",      bar: "w-1/5  bg-blush" };
-  if (score <= 3) return { score, label: "Getting there", bar: "w-3/5  bg-gold" };
-  return               { score, label: "Strong ✦",        bar: "w-full bg-sage" };
+
+  const rules: PasswordRule[] = [
+    { key: "length",  label: "8+ characters",      passed: pw.length >= 8 },
+    { key: "upper",   label: "Uppercase letter",    passed: /[A-Z]/.test(pw) },
+    { key: "number",  label: "Number",              passed: /[0-9]/.test(pw) },
+    { key: "special", label: "Special character",   passed: /[^A-Za-z0-9]/.test(pw) },
+  ];
+
+  const errors  = rules.filter((r) => !r.passed).map((r) => r.label.toLowerCase());
+  const passed  = rules.filter((r) => r.passed).length;
+  const valid   = errors.length === 0;
+
+  // Only show Strong if ALL rules pass
+  let label: string;
+  let bar: string;
+  if (!valid) {
+    if (passed <= 1)      { label = "Too weak";      bar = "w-1/5 bg-blush"; }
+    else if (passed <= 2) { label = "Too weak";      bar = "w-2/5 bg-blush"; }
+    else                  { label = "Getting there"; bar = "w-3/5 bg-gold"; }
+  } else {
+    const lengthBonus = pw.length >= 12;
+    label = lengthBonus ? "Strong ✦" : "Good";
+    bar   = lengthBonus ? "w-full bg-sage" : "w-4/5 bg-sage";
+  }
+
+  return { score: passed, label, bar, errors, valid, rules };
 }
 
 const DEFAULT_CALLBACK = "/dashboard";
@@ -36,7 +68,7 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<"discord" | "google" | null>(null);
 
-  const strength = getPasswordStrength(form.password);
+  const analysis = analyzePassword(form.password);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -51,8 +83,14 @@ function RegisterForm() {
     if (!form.displayName.trim()) newErrors.displayName = "Display name is required";
     if (!form.email) newErrors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(form.email)) newErrors.email = "Enter a valid email";
-    if (!form.password) newErrors.password = "Password is required";
-    else if (form.password.length < 8) newErrors.password = "Must be at least 8 characters";
+    if (!form.password) {
+      newErrors.password = "Password is required";
+    } else {
+      const pwAnalysis = analyzePassword(form.password);
+      if (pwAnalysis && !pwAnalysis.valid) {
+        newErrors.password = `Missing: ${pwAnalysis.errors.join(", ")}.`;
+      }
+    }
     if (form.password !== form.confirmPassword)
       newErrors.confirmPassword = "Passwords don't match";
     if (Object.keys(newErrors).length) return setErrors(newErrors);
@@ -184,29 +222,35 @@ function RegisterForm() {
               value={form.password}
               onChange={handleChange}
               error={errors.password}
+              hint="Min 8 chars · uppercase · number · special character"
               disabled={isAnyLoading}
               autoComplete="new-password"
             />
 
             {/* Password strength meter */}
-            {form.password && strength && (
-              <div className="-mt-2 mb-4">
-                <div className="h-1 bg-tan rounded-full overflow-hidden mb-1">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${strength.bar}`}
-                  />
+            {form.password && analysis && (
+              <div className="-mt-2 mb-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 bg-tan rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-300 ${analysis.bar}`} />
+                  </div>
+                  <span className={`font-display text-xs shrink-0 ${
+                    !analysis.valid ? (analysis.score <= 2 ? "text-blush" : "text-gold") : "text-sage"
+                  }`}>
+                    {analysis.label}
+                  </span>
                 </div>
-                <p
-                  className={`font-display text-xs ${
-                    strength.score <= 1
-                      ? "text-blush"
-                      : strength.score <= 3
-                      ? "text-gold"
-                      : "text-sage"
-                  }`}
-                >
-                  {strength.label}
-                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {analysis.rules.map((rule) => (
+                    <span key={rule.key} className={`font-sans text-[0.6rem] font-semibold px-1.5 py-0.5 rounded border transition-all ${
+                      rule.passed
+                        ? "text-sage border-sage/30 bg-sage/10"
+                        : "text-ink-faded border-sketch bg-parchment"
+                    }`}>
+                      {rule.passed ? "✓" : "·"} {rule.label}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -228,17 +272,11 @@ function RegisterForm() {
 
         {/* Footer links */}
         <div className="flex justify-center gap-5 mt-4">
-          <Link
-            href="/login"
-            className="font-sans text-xs text-ink-faded underline decoration-dotted underline-offset-2 hover:text-ink-soft transition-colors"
-          >
+          <Link href="/login" className="font-sans text-xs text-ink-faded underline decoration-dotted underline-offset-2 hover:text-ink-soft transition-colors">
             Already have an account?
           </Link>
           <span className="text-tan text-xs">·</span>
-          <Link
-            href="/"
-            className="font-sans text-xs text-ink-faded underline decoration-dotted underline-offset-2 hover:text-ink-soft transition-colors"
-          >
+          <Link href="/" className="font-sans text-xs text-ink-faded underline decoration-dotted underline-offset-2 hover:text-ink-soft transition-colors">
             Back to home
           </Link>
         </div>
