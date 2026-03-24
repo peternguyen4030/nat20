@@ -138,11 +138,11 @@ export function RaceStep() {
                   </div>
                 )}
 
-                {displayRace.traits && displayRace.traits.length > 0 && (
+                {displayRace.features && displayRace.features.length > 0 && (
                   <div className="border-t border-sketch p-3">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Traits</p>
                     <ul className="space-y-2">
-                      {displayRace.traits.slice(0, 4).map((trait) => (
+                      {displayRace.features.slice(0, 4).map((trait) => (
                         <li key={trait.id ?? trait.name} className="bg-parchment border border-sketch rounded-input p-2">
                           <p className="font-sans text-xs font-bold text-ink">{trait.name}</p>
                           {trait.description && (
