@@ -17,6 +17,7 @@ export function BackgroundStep() {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
   const [hovered, setHovered]         = useState<Background | null>(null);
+  const [showDesc, setShowDesc]       = useState(false);
 
   const selectedBg = backgrounds.find((b) => b.id === state.backgroundId) ?? null;
   const displayBg  = hovered ?? selectedBg;
@@ -41,6 +42,22 @@ export function BackgroundStep() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        {/* ── About Backgrounds — left panel ── */}
+        <div className="lg:col-span-1 order-last lg:order-first">
+          <div className="bg-parchment border-2 border-sketch rounded-sketch p-5 sticky top-6 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📜</span>
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">About Backgrounds</p>
+            </div>
+            <p className="font-sans text-xs text-ink-soft leading-relaxed">Every adventurer has a past. Your background reflects your character's life before they took up adventuring.</p>
+            <div className="space-y-1.5 border-t border-sketch p-3">
+              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Skill Proficiencies</strong> automatically granted</p>
+              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Background Feature</strong> — a unique narrative ability</p>
+              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Languages</strong> — bonus tongues you can speak</p>
+            </div>
+          </div>
+        </div>
 
         {/* ── Background grid ── */}
         <div className="lg:col-span-2">
@@ -89,7 +106,18 @@ export function BackgroundStep() {
                   <h2 className="font-display text-2xl text-ink">{displayBg.name}</h2>
                 </div>
                 {displayBg.description && (
-                  <p className="font-sans text-sm text-ink-soft leading-relaxed">{displayBg.description}</p>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDesc((s) => !s)}
+                      className="flex items-center gap-1.5 font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded hover:text-ink transition-colors mb-1.5"
+                    >
+                      <span>{showDesc ? "▲" : "▼"}</span> {showDesc ? "Hide" : "Show"} flavor text
+                    </button>
+                    {showDesc && (
+                      <p className="font-sans text-sm text-ink-soft leading-relaxed border-l-2 border-sketch p-3 mb-2">{displayBg.description}</p>
+                    )}
+                  </div>
                 )}
                 {displayBg.skillProficiencies.length > 0 && (
                   <div className="border-t border-sketch p-3">
@@ -125,22 +153,6 @@ export function BackgroundStep() {
                 <p className="font-sans text-sm text-ink-faded italic">Hover or select a background to see its details.</p>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* ── About Backgrounds panel ── */}
-        <div className="lg:col-span-1">
-          <div className="bg-parchment border-2 border-sketch rounded-sketch p-5 sticky top-6 space-y-3 max-h-[calc(100vh-8rem)] overflow-y-auto">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">📜</span>
-              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">About Backgrounds</p>
-            </div>
-            <p className="font-sans text-xs text-ink-soft leading-relaxed">Every adventurer has a past. Your background reflects your character's life before they took up adventuring.</p>
-            <div className="space-y-1.5 border-t border-sketch p-3">
-              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Skill Proficiencies</strong> automatically granted</p>
-              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Background Feature</strong> — a unique narrative ability</p>
-              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Languages</strong> — bonus tongues you can speak</p>
-            </div>
           </div>
         </div>
 

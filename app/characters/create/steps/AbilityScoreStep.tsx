@@ -201,7 +201,7 @@ function StandardArrayPanel({ priority }: {
 function PointBuyPanel({ priority }: {
   priority: { primary: string[]; secondary: string[] } | null;
 }) {
-  const { state, dispatch } = useWizard();
+  const { dispatch } = useWizard();
   const [scores, setScores] = useState<AbilityScores>({
     strength: 8, dexterity: 8, constitution: 8,
     intelligence: 8, wisdom: 8, charisma: 8,
@@ -569,47 +569,14 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
       <div>
         <h1 className="font-display text-4xl text-ink mb-1">Ability Scores</h1>
         <p className="font-sans text-sm text-ink-faded">
-          Your six ability scores define your character's raw capabilities. Choose how you want to generate them.
+          Your six ability scores define your character&apos;s raw capabilities. Choose how you want to generate them.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* ── Left: method + panel ── */}
-        <div className="lg:col-span-2 space-y-5">
-
-          {/* Method selector */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {METHODS.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => dispatch({ type: "SET_ABILITY_METHOD", payload: { method: m.id } })}
-                className={`p-4 rounded-sketch border-2 text-left transition-all duration-150 ${
-                  method === m.id
-                    ? "bg-blush/10 border-blush shadow-sketch-accent"
-                    : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
-                }`}
-              >
-                <div className="text-2xl mb-2">{m.emoji}</div>
-                <p className={`font-display text-base leading-tight ${method === m.id ? "text-blush" : "text-ink"}`}>
-                  {m.label}
-                </p>
-                <p className="font-sans text-xs text-ink-faded mt-1 leading-snug">
-                  {m.description}
-                </p>
-              </button>
-            ))}
-          </div>
-
-          {/* Active method panel */}
-          {method === "standard_array" && <StandardArrayPanel priority={priority} />}
-          {method === "point_buy"      && <PointBuyPanel priority={priority} />}
-          {method === "roll"           && <RollPanel priority={priority} />}
-        </div>
-
-        {/* ── Right: help panel ── */}
-        <div className="lg:col-span-1">
+        {/* ── About — left panel ── */}
+        <div className="lg:col-span-1 order-last lg:order-first">
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 sticky top-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-xl">🎲</span>
@@ -621,7 +588,7 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
               {priority && className && (
                 <div className="bg-blush/5 border border-blush/20 rounded-sketch p-3 space-y-2">
                   <p className="font-sans text-xs text-ink-faded">
-                    You've chosen: <span className="font-bold text-ink">{className}</span>
+                    You&apos;ve chosen: <span className="font-bold text-ink">{className}</span>
                   </p>
                   <div className="space-y-1.5">
                     <div className="flex items-start gap-2">
@@ -667,7 +634,7 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
               </div>
 
               <div className="border-t border-sketch p-3 space-y-1.5 text-xs">
-                <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Not sure?</strong> Use Standard Array — it's balanced and fast</p>
+                <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Not sure?</strong> Use Standard Array — it&apos;s balanced and fast</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Want control?</strong> Point Buy lets you plan your stats precisely</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Feeling lucky?</strong> Rolling is exciting but results vary wildly</p>
               </div>
@@ -675,6 +642,41 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
           </div>
         </div>
     </div>
+
+        {/* ── Method + panel ── */}
+        <div className="lg:col-span-2 space-y-5">
+
+          {/* Method selector */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {METHODS.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => dispatch({ type: "SET_ABILITY_METHOD", payload: { method: m.id } })}
+                className={`p-4 rounded-sketch border-2 text-left transition-all duration-150 ${
+                  method === m.id
+                    ? "bg-blush/10 border-blush shadow-sketch-accent"
+                    : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
+                }`}
+              >
+                <div className="text-2xl mb-2">{m.emoji}</div>
+                <p className={`font-display text-base leading-tight ${method === m.id ? "text-blush" : "text-ink"}`}>
+                  {m.label}
+                </p>
+                <p className="font-sans text-xs text-ink-faded mt-1 leading-snug">
+                  {m.description}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          {/* Active method panel */}
+          {method === "standard_array" && <StandardArrayPanel priority={priority} />}
+          {method === "point_buy"      && <PointBuyPanel priority={priority} />}
+          {method === "roll"           && <RollPanel priority={priority} />}
+        </div>
+
+        
       </div>
   );
 }
