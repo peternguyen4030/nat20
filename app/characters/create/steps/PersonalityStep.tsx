@@ -107,7 +107,7 @@ export function PersonalityStep() {
                     {selectedBg?.name ?? "Background"} Suggestion — click to use
                   </p>
                   <p className="font-sans text-xs text-ink-soft italic leading-relaxed group-hover:text-ink transition-colors">
-                    "{suggestion}"
+                    &ldquo;{suggestion}&rdquo;
                   </p>
                 </button>
               )}

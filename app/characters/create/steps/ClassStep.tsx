@@ -134,11 +134,11 @@ export function ClassStep() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-parchment border border-sketch rounded-input p-3.5 text-center">
+                  <div className="bg-parchment border border-sketch rounded-input p-3 text-center">
                     <p className="font-mono text-lg text-ink font-bold">d{displayClass.hitDie}</p>
                     <p className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">Hit Die</p>
                   </div>
-                  <div className="bg-parchment border border-sketch rounded-input p-3.5 text-center">
+                  <div className="bg-parchment border border-sketch rounded-input p-3 text-center">
                     <p className="font-mono text-lg text-ink font-bold">{displayClass.spellcastingAbility ?? "—"}</p>
                     <p className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">Spellcasting</p>
                   </div>
@@ -151,7 +151,7 @@ export function ClassStep() {
                     </p>
                     <ul className="space-y-2">
                       {displayClass.features.slice(0, 4).map((f) => (
-                        <li key={f.id} className="bg-parchment border border-sketch rounded-input p-3.5">
+                        <li key={f.id} className="bg-parchment border border-sketch rounded-input p-3">
                           <p className="font-sans text-xs font-bold text-ink">{f.name}</p>
                           <p className="font-sans text-xs text-ink-faded mt-0.5 line-clamp-2">{f.description}</p>
                         </li>

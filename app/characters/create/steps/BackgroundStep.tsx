@@ -230,18 +230,7 @@ export function BackgroundStep() {
                     </p>
                   </div>
                 )}
-
-                {/* Read full details button */}
-                <div className="border-t border-sketch p-3">
-                  <button
-                    type="button"
-                    onClick={() => setModalBg(displayBg)}
-                    className="w-full font-sans font-semibold text-xs text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper hover:border-blush/40 transition-all"
-                  >
-                    📖 Full Details
-                  </button>
-                </div>
-              </>
+                            </>
             ) : (
               <div className="flex items-center gap-2">
                 <span className="text-xl">📜</span>

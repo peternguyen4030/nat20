@@ -307,6 +307,11 @@ function PointBuyPanel({ priority }: {
           );
         })}
       </div>
+      {remaining === 0 && (
+        <div className="bg-sage/10 border border-sage/30 rounded-sketch p-4 text-center">
+          <p className="font-display text-sm text-sage">✦ All 27 points spent! Click Next to continue.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -391,7 +396,7 @@ function RollPanel({ priority }: {
           type="button"
           onClick={handleRoll}
           disabled={rolling}
-          className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-8 hover:-translate-x-px hover:-translate-y-px transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+          className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-3 hover:-translate-x-px hover:-translate-y-px transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
         >
           {rolling ? (
             <>
