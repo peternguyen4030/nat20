@@ -63,7 +63,7 @@ export function ClassStep() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
         {/* About Classes — left panel */}
         <div className="lg:col-span-1 order-last lg:order-first">
@@ -119,7 +119,7 @@ export function ClassStep() {
         </div>
 
         {/* Help panel */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-2">
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 sticky top-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
             {displayClass ? (
               <div className="space-y-4">
