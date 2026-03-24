@@ -96,8 +96,8 @@ export function PersonalityStep() {
                 className="w-full font-sans text-sm bg-parchment text-ink border-2 border-sketch rounded-input p-3 outline-none focus:border-blush transition-colors placeholder:text-ink-faded resize-none leading-relaxed"
               />
 
-              {/* Suggestion pill */}
-              {hasSuggestion && (
+              {/* Suggestion pill — hidden once user has typed something */}
+              {hasSuggestion && !isFilled && (
                 <button
                   type="button"
                   onClick={() => updateField(field.key, suggestion!)}
@@ -107,7 +107,7 @@ export function PersonalityStep() {
                     {selectedBg?.name ?? "Background"} Suggestion — click to use
                   </p>
                   <p className="font-sans text-xs text-ink-soft italic leading-relaxed group-hover:text-ink transition-colors">
-                    &ldquo;{suggestion}&rdquo;
+                    &ldquo;{suggestion}&ldquo;
                   </p>
                 </button>
               )}
