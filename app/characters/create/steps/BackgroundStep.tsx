@@ -12,7 +12,7 @@ const BACKGROUND_EMOJI: Record<string, string> = {
 };
 
 export function BackgroundStep() {
-  const { state, dispatch }       = useWizard();
+  const { state, dispatch }           = useWizard();
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
@@ -24,7 +24,7 @@ export function BackgroundStep() {
   useEffect(() => {
     fetch("/api/backgrounds")
       .then((r) => r.json())
-      .then((data) => { setBackgrounds(data); setLoading(false); })
+      .then((data) => { setBackgrounds(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => { setError("Failed to load backgrounds"); setLoading(false); });
   }, []);
 
@@ -40,7 +40,9 @@ export function BackgroundStep() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        {/* ── Background grid ── */}
         <div className="lg:col-span-2">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {backgrounds.map((bg) => {
@@ -77,7 +79,7 @@ export function BackgroundStep() {
           </div>
         </div>
 
-        {/* Help panel */}
+        {/* ── Selected info panel ── */}
         <div className="lg:col-span-1">
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 sticky top-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
             {displayBg ? (
@@ -90,11 +92,11 @@ export function BackgroundStep() {
                   <p className="font-sans text-sm text-ink-soft leading-relaxed">{displayBg.description}</p>
                 )}
                 {displayBg.skillProficiencies.length > 0 && (
-                  <div className="border-t border-sketch pt-3">
+                  <div className="border-t border-sketch p-3">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Skill Proficiencies</p>
                     <div className="flex flex-wrap gap-2">
                       {displayBg.skillProficiencies.map((skill) => (
-                        <span key={skill} className="font-sans text-xs capitalize bg-dusty-blue/10 text-dusty-blue border border-dusty-blue/30 rounded px-2 py-0.5">
+                        <span key={skill} className="font-sans text-xs capitalize bg-dusty-blue/10 text-dusty-blue border border-dusty-blue/30 rounded p-0.5">
                           {skill}
                         </span>
                       ))}
@@ -102,15 +104,15 @@ export function BackgroundStep() {
                   </div>
                 )}
                 {displayBg.feature && (
-                  <div className="border-t border-sketch pt-3">
+                  <div className="border-t border-sketch p-3">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Background Feature</p>
-                    <div className="bg-parchment border border-sketch rounded-input px-3 py-2">
+                    <div className="bg-parchment border border-sketch rounded-input p-2">
                       <p className="font-sans text-sm font-semibold text-ink">{displayBg.feature}</p>
                     </div>
                   </div>
                 )}
                 {displayBg.languages > 0 && (
-                  <div className="border-t border-sketch pt-3">
+                  <div className="border-t border-sketch p-3">
                     <p className="font-sans text-xs text-ink-soft leading-relaxed">
                       Grants <strong className="text-ink">{displayBg.languages}</strong> bonus language{displayBg.languages > 1 ? "s" : ""}
                     </p>
@@ -118,24 +120,30 @@ export function BackgroundStep() {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2">
                 <span className="text-xl">📜</span>
                 <p className="font-sans text-sm text-ink-faded italic">Hover or select a background to see its details.</p>
               </div>
             )}
+          </div>
+        </div>
 
-            {/* About Backgrounds — always visible */}
-            <div className="mt-4 pt-4 border-t border-sketch space-y-2">
-              <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded">About Backgrounds</p>
-              <p className="font-sans text-xs text-ink-soft leading-relaxed">Every adventurer has a past. Your background reflects your character's life before they took up adventuring.</p>
-              <div className="space-y-1">
-                <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Skill Proficiencies</strong> automatically granted</p>
-                <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Background Feature</strong> — a unique narrative ability</p>
-                <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Languages</strong> — bonus tongues you can speak</p>
-              </div>
+        {/* ── About Backgrounds panel ── */}
+        <div className="lg:col-span-1">
+          <div className="bg-parchment border-2 border-sketch rounded-sketch p-5 sticky top-6 space-y-3 max-h-[calc(100vh-8rem)] overflow-y-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📜</span>
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">About Backgrounds</p>
+            </div>
+            <p className="font-sans text-xs text-ink-soft leading-relaxed">Every adventurer has a past. Your background reflects your character's life before they took up adventuring.</p>
+            <div className="space-y-1.5 border-t border-sketch p-3">
+              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Skill Proficiencies</strong> automatically granted</p>
+              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Background Feature</strong> — a unique narrative ability</p>
+              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Languages</strong> — bonus tongues you can speak</p>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

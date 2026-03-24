@@ -25,7 +25,7 @@ function ShortRestTooltip() {
         A breather of at least 1 hour. You can spend Hit Dice to recover HP —
         roll a hit die and add your CON modifier, then regain that many hit points.
       </p>
-      <div className="border-t border-warm-white/20 pt-2 space-y-1">
+      <div className="border-t border-warm-white/20 p-2 space-y-1">
         <p className="font-sans text-xs text-warm-white/70">✦ Recover HP by spending Hit Dice</p>
         <p className="font-sans text-xs text-warm-white/70">✦ Some abilities recharge (e.g. Second Wind, Bardic Inspiration)</p>
         <p className="font-sans text-xs text-warm-white/70">✦ Does not restore spell slots</p>
@@ -42,7 +42,7 @@ function LongRestTooltip() {
         At least 8 hours of sleep or light activity. You wake up fully restored
         and ready for the next adventure.
       </p>
-      <div className="border-t border-warm-white/20 pt-2 space-y-1">
+      <div className="border-t border-warm-white/20 p-2 space-y-1">
         <p className="font-sans text-xs text-warm-white/70">✦ Restore all HP to maximum</p>
         <p className="font-sans text-xs text-warm-white/70">✦ Restore all spent spell slots</p>
         <p className="font-sans text-xs text-warm-white/70">✦ Restore all Hit Dice (up to half your level)</p>
@@ -62,7 +62,7 @@ function InspirationBadge({ active, onSpend }: {
 
   if (!active) {
     return (
-      <span className="font-sans text-xs font-bold text-ink-faded border border-sketch/40 bg-parchment rounded px-2 p-1 opacity-50 cursor-default select-none">
+      <span className="font-sans text-xs font-bold text-ink-faded border border-sketch/40 bg-parchment rounded p-2 p-1 opacity-50 cursor-default select-none">
         ⭐ No Inspiration
       </span>
     );
@@ -73,7 +73,7 @@ function InspirationBadge({ active, onSpend }: {
       <button
         type="button"
         onClick={() => setShowConfirm((v) => !v)}
-        className="font-sans text-xs font-bold text-[#D4A853] border border-[#D4A853]/40 bg-[#D4A853]/10 rounded px-2 p-1 hover:bg-[#D4A853]/20 transition-all cursor-pointer"
+        className="font-sans text-xs font-bold text-[#D4A853] border border-[#D4A853]/40 bg-[#D4A853]/10 rounded p-2 p-1 hover:bg-[#D4A853]/20 transition-all cursor-pointer"
       >
         ⭐ Inspired
       </button>
@@ -143,7 +143,7 @@ function HpWidget({ character, onUpdate }: {
       <div className="flex items-center justify-between">
         <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">Hit Points</p>
         {temporaryHp > 0 && (
-          <span className="font-sans text-xs text-dusty-blue border border-dusty-blue/30 bg-dusty-blue/10 rounded px-2 py-0.5">
+          <span className="font-sans text-xs text-dusty-blue border border-dusty-blue/30 bg-dusty-blue/10 rounded p-2 p-0.5">
             +{temporaryHp} temp
           </span>
         )}
@@ -169,7 +169,7 @@ function HpWidget({ character, onUpdate }: {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           placeholder="±"
-          className="flex-1 font-mono text-sm text-center bg-parchment border-2 border-sketch rounded-input px-2 py-2 outline-none focus:border-blush transition-colors placeholder:text-ink-faded"
+          className="flex-1 font-mono text-sm text-center bg-parchment border-2 border-sketch rounded-input p-2 outline-none focus:border-blush transition-colors placeholder:text-ink-faded"
         />
         <button onClick={() => apply(1)} className="w-9 h-9 rounded-sketch border-2 border-sketch bg-parchment text-ink font-bold hover:border-sage hover:bg-sage/5 transition-all duration-150 flex items-center justify-center text-lg">+</button>
       </div>
@@ -212,7 +212,7 @@ function HpWidget({ character, onUpdate }: {
 
       {/* Death saves */}
       {currentHp === 0 && (
-        <div className="border-t border-sketch pt-3 space-y-2">
+        <div className="border-t border-sketch p-3 space-y-2">
           <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">Death Saves</p>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -551,7 +551,7 @@ export default function CharacterSheetPage() {
     <div className="min-h-screen bg-parchment bg-paper-texture font-sans antialiased">
 
       {/* ── Nav ── */}
-      <nav className="bg-warm-white border-b-2 border-sketch px-6 py-3 sticky top-0 z-40">
+      <nav className="bg-warm-white border-b-2 border-sketch p-6 p-3 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             {loading ? <Skeleton className="h-4 w-48" /> : (
@@ -569,7 +569,7 @@ export default function CharacterSheetPage() {
             )}
             <button
               onClick={() => setShowDelete(true)}
-              className="font-sans text-xs text-ink-faded hover:text-blush transition-colors border border-sketch rounded px-2.5 p-1 hover:border-blush/40"
+              className="font-sans text-xs text-ink-faded hover:text-blush transition-colors border border-sketch rounded p-2.5 p-1 hover:border-blush/40"
             >
               Delete Character
             </button>
@@ -579,7 +579,7 @@ export default function CharacterSheetPage() {
 
       {/* ── Header band ── */}
       <div className="bg-warm-white border-b-2 border-sketch">
-        <div className="max-w-7xl mx-auto px-6 py-5">
+        <div className="max-w-7xl mx-auto p-6 p-5">
           {loading ? (
             <div className="flex items-center gap-5">
               <Skeleton className="w-20 h-20 rounded-sketch" />
@@ -631,7 +631,7 @@ export default function CharacterSheetPage() {
                   {activeConditions.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {activeConditions.map((cond) => (
-                        <span key={cond.key} className={`font-sans text-xs font-semibold px-2 py-0.5 rounded border ${cond.bg} ${cond.color} ${cond.border}`}>
+                        <span key={cond.key} className={`font-sans text-xs font-semibold p-2 p-0.5 rounded border ${cond.bg} ${cond.color} ${cond.border}`}>
                           {cond.label}
                         </span>
                       ))}
@@ -649,7 +649,7 @@ export default function CharacterSheetPage() {
                   { label: "Prof",    value: `+${character.proficiencyBonus}`, accent: false },
                   { label: "Hit Die", value: `d${primaryClass?.class.hitDie ?? 8}`, accent: false },
                 ].map((stat) => (
-                  <div key={stat.label} className="text-center bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 shadow-sketch min-w-[52px]">
+                  <div key={stat.label} className="text-center bg-parchment border-2 border-sketch rounded-sketch p-3 p-2 shadow-sketch min-w-[52px]">
                     <p className="font-mono text-xl font-bold text-ink leading-none">{stat.value}</p>
                     <p className="font-sans text-[0.55rem] text-ink-faded uppercase tracking-wider mt-0.5">{stat.label}</p>
                   </div>
@@ -663,7 +663,7 @@ export default function CharacterSheetPage() {
       </div>
 
       {/* ── Three column grid ── */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
           {/* ── COLUMN 1: Tabbed reference panel (3 cols) ── */}
@@ -732,7 +732,7 @@ export default function CharacterSheetPage() {
                     })}
                   </div>
                 ) : (
-                  <div className="space-y-0.5">
+                  <div className="flex flex-col gap-0.5">
                     {SKILLS_MAP.map((skill) => {
                       const score      = scores?.[skill.ability as keyof typeof scores] ?? 10;
                       const proficient = proficientSkills.has(skill.key);
@@ -747,7 +747,7 @@ export default function CharacterSheetPage() {
                             <p className="font-sans text-xs text-warm-white/80 leading-relaxed">{skill.description}</p>
                           </div>
                         }>
-                          <div className="flex items-center gap-1.5 p-0.5 rounded hover:bg-parchment transition-colors cursor-help">
+                          <div className="flex items-center gap-1.5 p-0.5 rounded hover:bg-parchment transition-colors cursor-help w-full">
                             <div className={`w-2.5 h-2.5 rounded-full border-2 shrink-0 ${
                               expertise  ? "bg-blush border-blush" :
                               proficient ? "bg-blush/50 border-blush/60" :
@@ -780,7 +780,7 @@ export default function CharacterSheetPage() {
                         <p className="font-sans text-xs text-warm-white/80 leading-relaxed">{cond.description}</p>
                       </div>
                     } side="top">
-                      <span className={`font-sans text-xs font-semibold px-2.5 p-1 rounded-badge border cursor-help ${cond.bg} ${cond.color} ${cond.border}`}>
+                      <span className={`font-sans text-xs font-semibold p-2.5 p-1 rounded-badge border cursor-help ${cond.bg} ${cond.color} ${cond.border}`}>
                         <span className={`inline-block w-1.5 h-1.5 rounded-full ${cond.dot} mr-1.5`} />
                         {cond.label}
                       </span>
@@ -799,14 +799,14 @@ export default function CharacterSheetPage() {
                       <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">Languages</p>
                       <div className="flex flex-wrap gap-1.5">
                         {character?.languages?.map((lang) => (
-                          <span key={lang} className="font-sans text-xs text-dusty-blue border border-dusty-blue/30 bg-dusty-blue/5 rounded-badge px-2 p-0.5">{lang}</span>
+                          <span key={lang} className="font-sans text-xs text-dusty-blue border border-dusty-blue/30 bg-dusty-blue/5 rounded-badge p-2 p-0.5">{lang}</span>
                         ))}
                       </div>
                     </div>
                   )}
                   <div className="flex flex-wrap gap-1.5">
                     {character?.proficiencies?.map((p) => (
-                      <span key={p.proficiency.name} className={`font-sans text-xs px-2 p-0.5 rounded-badge border capitalize ${
+                      <span key={p.proficiency.name} className={`font-sans text-xs p-2 p-0.5 rounded-badge border capitalize ${
                         p.expertise ? "text-blush border-blush/30 bg-blush/10 font-semibold" : "text-ink-soft border-sketch bg-parchment"
                       }`}>
                         {p.expertise ? "★ " : ""}{p.proficiency.name}
@@ -941,7 +941,7 @@ export default function CharacterSheetPage() {
                           key={type}
                           type="button"
                           onClick={() => setActionFilter(type)}
-                          className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-2 p-1 rounded border transition-all ${
+                          className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider p-2 p-1 rounded border transition-all ${
                             actionFilter === type
                               ? "bg-ink text-warm-white border-ink"
                               : "bg-parchment text-ink-faded border-sketch hover:border-ink/40"
@@ -965,12 +965,12 @@ export default function CharacterSheetPage() {
                               onClick={() => setExpandedAction(isExpanded ? null : action.id)}
                               className="w-full p-2 flex items-center gap-2 bg-parchment hover:bg-paper transition-colors duration-150 text-left"
                             >
-                              <span className={`font-sans text-[0.55rem] font-bold uppercase tracking-wider px-1.5 p-0.5 rounded border shrink-0 ${CATEGORY_COLOR[action.category] ?? "text-ink-faded border-sketch bg-parchment"}`}>
+                              <span className={`font-sans text-[0.55rem] font-bold uppercase tracking-wider p-1.5 p-0.5 rounded border shrink-0 ${CATEGORY_COLOR[action.category] ?? "text-ink-faded border-sketch bg-parchment"}`}>
                                 {action.actionType.replace("_", " ")}
                               </span>
                               <span className="font-sans text-sm text-ink flex-1 truncate">{action.name}</span>
                               {action.source !== "Standard" && (
-                                <span className={`font-sans text-[0.5rem] font-bold uppercase shrink-0 px-1 p-0.5 rounded border ${
+                                <span className={`font-sans text-[0.5rem] font-bold uppercase shrink-0 p-1 p-0.5 rounded border ${
                                   action.source === "CLASS" ? "text-blush border-blush/30 bg-blush/10" : "text-sage border-sage/30 bg-sage/10"
                                 }`}>{action.source}</span>
                               )}
@@ -1009,17 +1009,17 @@ export default function CharacterSheetPage() {
                       <button
                         type="button"
                         onClick={() => setExpandedFeature(expandedFeature === f.id ? null : f.id)}
-                        className="w-full px-3 py-2.5 flex items-center justify-between gap-2 bg-parchment hover:bg-paper transition-colors duration-150"
+                        className="w-full p-3 p-2.5 flex items-center justify-between gap-2 bg-parchment hover:bg-paper transition-colors duration-150"
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className={`font-sans text-[0.55rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
+                          <span className={`font-sans text-[0.55rem] font-bold uppercase tracking-wider p-1.5 p-0.5 rounded border shrink-0 ${
                             f.feature.type === "CLASS" ? "text-blush border-blush/30 bg-blush/10" :
                             f.feature.type === "RACE"  ? "text-sage border-sage/30 bg-sage/10" :
                             "text-ink-faded border-sketch bg-parchment"
                           }`}>{f.feature.type}</span>
                           <span className="font-sans text-sm font-semibold text-ink truncate">{f.feature.name}</span>
                           {f.feature.combatUsable && (
-                            <span className="font-sans text-[0.5rem] font-bold uppercase text-blush border border-blush/20 bg-blush/5 rounded px-1 py-0.5 shrink-0">
+                            <span className="font-sans text-[0.5rem] font-bold uppercase text-blush border border-blush/20 bg-blush/5 rounded p-1 p-0.5 shrink-0">
                               ⚔ Combat
                             </span>
                           )}
@@ -1027,7 +1027,7 @@ export default function CharacterSheetPage() {
                         <span className="text-ink-faded text-xs shrink-0">{expandedFeature === f.id ? "▲" : "▼"}</span>
                       </button>
                       {expandedFeature === f.id && (
-                        <div className="px-3 py-3 border-t border-sketch bg-warm-white">
+                        <div className="p-3 border-t border-sketch bg-warm-white">
                           <p className="font-sans text-xs text-ink-soft leading-relaxed">{f.feature.description}</p>
                         </div>
                       )}
@@ -1082,7 +1082,7 @@ export default function CharacterSheetPage() {
                   ].map(({ key, label, icon }) => {
                     const value = character?.[key as keyof Character] as string | null;
                     return (
-                      <div key={key} className="bg-parchment border border-sketch rounded-input px-3 py-2.5">
+                      <div key={key} className="bg-parchment border border-sketch rounded-input p-3 p-2.5">
                         <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded mb-1">{icon} {label}</p>
                         <p className="font-sans text-sm text-ink-soft leading-relaxed">
                           {value || <span className="text-ink-faded italic">Not set</span>}
@@ -1108,14 +1108,14 @@ export default function CharacterSheetPage() {
                       <span className="text-lg">📝</span>
                       <h2 className="font-display text-xl text-ink">Notes</h2>
                       {entries.length > 0 && (
-                        <span className="font-mono text-xs text-ink-faded border border-sketch rounded px-1.5 p-0.5">{entries.length}</span>
+                        <span className="font-mono text-xs text-ink-faded border border-sketch rounded p-1.5 p-0.5">{entries.length}</span>
                       )}
                     </div>
                     {entries.length > 0 && (
                       <button
                         type="button"
                         onClick={() => { setShowNoteForm(true); setEditingNoteId(null); setNoteTitle(""); setNoteBody(""); setNoteTags(""); }}
-                        className="font-sans text-xs font-bold text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent px-3 p-1.5 hover:-translate-x-px hover:-translate-y-px transition-all"
+                        className="font-sans text-xs font-bold text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-3 p-1.5 hover:-translate-x-px hover:-translate-y-px transition-all"
                       >
                         + Add Note
                       </button>
@@ -1130,7 +1130,7 @@ export default function CharacterSheetPage() {
                       <button
                         type="button"
                         onClick={() => setShowNoteForm(true)}
-                        className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent px-4 p-2 hover:-translate-x-px hover:-translate-y-px transition-all"
+                        className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-4 p-2 hover:-translate-x-px hover:-translate-y-px transition-all"
                       >
                         Make a Note ✦
                       </button>
@@ -1144,7 +1144,7 @@ export default function CharacterSheetPage() {
                               key={tag}
                               type="button"
                               onClick={() => setNoteFilter(tag)}
-                              className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-2 p-1 rounded border transition-all ${
+                              className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider p-2 p-1 rounded border transition-all ${
                                 noteFilter === tag ? "bg-ink text-warm-white border-ink" : "bg-parchment text-ink-faded border-sketch hover:border-ink/40"
                               }`}
                             >
@@ -1164,9 +1164,9 @@ export default function CharacterSheetPage() {
                             className="w-full font-sans text-sm bg-warm-white text-ink border-2 border-sketch rounded-input p-2 outline-none focus:border-blush transition-colors placeholder:text-ink-faded" />
                           <div className="flex gap-2 justify-end">
                             <button type="button" onClick={() => { setShowNoteForm(false); setEditingNoteId(null); setNoteTitle(""); setNoteBody(""); setNoteTags(""); }}
-                              className="font-sans text-xs font-semibold text-ink-faded border-2 border-sketch rounded-sketch px-3 p-1.5 bg-parchment hover:bg-paper transition-all">Cancel</button>
+                              className="font-sans text-xs font-semibold text-ink-faded border-2 border-sketch rounded-sketch p-3 p-1.5 bg-parchment hover:bg-paper transition-all">Cancel</button>
                             <button type="button" onClick={() => editingNoteId ? updateNote(editingNoteId) : addNote()}
-                              className="font-sans text-xs font-bold text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent px-3 p-1.5 hover:-translate-x-px hover:-translate-y-px transition-all">
+                              className="font-sans text-xs font-bold text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-3 p-1.5 hover:-translate-x-px hover:-translate-y-px transition-all">
                               {editingNoteId ? "Save Changes" : "Add Note"} ✦
                             </button>
                           </div>
@@ -1176,7 +1176,7 @@ export default function CharacterSheetPage() {
                       {filtered.length === 0 ? (
                         <p className="font-sans text-sm text-ink-faded italic text-center p-2">No notes match this tag.</p>
                       ) : (
-                        <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-96 overflow-y-auto p-1">
                           {filtered.map((note) => {
                             const preview = note.body.length > 100 ? note.body.slice(0, 100) + "…" : note.body;
                             return (
@@ -1201,7 +1201,7 @@ export default function CharacterSheetPage() {
                                   <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
                                     {note.tags.map((tag) => (
                                       <button key={tag} type="button" onClick={() => setNoteFilter(tag)}
-                                        className="font-sans text-[0.5rem] font-bold uppercase tracking-wider text-dusty-blue border border-dusty-blue/30 bg-dusty-blue/10 rounded px-1 p-0.5 hover:bg-dusty-blue/20 transition-colors">
+                                        className="font-sans text-[0.5rem] font-bold uppercase tracking-wider text-dusty-blue border border-dusty-blue/30 bg-dusty-blue/10 rounded p-1 p-0.5 hover:bg-dusty-blue/20 transition-colors">
                                         {tag}
                                       </button>
                                     ))}
@@ -1229,11 +1229,11 @@ export default function CharacterSheetPage() {
                             >
                               {/* Modal header */}
                               <div className="flex items-start justify-between p-5 border-b border-sketch">
-                                <div className="flex-1 min-w-0 pr-3">
+                                <div className="flex-1 min-w-0 p-3">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <h2 className="font-display text-2xl text-ink leading-tight">{note.title}</h2>
                                     {note.tags.map((tag) => (
-                                      <span key={tag} className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-dusty-blue border border-dusty-blue/30 bg-dusty-blue/10 rounded px-1.5 p-0.5">
+                                      <span key={tag} className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-dusty-blue border border-dusty-blue/30 bg-dusty-blue/10 rounded p-1.5 p-0.5">
                                         {tag}
                                       </span>
                                     ))}

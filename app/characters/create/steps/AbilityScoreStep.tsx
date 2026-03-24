@@ -149,7 +149,7 @@ function StandardArrayPanel({ priority }: {
               <select
                 value={assigned ?? ""}
                 onChange={(e) => assignValue(ability.key, e.target.value ? Number(e.target.value) : null)}
-                className="w-16 font-mono text-lg font-bold text-ink bg-parchment border-2 border-sketch rounded-input px-1 py-1 outline-none focus:border-blush transition-colors text-center"
+                className="w-16 font-mono text-lg font-bold text-ink bg-parchment border-2 border-sketch rounded-input p-1 outline-none focus:border-blush transition-colors text-center"
               >
                 <option value="">—</option>
                 {STANDARD_ARRAY.map((v) => (
@@ -168,10 +168,10 @@ function StandardArrayPanel({ priority }: {
                   <p className="font-display text-lg text-ink">{ability.label}</p>
                   <span className="font-mono text-sm text-ink-faded">{ability.abbr}</span>
                   {priority?.primary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded px-1.5 py-0.5">Primary</span>
+                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-1.5 p-0.5">Primary</span>
                   )}
                   {priority?.secondary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded px-1.5 py-0.5">Secondary</span>
+                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-1.5 p-0.5">Secondary</span>
                   )}
                   {assigned && (
                     <span className="font-mono text-sm text-sage ml-auto">
@@ -189,7 +189,7 @@ function StandardArrayPanel({ priority }: {
       </div>
 
       {allAssigned && (
-        <div className="bg-sage/10 border border-sage/30 rounded-sketch px-4 py-3 text-center">
+        <div className="bg-sage/10 border border-sage/30 rounded-sketch p-4 text-center">
           <p className="font-display text-sm text-sage">✦ All scores assigned! Click Next to continue.</p>
         </div>
       )}
@@ -232,15 +232,18 @@ function PointBuyPanel({ priority }: {
         <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">How Point Buy Works</p>
         <p className="font-sans text-xs text-ink-soft leading-relaxed">
           Every ability starts at 8. You have <strong className="text-ink">27 points</strong> to spend raising them up to 15.
-          Scores cost more points the higher they go — raising from 13 to 14 costs 2 points, and 14 to 15 costs 3.
+          Scores cost more points the higher they go — 8 to 13 costs 1 point each, 14 costs 2 more, and 15 costs 2 more again.
         </p>
-        <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 pt-1">
-          {([8,9,10,11,12,13,14,15] as const).map((score) => (
-            <div key={score} className="text-center bg-warm-white border border-sketch rounded p-1">
-              <p className="font-mono text-xs font-bold text-ink">{score}</p>
-              <p className="font-sans text-[0.55rem] text-ink-faded">{POINT_BUY_COSTS[score]}pt</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-8 gap-1 p-1">
+          {([8,9,10,11,12,13,14,15] as const).map((score) => {
+            const stepCost: Record<number, string> = {8:"free",9:"+1",10:"+1",11:"+1",12:"+1",13:"+1",14:"+2",15:"+2"};
+            return (
+              <div key={score} className="text-center bg-warm-white border border-sketch rounded p-1">
+                <p className="font-mono text-xs font-bold text-ink">{score}</p>
+                <p className="font-sans text-[0.55rem] text-ink-faded">{stepCost[score]}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
       {/* Budget bar */}
@@ -304,10 +307,10 @@ function PointBuyPanel({ priority }: {
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                   {priority?.primary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded px-1.5 py-0.5">Primary</span>
+                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-1.5 p-0.5">Primary</span>
                   )}
                   {priority?.secondary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded px-1.5 py-0.5">Secondary</span>
+                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-1.5 p-0.5">Secondary</span>
                   )}
                   <p className="font-sans text-xs text-ink-faded leading-tight">
                     {ability.description}
@@ -407,7 +410,7 @@ function RollPanel({ priority }: {
           type="button"
           onClick={handleRoll}
           disabled={rolling}
-          className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent px-8 py-3 hover:-translate-x-px hover:-translate-y-px transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+          className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-8 hover:-translate-x-px hover:-translate-y-px transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
         >
           {rolling ? (
             <>
@@ -437,7 +440,7 @@ function RollPanel({ priority }: {
                     draggable={!isUsed}
                     onDragStart={() => !isUsed && setDragging(i)}
                     onDragEnd={() => setDragging(null)}
-                    className={`relative rounded-sketch border-2 px-3 py-2 text-center transition-all duration-150 select-none ${
+                    className={`relative rounded-sketch border-2 p-3 text-center transition-all duration-150 select-none ${
                       isUsed
                         ? "bg-parchment border-sketch opacity-40 cursor-not-allowed"
                         : "bg-blush/10 border-blush shadow-sketch-accent cursor-grab active:cursor-grabbing hover:-translate-y-px"
@@ -495,7 +498,7 @@ function RollPanel({ priority }: {
                     <select
                       value={assignedIndex !== null ? assignedIndex : ""}
                       onChange={(e) => assignRoll(ability.key, e.target.value !== "" ? Number(e.target.value) : null)}
-                      className="w-14 font-mono text-lg font-bold text-ink bg-parchment border-2 border-sketch rounded-input px-1 py-1 outline-none focus:border-blush transition-colors text-center appearance-none cursor-pointer"
+                      className="w-14 font-mono text-lg font-bold text-ink bg-parchment border-2 border-sketch rounded-input p-1 outline-none focus:border-blush transition-colors text-center appearance-none cursor-pointer"
                     >
                       <option value="">—</option>
                       {rolls.map((dice, i) => {
@@ -515,10 +518,10 @@ function RollPanel({ priority }: {
                       <p className="font-display text-base text-ink">{ability.label}</p>
                       <span className="font-mono text-xs text-ink-faded">{ability.abbr}</span>
                       {priority?.primary.includes(ability.label) && (
-                        <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded px-1.5 py-0.5">Primary</span>
+                        <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-1.5 p-0.5">Primary</span>
                       )}
                       {priority?.secondary.includes(ability.label) && (
-                        <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded px-1.5 py-0.5">Secondary</span>
+                        <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-1.5 p-0.5">Secondary</span>
                       )}
                       {assignedScore !== null && (
                         <span className={`font-mono text-sm ml-auto ${parseInt(modifier(assignedScore)) >= 0 ? "text-sage" : "text-blush"}`}>
@@ -543,7 +546,7 @@ function RollPanel({ priority }: {
           </div>
 
           {allAssigned && (
-            <div className="bg-sage/10 border border-sage/30 rounded-sketch px-4 py-3 text-center">
+            <div className="bg-sage/10 border border-sage/30 rounded-sketch p-4 text-center">
               <p className="font-display text-sm text-sage">✦ All scores assigned! Click Next to continue.</p>
             </div>
           )}
@@ -633,7 +636,7 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
                         <strong className="text-ink">Secondary:</strong> {priority.secondary.join(", ")}
                       </p>
                     </div>
-                    <p className="font-sans text-xs text-ink-faded leading-relaxed border-t border-sketch/50 pt-2">
+                    <p className="font-sans text-xs text-ink-faded leading-relaxed border-t border-sketch/50 p-2">
                       {priority.notes}
                     </p>
                   </div>
@@ -648,22 +651,22 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
               {/* Modifier table */}
               <div className="border border-sketch rounded-input overflow-hidden">
                 <div className="grid grid-cols-2 bg-parchment">
-                  <div className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded px-3 py-1.5 border-b border-sketch">Score</div>
-                  <div className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded px-3 py-1.5 border-b border-sketch">Modifier</div>
+                  <div className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded p-3.5 border-b border-sketch">Score</div>
+                  <div className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded p-3.5 border-b border-sketch">Modifier</div>
                 </div>
                 {[
                   [8, 9], [10, 11], [12, 13], [14, 15], [16, 17], [18, 18]
                 ].map(([lo, hi]) => (
                   <div key={lo} className="grid grid-cols-2 border-b border-sketch last:border-0">
-                    <div className="font-mono text-xs text-ink px-3 py-1">{lo === hi ? lo : `${lo}–${hi}`}</div>
-                    <div className={`font-mono text-xs px-3 py-1 ${Math.floor((lo - 10) / 2) >= 0 ? "text-sage" : "text-blush"}`}>
+                    <div className="font-mono text-xs text-ink p-3">{lo === hi ? lo : `${lo}–${hi}`}</div>
+                    <div className={`font-mono text-xs p-3 ${Math.floor((lo - 10) / 2) >= 0 ? "text-sage" : "text-blush"}`}>
                       {modifier(lo)}
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="border-t border-sketch pt-3 space-y-1.5 text-xs">
+              <div className="border-t border-sketch p-3 space-y-1.5 text-xs">
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Not sure?</strong> Use Standard Array — it's balanced and fast</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Want control?</strong> Point Buy lets you plan your stats precisely</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Feeling lucky?</strong> Rolling is exciting but results vary wildly</p>
@@ -671,8 +674,7 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
             </div>
           </div>
         </div>
-
-      </div>
     </div>
+      </div>
   );
 }

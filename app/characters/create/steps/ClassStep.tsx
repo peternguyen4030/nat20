@@ -63,7 +63,7 @@ export function ClassStep() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-2">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {classes.map((cls) => {
@@ -115,24 +115,24 @@ export function ClassStep() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-parchment border border-sketch rounded-input px-3 py-2.5 text-center">
+                  <div className="bg-parchment border border-sketch rounded-input p-3.5 text-center">
                     <p className="font-mono text-lg text-ink font-bold">d{displayClass.hitDie}</p>
                     <p className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">Hit Die</p>
                   </div>
-                  <div className="bg-parchment border border-sketch rounded-input px-3 py-2.5 text-center">
+                  <div className="bg-parchment border border-sketch rounded-input p-3.5 text-center">
                     <p className="font-mono text-lg text-ink font-bold">{displayClass.spellcastingAbility ?? "—"}</p>
                     <p className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">Spellcasting</p>
                   </div>
                 </div>
 
                 {displayClass.features.length > 0 && (
-                  <div className="border-t border-sketch pt-3">
+                  <div className="border-t border-sketch p-3">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">
                       Level 1 Features
                     </p>
                     <ul className="space-y-2">
                       {displayClass.features.slice(0, 4).map((f) => (
-                        <li key={f.id} className="bg-parchment border border-sketch rounded-input px-3 py-2.5">
+                        <li key={f.id} className="bg-parchment border border-sketch rounded-input p-3.5">
                           <p className="font-sans text-xs font-bold text-ink">{f.name}</p>
                           <p className="font-sans text-xs text-ink-faded mt-0.5 line-clamp-2">{f.description}</p>
                         </li>
@@ -147,20 +147,26 @@ export function ClassStep() {
                 <p className="font-sans text-sm text-ink-faded italic">Hover or select a class to see its details.</p>
               </div>
             )}
+          </div>
+        </div>
 
-            {/* About Classes — always visible */}
-            <div className="mt-4 pt-4 border-t border-sketch space-y-2">
-              <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded">About Classes</p>
-              <p className="font-sans text-xs text-ink-soft leading-relaxed">Your class shapes everything about how you play — what weapons you use, whether you cast spells, and what role you fill in the party.</p>
-              <div className="space-y-1">
-                <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Hit Die</strong> determines your HP each level</p>
-                <p className="font-sans text-xs text-ink-soft"><span className="text-sage mr-1">✦</span><strong className="text-sage">Beginner</strong> classes are simpler to learn</p>
-                <p className="font-sans text-xs text-ink-soft"><span className="text-[#D4A853] mr-1">✦</span><strong className="text-[#D4A853]">Intermediate</strong> classes have more complexity</p>
-                <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-blush">Advanced</strong> classes reward careful planning</p>
-              </div>
+        {/* About Classes — always visible panel */}
+        <div className="lg:col-span-1">
+          <div className="bg-parchment border-2 border-sketch rounded-sketch p-5 sticky top-6 space-y-3 max-h-[calc(100vh-8rem)] overflow-y-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⚔️</span>
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">About Classes</p>
+            </div>
+            <p className="font-sans text-xs text-ink-soft leading-relaxed">Your class shapes everything about how you play — what weapons you use, whether you cast spells, and what role you fill in the party.</p>
+            <div className="space-y-1.5 border-t border-sketch p-3">
+              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Hit Die</strong> determines your HP each level</p>
+              <p className="font-sans text-xs text-ink-soft"><span className="text-sage mr-1">✦</span><strong className="text-sage">Beginner</strong> classes are simpler to learn</p>
+              <p className="font-sans text-xs text-ink-soft"><span className="text-[#D4A853] mr-1">✦</span><strong className="text-[#D4A853]">Intermediate</strong> classes have more complexity</p>
+              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-blush">Advanced</strong> classes reward careful planning</p>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

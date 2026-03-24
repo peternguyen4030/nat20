@@ -60,7 +60,7 @@ export function RaceStep() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-2 space-y-4">
           {/* Race grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -103,7 +103,7 @@ export function RaceStep() {
                   <span className="text-base">🌿</span>
                   <h3 className="font-display text-xl text-ink">Choose your {selectedRace.name} subrace</h3>
                 </div>
-                <span className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded border border-sketch rounded px-1.5 py-0.5">Optional</span>
+                <span className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded border border-sketch rounded p-1.5 p-0.5">Optional</span>
               </div>
               <p className="font-sans text-xs text-ink-faded mb-4">
                 Some races have distinct lineages. Pick the one that calls to you, or leave it unselected.
@@ -174,7 +174,7 @@ export function RaceStep() {
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Ability Bonuses</p>
                     <div className="flex flex-wrap gap-1.5">
                       {(displayRace.abilityBonuses as { ability: string; bonus: number }[]).map((b) => (
-                        <span key={b.ability} className="font-mono text-xs bg-sage/10 text-sage border border-sage/30 rounded px-2 py-0.5">
+                        <span key={b.ability} className="font-mono text-xs bg-sage/10 text-sage border border-sage/30 rounded p-2.5">
                           +{b.bonus} {b.ability}
                         </span>
                       ))}
@@ -209,7 +209,7 @@ export function RaceStep() {
                         <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">Additional Bonuses</p>
                         <div className="flex flex-wrap gap-1.5">
                           {(displaySubrace.abilityBonuses as { ability: string; bonus: number }[]).map((b) => (
-                            <span key={b.ability} className="font-mono text-xs bg-dusty-blue/10 text-dusty-blue border border-dusty-blue/30 rounded px-2 py-0.5">
+                            <span key={b.ability} className="font-mono text-xs bg-dusty-blue/10 text-dusty-blue border border-dusty-blue/30 rounded p-2.5">
                               +{b.bonus} {b.ability}
                             </span>
                           ))}
@@ -233,19 +233,25 @@ export function RaceStep() {
                 <p className="font-sans text-sm text-ink-faded italic">Hover or select a race to see its details.</p>
               </div>
             )}
+          </div>
+        </div>
 
-            {/* About Races — always visible below selected info */}
-            <div className="mt-4 pt-4 border-t border-sketch space-y-2">
-              <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded">About Races</p>
-              <p className="font-sans text-xs text-ink-soft leading-relaxed">Your race is your character's ancestry — the people they were born into. Each race has unique traits, ability bonuses, and a place in the world.</p>
-              <div className="space-y-1">
-                <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Ability bonuses</strong> add to your base stats</p>
-                <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Traits</strong> give passive abilities like Darkvision</p>
-                <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Subraces</strong> let you specialize within a broader ancestry</p>
-              </div>
+        {/* About Races — always visible panel */}
+        <div className="lg:col-span-1">
+          <div className="bg-parchment border-2 border-sketch rounded-sketch p-5 sticky top-6 space-y-3 max-h-[calc(100vh-8rem)] overflow-y-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🧬</span>
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">About Races</p>
+            </div>
+            <p className="font-sans text-xs text-ink-soft leading-relaxed">Your race is your character's ancestry — the people they were born into. Each race has unique traits, ability bonuses, and a place in the world.</p>
+            <div className="space-y-1.5 border-t border-sketch p-3">
+              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Ability bonuses</strong> add to your base stats</p>
+              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Traits</strong> give passive abilities like Darkvision</p>
+              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Subraces</strong> let you specialize within a broader ancestry</p>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

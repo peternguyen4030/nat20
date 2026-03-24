@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { DeleteModal } from "@/components/DeleteModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -65,8 +66,6 @@ interface CampaignDetail {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// Day-resolution format ("Today", "Yesterday") — intentionally different from
-// the compact "Xm/Xh/Xd ago" format in lib/utils.ts used on the dashboard.
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days  = Math.floor(diff / 86400000);
@@ -139,12 +138,12 @@ function EditCampaignModal({ campaign, onClose, onSaved }: {
     <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-md bg-warm-white border-2 border-sketch rounded-sketch shadow-[4px_4px_0_#C4B49A]">
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-sketch">
+        <div className="flex items-center justify-between p-6 border-b border-sketch">
           <h2 className="font-display text-2xl text-ink">Edit Campaign</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-input border-2 border-sketch bg-parchment text-ink-faded hover:border-blush transition-all flex items-center justify-center text-sm">✕</button>
         </div>
-        <div className="px-6 py-5 space-y-4">
-          {error && <div className="bg-blush/10 border border-blush/30 rounded-input px-3 py-2"><p className="font-sans text-sm text-blush">✗ {error}</p></div>}
+        <div className="p-6 space-y-4">
+          {error && <div className="bg-blush/10 border border-blush/30 rounded-input p-3"><p className="font-sans text-sm text-blush">✗ {error}</p></div>}
           <div>
             <label className="block font-sans text-[0.7rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Icon</label>
             <div className="grid grid-cols-10 gap-1.5">
@@ -158,21 +157,21 @@ function EditCampaignModal({ campaign, onClose, onSaved }: {
           <div>
             <label className="block font-sans text-[0.7rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">Name *</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-              className="w-full font-sans text-base bg-parchment text-ink border-2 border-sketch rounded-input px-3 py-2.5 outline-none focus:border-blush transition-colors"
+              className="w-full font-sans text-base bg-parchment text-ink border-2 border-sketch rounded-input p-2.5 outline-none focus:border-blush transition-colors"
             />
           </div>
           <div>
             <label className="block font-sans text-[0.7rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">Description</label>
             <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)}
               placeholder="What is this campaign about?"
-              className="w-full font-sans text-sm bg-parchment text-ink border-2 border-sketch rounded-input px-3 py-2.5 outline-none focus:border-blush transition-colors resize-none placeholder:text-ink-faded"
+              className="w-full font-sans text-sm bg-parchment text-ink border-2 border-sketch rounded-input p-2.5 outline-none focus:border-blush transition-colors resize-none placeholder:text-ink-faded"
             />
           </div>
         </div>
-        <div className="px-6 pb-6 flex gap-3 justify-end">
-          <button onClick={onClose} className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch px-4 py-2 bg-parchment hover:bg-paper shadow-sketch transition-all">Cancel</button>
+        <div className="p-6 flex gap-3 justify-end border-t border-sketch">
+          <button onClick={onClose} className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper shadow-sketch transition-all">Cancel</button>
           <button onClick={handleSave} disabled={saving}
-            className={`font-sans font-bold text-sm text-white rounded-sketch px-5 py-2 border-2 transition-all flex items-center gap-2 ${saving ? "bg-tan border-sketch opacity-60 cursor-not-allowed" : "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"}`}>
+            className={`font-sans font-bold text-sm text-white rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${saving ? "bg-tan border-sketch opacity-60 cursor-not-allowed" : "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"}`}>
             {saving ? "Saving..." : "Save Changes ✦"}
           </button>
         </div>
@@ -209,7 +208,7 @@ function CharacterCard({ character, currentUserId }: {
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-display text-base text-ink leading-tight">{character.name}</p>
               {isMyChar && (
-                <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider bg-blush/10 text-blush border border-blush/30 rounded px-1.5 py-0.5">Yours</span>
+                <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider bg-blush/10 text-blush border border-blush/30 rounded p-0.5">Yours</span>
               )}
             </div>
             <p className="font-sans text-xs text-ink-faded mt-0.5">
@@ -232,7 +231,7 @@ function CharacterCard({ character, currentUserId }: {
             {(character.conditions?.length ?? 0) > 0 && (
               <div className="flex flex-wrap gap-1 mt-1.5">
                 {character.conditions.slice(0, 2).map((c) => (
-                  <span key={c} className="font-sans text-[0.5rem] font-bold uppercase text-blush border border-blush/30 bg-blush/5 rounded px-1 py-0.5">{c}</span>
+                  <span key={c} className="font-sans text-[0.5rem] font-bold uppercase text-blush border border-blush/30 bg-blush/5 rounded p-0.5">{c}</span>
                 ))}
               </div>
             )}
@@ -245,9 +244,9 @@ function CharacterCard({ character, currentUserId }: {
 
 // ── DM View ───────────────────────────────────────────────────────────────────
 
-function DMView({ campaign, currentUserId, onEdit, onRefresh }: {
+function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
   campaign: CampaignDetail; currentUserId: string;
-  onEdit: () => void; onRefresh: () => void;
+  onEdit: () => void; onDelete: () => void; onRefresh: () => void;
 }) {
   async function removeMember(userId: string) {
     if (!confirm("Remove this member from the campaign?")) return;
@@ -282,7 +281,7 @@ function DMView({ campaign, currentUserId, onEdit, onRefresh }: {
             <p className="font-display text-lg text-ink">No characters yet</p>
             <p className="font-sans text-xs text-ink-faded mt-1 mb-4">Invite players to join and create their characters.</p>
             <Link href={`/characters/create?campaignId=${campaign.id}`}>
-              <button className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent px-4 py-2 hover:-translate-x-px hover:-translate-y-px transition-all">
+              <button className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-2 hover:-translate-x-px hover:-translate-y-px transition-all">
                 Create a Character ✦
               </button>
             </Link>
@@ -304,7 +303,7 @@ function DMView({ campaign, currentUserId, onEdit, onRefresh }: {
                 <div key={session.id} className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full shrink-0 ${session.active ? "bg-sage" : "bg-sketch"}`} />
                   <p className="font-sans text-xs text-ink-soft">Round {session.round} · {timeAgo(session.createdAt)}</p>
-                  {session.active && <span className="font-sans text-[0.6rem] text-sage border border-sage/30 rounded px-1 ml-auto">Active</span>}
+                  {session.active && <span className="font-sans text-[0.6rem] text-sage border border-sage/30 rounded p-0.5 ml-auto">Active</span>}
                 </div>
               ))}
             </div>
@@ -312,7 +311,7 @@ function DMView({ campaign, currentUserId, onEdit, onRefresh }: {
         )}
       </div>
 
-      {/* ── Right: members + stats ── */}
+      {/* ── Right: members + stats + tools ── */}
       <div className="space-y-4">
 
         {/* Campaign stats */}
@@ -323,7 +322,7 @@ function DMView({ campaign, currentUserId, onEdit, onRefresh }: {
             { label: "Members",    value: campaign.members.length },
             { label: "Sessions",   value: campaign.sessions.length },
           ].map((stat) => (
-            <div key={stat.label} className="flex items-center justify-between py-1.5 border-b border-sketch/50 last:border-0">
+            <div key={stat.label} className="flex items-center justify-between p-1.5 border-b border-sketch/50 last:border-0">
               <span className="font-sans text-xs text-ink-faded">{stat.label}</span>
               <span className="font-mono text-sm font-bold text-ink">{stat.value}</span>
             </div>
@@ -340,10 +339,9 @@ function DMView({ campaign, currentUserId, onEdit, onRefresh }: {
                 <div className="flex-1 min-w-0">
                   <p className="font-sans text-xs text-ink truncate">{member.user.displayName ?? member.user.name ?? "Player"}</p>
                 </div>
-                <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
+                <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider p-0.5 rounded border shrink-0 ${
                   member.role === "DM" ? "bg-blush/10 text-blush border-blush/30" : "bg-dusty-blue/10 text-dusty-blue border-dusty-blue/30"
                 }`}>{member.role}</span>
-                {/* DM management controls — don't show for self */}
                 {member.user.id !== currentUserId && (
                   <div className="flex gap-1 shrink-0">
                     {member.role === "PLAYER" && (
@@ -367,8 +365,12 @@ function DMView({ campaign, currentUserId, onEdit, onRefresh }: {
         <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4 space-y-2">
           <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-3">DM Tools</p>
           <button onClick={onEdit}
-            className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2">
+            className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch p-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2">
             <span>✏️</span> Edit Campaign
+          </button>
+          <button onClick={onDelete}
+            className="w-full font-sans font-semibold text-sm text-blush bg-blush/5 border-2 border-blush/30 rounded-sketch p-2 hover:bg-blush/10 hover:border-blush hover:-translate-x-px hover:-translate-y-px transition-all flex items-center gap-2">
+            <span>🗑️</span> Delete Campaign
           </button>
         </div>
       </div>
@@ -405,7 +407,7 @@ function PlayerView({ campaign, currentUserId }: {
               <p className="font-display text-lg text-ink">You haven&apos;t created a character yet</p>
               <p className="font-sans text-xs text-ink-faded mt-1 mb-4">Create a character to join the adventure.</p>
               <Link href={`/characters/create?campaignId=${campaign.id}`}>
-                <button className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent px-4 py-2 hover:-translate-x-px hover:-translate-y-px transition-all">
+                <button className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-2 hover:-translate-x-px hover:-translate-y-px transition-all">
                   Create a Character ✦
                 </button>
               </Link>
@@ -435,7 +437,6 @@ function PlayerView({ campaign, currentUserId }: {
       {/* ── Right: campaign info + members ── */}
       <div className="space-y-4">
 
-        {/* Campaign info */}
         {campaign.description && (
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4">
             <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">About This Campaign</p>
@@ -443,7 +444,6 @@ function PlayerView({ campaign, currentUserId }: {
           </div>
         )}
 
-        {/* Party roster */}
         <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4">
           <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-3">Party Roster</p>
           <div className="space-y-2">
@@ -456,7 +456,7 @@ function PlayerView({ campaign, currentUserId }: {
                     {member.user.id === currentUserId && <span className="text-ink-faded ml-1">(you)</span>}
                   </p>
                 </div>
-                <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
+                <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider p-0.5 rounded border shrink-0 ${
                   member.role === "DM" ? "bg-blush/10 text-blush border-blush/30" : "bg-dusty-blue/10 text-dusty-blue border-dusty-blue/30"
                 }`}>{member.role}</span>
               </div>
@@ -464,7 +464,6 @@ function PlayerView({ campaign, currentUserId }: {
           </div>
         </div>
 
-        {/* Session history */}
         {campaign.sessions.length > 0 && (
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4">
             <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-3">Sessions</p>
@@ -473,7 +472,7 @@ function PlayerView({ campaign, currentUserId }: {
                 <div key={session.id} className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full shrink-0 ${session.active ? "bg-sage" : "bg-sketch"}`} />
                   <p className="font-sans text-xs text-ink-soft">Round {session.round} · {timeAgo(session.createdAt)}</p>
-                  {session.active && <span className="font-sans text-[0.6rem] text-sage border border-sage/30 rounded px-1 ml-auto">Active</span>}
+                  {session.active && <span className="font-sans text-[0.6rem] text-sage border border-sage/30 rounded p-0.5 ml-auto">Active</span>}
                 </div>
               ))}
             </div>
@@ -496,6 +495,7 @@ export default function CampaignPage() {
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
   const [showEdit,    setShowEdit]    = useState(false);
+  const [showDelete,  setShowDelete]  = useState(false);
 
   const loadData = useCallback(async () => {
     const [sessionRes, campaignRes] = await Promise.all([
@@ -505,15 +505,21 @@ export default function CampaignPage() {
         return r.json();
       }),
     ]);
-    if (!sessionRes?.data?.user) { router.push("/login"); return; }
-    setCurrentUser(sessionRes.data.user);
-    setCampaign(campaignRes);
+    if (!sessionRes?.data?.user) { router.push("/login"); return null; }
+    return { user: sessionRes.data.user as SessionUser, campaign: campaignRes };
   }, [campaignId, router]);
 
   useEffect(() => {
+    let active = true;
     loadData()
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .then((result) => {
+        if (!active || !result) return;
+        setCurrentUser(result.user);
+        setCampaign(result.campaign);
+      })
+      .catch((err) => { if (active) setError(err instanceof Error ? err.message : "Failed to load"); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [loadData]);
 
   if (error) return (
@@ -525,7 +531,6 @@ export default function CampaignPage() {
     </div>
   );
 
-  // Determine role from CampaignMember.role
   const myMembership = campaign?.members.find((m) => m.user.id === currentUser?.id);
   const isDM         = myMembership?.role === "DM";
 
@@ -533,7 +538,7 @@ export default function CampaignPage() {
     <div className="min-h-screen bg-parchment bg-paper-texture font-sans antialiased">
 
       {/* Nav */}
-      <nav className="bg-warm-white border-b-2 border-sketch px-6 py-3 sticky top-0 z-40">
+      <nav className="bg-warm-white border-b-2 border-sketch p-3 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto flex items-center gap-3">
           <Link href="/dashboard" className="font-sans text-sm text-ink-faded hover:text-ink transition-colors">← Dashboard</Link>
           <span className="text-sketch">/</span>
@@ -541,14 +546,14 @@ export default function CampaignPage() {
             <span className="font-display text-lg text-ink">{campaign?.emoji} {campaign?.name}</span>
           )}
           {isDM && !loading && (
-            <span className="font-sans text-[0.6rem] font-bold uppercase tracking-wider bg-blush/10 text-blush border border-blush/30 rounded px-1.5 py-0.5 ml-1">DM</span>
+            <span className="font-sans text-[0.6rem] font-bold uppercase tracking-wider bg-blush/10 text-blush border border-blush/30 rounded p-0.5 ml-1">DM</span>
           )}
         </div>
       </nav>
 
       {/* Header band */}
       <div className="bg-warm-white border-b-2 border-sketch">
-        <div className="max-w-5xl mx-auto px-6 py-6">
+        <div className="max-w-5xl mx-auto p-6">
           {loading ? (
             <div className="space-y-3">
               <Skeleton className="h-10 w-64" />
@@ -570,10 +575,8 @@ export default function CampaignPage() {
                   )}
                 </div>
               </div>
-
-              {/* Primary CTA */}
               <Link href={`/characters/create?campaignId=${campaign.id}`}>
-                <button className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent px-5 py-2.5 hover:-translate-x-px hover:-translate-y-px transition-all flex items-center gap-2">
+                <button className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-2.5 hover:-translate-x-px hover:-translate-y-px transition-all flex items-center gap-2">
                   🧙 {isDM ? "Add Character" : "Create Character"}
                 </button>
               </Link>
@@ -583,7 +586,7 @@ export default function CampaignPage() {
       </div>
 
       {/* Body */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto p-8">
         {loading ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-3">
@@ -595,17 +598,36 @@ export default function CampaignPage() {
           </div>
         ) : campaign && currentUser && (
           isDM
-            ? <DMView campaign={campaign} currentUserId={currentUser.id} onEdit={() => setShowEdit(true)} onRefresh={() => { setLoading(true); loadData().finally(() => setLoading(false)); }} />
+            ? <DMView campaign={campaign} currentUserId={currentUser.id} onEdit={() => setShowEdit(true)} onDelete={() => setShowDelete(true)} onRefresh={() => {
+              setLoading(true);
+              loadData()
+                .then((result) => { if (result) { setCurrentUser(result.user); setCampaign(result.campaign); } })
+                .finally(() => setLoading(false));
+            }} />
             : <PlayerView campaign={campaign} currentUserId={currentUser.id} />
         )}
       </div>
 
-      {/* Edit modal — DM only */}
+      {/* Edit modal */}
       {showEdit && campaign && (
         <EditCampaignModal
           campaign={campaign}
           onClose={() => setShowEdit(false)}
           onSaved={(updated) => setCampaign((prev) => prev ? { ...prev, ...updated } : prev)}
+        />
+      )}
+
+      {/* Delete modal */}
+      {showDelete && campaign && (
+        <DeleteModal
+          label="Campaign"
+          confirmText={campaign.name}
+          warning="This will permanently delete the campaign, all sessions, and remove all members. Characters will not be deleted."
+          onClose={() => setShowDelete(false)}
+          onConfirm={async () => {
+            await fetch(`/api/campaigns/${campaign.id}`, { method: "DELETE" });
+            router.push("/dashboard");
+          }}
         />
       )}
     </div>

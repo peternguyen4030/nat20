@@ -68,6 +68,7 @@ export interface Spell {
   range: string;
   duration: string;
   description: string;
+  higherLevels?: string | null;
   category: SpellCategory;
 }
 
