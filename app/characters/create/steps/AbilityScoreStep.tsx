@@ -505,7 +505,7 @@ function RollPanel({ priority }: {
                         </span>
                       )}
                     </div>
-                    <p className="font-sans text-xs text-ink-faded leading-tight mt-0.5 truncate">
+                    <p className="font-sans text-xs text-ink-faded leading-tight mt-0.5">
                       {ability.description}
                     </p>
                   </div>
