@@ -11,13 +11,90 @@ const BACKGROUND_EMOJI: Record<string, string> = {
   sailor: "⚓", soldier: "🪖", urchin: "🐀", pirate: "🏴‍☠️",
 };
 
+// ── Background detail modal ───────────────────────────────────────────────────
+
+function BackgroundModal({ bg, onClose }: { bg: Background; onClose: () => void }) {
+  const emoji = BACKGROUND_EMOJI[bg.index] ?? "📜";
+  return (
+    <div
+      className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg bg-warm-white border-2 border-sketch rounded-sketch shadow-[4px_4px_0_#C4B49A] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-sketch">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{emoji}</span>
+            <h2 className="font-display text-2xl text-ink">{bg.name}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-input border-2 border-sketch bg-parchment text-ink-faded hover:border-blush transition-all flex items-center justify-center text-sm"
+          >✕</button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+          {bg.description && (
+            <p className="font-sans text-sm text-ink-soft leading-relaxed">{bg.description}</p>
+          )}
+          {bg.skillProficiencies.length > 0 && (
+            <div className="border-t border-sketch p-4">
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Skill Proficiencies</p>
+              <div className="flex flex-wrap gap-2">
+                {bg.skillProficiencies.map((skill) => (
+                  <span key={skill} className="font-sans text-xs capitalize bg-dusty-blue/10 text-dusty-blue border border-dusty-blue/30 rounded p-1">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {bg.feature && (
+            <div className="border-t border-sketch p-4">
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Background Feature</p>
+              <div className="bg-parchment border border-sketch rounded-input p-3">
+                <p className="font-sans text-sm font-semibold text-ink">{bg.feature}</p>
+              </div>
+            </div>
+          )}
+          {bg.languages > 0 && (
+            <div className="border-t border-sketch p-4">
+              <p className="font-sans text-xs text-ink-soft leading-relaxed">
+                Grants <strong className="text-ink">{bg.languages}</strong> bonus language{bg.languages > 1 ? "s" : ""}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-sketch bg-parchment flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-warm-white hover:bg-paper transition-all"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main step ─────────────────────────────────────────────────────────────────
+
 export function BackgroundStep() {
   const { state, dispatch }           = useWizard();
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
   const [hovered, setHovered]         = useState<Background | null>(null);
-  const [showDesc, setShowDesc]       = useState(false);
+  const [modalBg, setModalBg]         = useState<Background | null>(null);
 
   const selectedBg = backgrounds.find((b) => b.id === state.backgroundId) ?? null;
   const displayBg  = hovered ?? selectedBg;
@@ -98,55 +175,73 @@ export function BackgroundStep() {
 
         {/* ── Selected info panel ── */}
         <div className="lg:col-span-1">
-          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 sticky top-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
+          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-5 sticky top-6 space-y-3">
             {displayBg ? (
-              <div className="space-y-4">
+              <>
+                {/* Name + emoji */}
                 <div className="flex items-center gap-3">
                   <span className="text-3xl">{BACKGROUND_EMOJI[displayBg.index] ?? "📜"}</span>
-                  <h2 className="font-display text-2xl text-ink">{displayBg.name}</h2>
+                  <h2 className="font-display text-xl text-ink">{displayBg.name}</h2>
                 </div>
+
+                {/* 2-line description preview + Read more */}
                 {displayBg.description && (
                   <div>
+                    <p className="font-sans text-xs text-ink-soft leading-relaxed line-clamp-2">{displayBg.description}</p>
                     <button
                       type="button"
-                      onClick={() => setShowDesc((s) => !s)}
-                      className="flex items-center gap-1.5 font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded hover:text-ink transition-colors mb-1.5"
+                      onClick={() => setModalBg(displayBg)}
+                      className="font-sans text-[0.6rem] font-bold text-blush hover:text-ink transition-colors mt-1"
                     >
-                      <span>{showDesc ? "▲" : "▼"}</span> {showDesc ? "Hide" : "Show"} flavor text
+                      Read more →
                     </button>
-                    {showDesc && (
-                      <p className="font-sans text-sm text-ink-soft leading-relaxed border-l-2 border-sketch p-3 mb-2">{displayBg.description}</p>
-                    )}
                   </div>
                 )}
+
+                {/* Skill proficiencies — always visible */}
                 {displayBg.skillProficiencies.length > 0 && (
                   <div className="border-t border-sketch p-3">
-                    <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Skill Proficiencies</p>
-                    <div className="flex flex-wrap gap-2">
+                    <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Skills</p>
+                    <div className="flex flex-wrap gap-1.5">
                       {displayBg.skillProficiencies.map((skill) => (
-                        <span key={skill} className="font-sans text-xs capitalize bg-dusty-blue/10 text-dusty-blue border border-dusty-blue/30 rounded p-0.5">
+                        <span key={skill} className="font-sans text-xs capitalize bg-dusty-blue/10 text-dusty-blue border border-dusty-blue/30 rounded p-1">
                           {skill}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
+
+                {/* Background feature — always visible */}
                 {displayBg.feature && (
                   <div className="border-t border-sketch p-3">
-                    <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Background Feature</p>
+                    <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Feature</p>
                     <div className="bg-parchment border border-sketch rounded-input p-2">
-                      <p className="font-sans text-sm font-semibold text-ink">{displayBg.feature}</p>
+                      <p className="font-sans text-xs font-semibold text-ink">{displayBg.feature}</p>
                     </div>
                   </div>
                 )}
+
+                {/* Languages — always visible */}
                 {displayBg.languages > 0 && (
                   <div className="border-t border-sketch p-3">
-                    <p className="font-sans text-xs text-ink-soft leading-relaxed">
-                      Grants <strong className="text-ink">{displayBg.languages}</strong> bonus language{displayBg.languages > 1 ? "s" : ""}
+                    <p className="font-sans text-xs text-ink-soft">
+                      +<strong className="text-ink">{displayBg.languages}</strong> language{displayBg.languages > 1 ? "s" : ""}
                     </p>
                   </div>
                 )}
-              </div>
+
+                {/* Read full details button */}
+                <div className="border-t border-sketch p-3">
+                  <button
+                    type="button"
+                    onClick={() => setModalBg(displayBg)}
+                    className="w-full font-sans font-semibold text-xs text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper hover:border-blush/40 transition-all"
+                  >
+                    📖 Full Details
+                  </button>
+                </div>
+              </>
             ) : (
               <div className="flex items-center gap-2">
                 <span className="text-xl">📜</span>
@@ -157,6 +252,11 @@ export function BackgroundStep() {
         </div>
 
       </div>
+
+      {/* Background detail modal */}
+      {modalBg && (
+        <BackgroundModal bg={modalBg} onClose={() => setModalBg(null)} />
+      )}
     </div>
   );
 }

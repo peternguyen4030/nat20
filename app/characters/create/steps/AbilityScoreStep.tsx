@@ -11,22 +11,22 @@ import {
   POINT_BUY_BUDGET,
 } from "@/types/character-creation";
 
-// ── Class stat priority guide ────────────────────────────────────────────────
+// ── Class stat priority guide ─────────────────────────────────────────────────
 const CLASS_STAT_PRIORITY: Record<string, {
   primary: string[]; secondary: string[]; notes: string;
 }> = {
-  barbarian: { primary: ["Strength"],     secondary: ["Constitution"],          notes: "You're a frontline fighter. High STR means harder hits, high CON means more HP to soak damage." },
-  bard:      { primary: ["Charisma"],     secondary: ["Dexterity"],             notes: "Your magic and social skills run on CHA. DEX keeps your AC up since you'll avoid heavy armor." },
-  cleric:    { primary: ["Wisdom"],       secondary: ["Constitution"],          notes: "WIS powers your spells and spell save DC. CON keeps you alive while you support the party." },
-  druid:     { primary: ["Wisdom"],       secondary: ["Constitution"],          notes: "WIS fuels your spellcasting. CON helps you survive in Wild Shape and on the front line." },
+  barbarian: { primary: ["Strength"],              secondary: ["Constitution"], notes: "You're a frontline fighter. High STR means harder hits, high CON means more HP to soak damage." },
+  bard:      { primary: ["Charisma"],              secondary: ["Dexterity"],   notes: "Your magic and social skills run on CHA. DEX keeps your AC up since you'll avoid heavy armor." },
+  cleric:    { primary: ["Wisdom"],                secondary: ["Constitution"], notes: "WIS powers your spells and spell save DC. CON keeps you alive while you support the party." },
+  druid:     { primary: ["Wisdom"],                secondary: ["Constitution"], notes: "WIS fuels your spellcasting. CON helps you survive in Wild Shape and on the front line." },
   fighter:   { primary: ["Strength", "Dexterity"], secondary: ["Constitution"], notes: "STR for melee, DEX for ranged or finesse builds. CON is always important for survivability." },
-  monk:      { primary: ["Dexterity"],    secondary: ["Wisdom"],                notes: "DEX drives your attacks and AC unarmored. WIS boosts your AC further and powers ki abilities." },
-  paladin:   { primary: ["Strength"],     secondary: ["Charisma"],              notes: "STR for melee combat. CHA powers your Auras and Lay on Hands become more effective as you level." },
-  ranger:    { primary: ["Dexterity"],    secondary: ["Wisdom"],                notes: "DEX for attacks and AC. WIS supports your spellcasting once you reach level 2." },
-  rogue:     { primary: ["Dexterity"],    secondary: ["Charisma"],              notes: "DEX drives your attacks, AC, and Stealth. CHA helps with Deception and social skills." },
-  sorcerer:  { primary: ["Charisma"],     secondary: ["Constitution"],          notes: "CHA is everything — it powers your spells and save DC. CON helps you concentrate on spells." },
-  warlock:   { primary: ["Charisma"],     secondary: ["Constitution"],          notes: "CHA drives your Eldritch Blast and spells. CON helps maintain concentration." },
-  wizard:    { primary: ["Intelligence"], secondary: ["Constitution"],          notes: "INT is your core stat for spellcasting. CON keeps your concentration spells active under fire." },
+  monk:      { primary: ["Dexterity"],             secondary: ["Wisdom"],       notes: "DEX drives your attacks and AC unarmored. WIS boosts your AC further and powers ki abilities." },
+  paladin:   { primary: ["Strength"],              secondary: ["Charisma"],    notes: "STR for melee combat. CHA powers your Auras and Lay on Hands become more effective as you level." },
+  ranger:    { primary: ["Dexterity"],             secondary: ["Wisdom"],       notes: "DEX for attacks and AC. WIS supports your spellcasting once you reach level 2." },
+  rogue:     { primary: ["Dexterity"],             secondary: ["Charisma"],    notes: "DEX drives your attacks, AC, and Stealth. CHA helps with Deception and social skills." },
+  sorcerer:  { primary: ["Charisma"],              secondary: ["Constitution"], notes: "CHA is everything — it powers your spells and save DC. CON helps you concentrate on spells." },
+  warlock:   { primary: ["Charisma"],              secondary: ["Constitution"], notes: "CHA drives your Eldritch Blast and spells. CON helps maintain concentration." },
+  wizard:    { primary: ["Intelligence"],          secondary: ["Constitution"], notes: "INT is your core stat for spellcasting. CON keeps your concentration spells active under fire." },
 };
 
 // ── Modifier calculator ───────────────────────────────────────────────────────
@@ -64,7 +64,6 @@ function StandardArrayPanel({ priority }: {
   const { state, dispatch } = useWizard();
   const [dragging, setDragging] = useState<number | null>(null);
 
-  // Assignments live in context so they survive backtracking
   const defaultAssignments = () => {
     const init: Record<string, number | null> = {};
     ABILITY_NAMES.forEach((a) => { init[a.key] = null; });
@@ -77,7 +76,6 @@ function StandardArrayPanel({ priority }: {
 
   function assignValue(abilityKey: string, value: number | null) {
     const newAssignments = { ...assignments };
-    // Remove this value from any other slot first
     if (value !== null) {
       Object.keys(newAssignments).forEach((k) => {
         if (newAssignments[k] === value) newAssignments[k] = null;
@@ -86,7 +84,6 @@ function StandardArrayPanel({ priority }: {
     newAssignments[abilityKey] = value;
     dispatch({ type: "SET_STANDARD_ASSIGNMENTS", payload: { assignments: newAssignments } });
 
-    // Update ability scores if all assigned
     const allAssigned = Object.values(newAssignments).every((v) => v !== null);
     if (allAssigned) {
       const scores: AbilityScores = {
@@ -105,7 +102,6 @@ function StandardArrayPanel({ priority }: {
 
   return (
     <div className="space-y-6">
-      {/* Available scores */}
       <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-5">
         <p className="font-sans text-[0.7rem] font-bold uppercase tracking-widest text-ink-faded mb-3">
           Available Scores — click a score below to assign it
@@ -132,7 +128,6 @@ function StandardArrayPanel({ priority }: {
         </div>
       </div>
 
-      {/* Ability assignment */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {ABILITY_NAMES.map((ability) => {
           const assigned = assignments[ability.key];
@@ -145,7 +140,6 @@ function StandardArrayPanel({ priority }: {
                 dragging ? "border-blush/50 bg-blush/5" : "border-sketch"
               }`}
             >
-              {/* Score dropdown */}
               <select
                 value={assigned ?? ""}
                 onChange={(e) => assignValue(ability.key, e.target.value ? Number(e.target.value) : null)}
@@ -168,10 +162,10 @@ function StandardArrayPanel({ priority }: {
                   <p className="font-display text-lg text-ink">{ability.label}</p>
                   <span className="font-mono text-sm text-ink-faded">{ability.abbr}</span>
                   {priority?.primary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-1.5 p-0.5">Primary</span>
+                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-0.5">Primary</span>
                   )}
                   {priority?.secondary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-1.5 p-0.5">Secondary</span>
+                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-0.5">Secondary</span>
                   )}
                   {assigned && (
                     <span className="font-mono text-sm text-sage ml-auto">
@@ -201,7 +195,7 @@ function StandardArrayPanel({ priority }: {
 function PointBuyPanel({ priority }: {
   priority: { primary: string[]; secondary: string[] } | null;
 }) {
-  const { dispatch } = useWizard();
+  const { state, dispatch } = useWizard();
   const [scores, setScores] = useState<AbilityScores>({
     strength: 8, dexterity: 8, constitution: 8,
     intelligence: 8, wisdom: 8, charisma: 8,
@@ -219,7 +213,6 @@ function PointBuyPanel({ priority }: {
     const nextCost = POINT_BUY_COSTS[next] ?? 0;
     const currCost = POINT_BUY_COSTS[current] ?? 0;
     if (delta > 0 && remaining < (nextCost - currCost)) return;
-
     const newScores = { ...scores, [key]: next };
     setScores(newScores);
     dispatch({ type: "SET_ABILITY_SCORES", payload: newScores });
@@ -227,7 +220,6 @@ function PointBuyPanel({ priority }: {
 
   return (
     <div className="space-y-4">
-      {/* Explainer */}
       <div className="bg-parchment border-2 border-sketch rounded-sketch p-4 space-y-2">
         <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">How Point Buy Works</p>
         <p className="font-sans text-xs text-ink-soft leading-relaxed">
@@ -246,7 +238,7 @@ function PointBuyPanel({ priority }: {
           })}
         </div>
       </div>
-      {/* Budget bar */}
+
       <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4 flex items-center gap-4">
         <div className="flex-1">
           <div className="flex justify-between mb-1">
@@ -264,7 +256,6 @@ function PointBuyPanel({ priority }: {
         </div>
       </div>
 
-      {/* Score controls */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {ABILITY_NAMES.map((ability) => {
           const score   = scores[ability.key as keyof AbilityScores];
@@ -273,16 +264,13 @@ function PointBuyPanel({ priority }: {
 
           return (
             <div key={ability.key} className="bg-warm-white border-2 border-sketch rounded-sketch p-4 flex items-center gap-3">
-              {/* Controls */}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => adjust(ability.key as keyof AbilityScores, -1)}
                   disabled={!canDown}
                   className="w-7 h-7 rounded-input border-2 border-sketch bg-parchment text-ink font-bold text-sm flex items-center justify-center disabled:opacity-30 hover:border-blush transition-colors"
-                >
-                  −
-                </button>
+                >−</button>
                 <div className="w-10 text-center">
                   <p className="font-mono font-bold text-xl text-ink">{score}</p>
                   <p className="font-mono text-xs text-sage">{modifier(score)}</p>
@@ -292,9 +280,7 @@ function PointBuyPanel({ priority }: {
                   onClick={() => adjust(ability.key as keyof AbilityScores, 1)}
                   disabled={!canUp}
                   className="w-7 h-7 rounded-input border-2 border-sketch bg-parchment text-ink font-bold text-sm flex items-center justify-center disabled:opacity-30 hover:border-blush transition-colors"
-                >
-                  +
-                </button>
+                >+</button>
               </div>
 
               <div className="flex-1 min-w-0">
@@ -307,10 +293,10 @@ function PointBuyPanel({ priority }: {
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                   {priority?.primary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-1.5 p-0.5">Primary</span>
+                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-0.5">Primary</span>
                   )}
                   {priority?.secondary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-1.5 p-0.5">Secondary</span>
+                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-0.5">Secondary</span>
                   )}
                   <p className="font-sans text-xs text-ink-faded leading-tight">
                     {ability.description}
@@ -333,7 +319,6 @@ function RollPanel({ priority }: {
   const [rolling, setRolling]   = useState(false);
   const [dragging, setDragging] = useState<number | null>(null);
 
-  // Rolls and assignments live in context so they survive backtracking
   const rolls  = state.rolledDice ?? [];
   const rolled = rolls.length > 0;
 
@@ -346,7 +331,7 @@ function RollPanel({ priority }: {
 
   function rollStat(): number[] {
     const dice = Array.from({ length: 4 }, () => Math.ceil(Math.random() * 6));
-    return dice.sort((a, b) => b - a); // descending — [0..2] kept, [3] dropped
+    return dice.sort((a, b) => b - a);
   }
 
   function statTotal(dice: number[]) {
@@ -359,7 +344,6 @@ function RollPanel({ priority }: {
     const newRolls = Array.from({ length: 6 }, rollStat);
     dispatch({ type: "SET_ROLLED_DICE", payload: { dice: newRolls } });
     setRolling(false);
-    // Reset context assignments and scores on reroll
     const emptyAssignments: Record<string, number | null> = {};
     ABILITY_NAMES.forEach((a) => { emptyAssignments[a.key] = null; });
     dispatch({ type: "SET_ROLL_ASSIGNMENTS", payload: { assignments: emptyAssignments } });
@@ -371,7 +355,6 @@ function RollPanel({ priority }: {
 
   function assignRoll(abilityKey: string, rollIndex: number | null) {
     const newAssignments = { ...assignments };
-    // Clear any prior use of this roll index
     if (rollIndex !== null) {
       Object.keys(newAssignments).forEach((k) => {
         if (newAssignments[k] === rollIndex) newAssignments[k] = null;
@@ -399,8 +382,6 @@ function RollPanel({ priority }: {
 
   return (
     <div className="space-y-6">
-
-      {/* Roll button */}
       <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 text-center">
         <p className="font-sans text-sm text-ink-soft mb-4">
           Roll 4d6 and drop the lowest die for each ability score.
@@ -421,11 +402,8 @@ function RollPanel({ priority }: {
         </button>
       </div>
 
-      {/* Results + assignment */}
       {rolled && rolls.length > 0 && (
         <div className="space-y-5">
-
-          {/* Rolled score chips — draggable */}
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-5">
             <p className="font-sans text-[0.7rem] font-bold uppercase tracking-widest text-ink-faded mb-3">
               Your Rolls — drag or use the dropdown to assign
@@ -447,15 +425,12 @@ function RollPanel({ priority }: {
                     }`}
                   >
                     <p className="font-mono font-bold text-xl text-ink leading-none">{total}</p>
-                    {/* Individual dice shown below total */}
                     <div className="flex justify-center gap-0.5 mt-1">
                       {dice.map((d, di) => (
                         <span
                           key={di}
                           className={`font-mono text-[0.55rem] ${
-                            di === 3
-                              ? "text-blush line-through opacity-60"
-                              : "text-ink-faded"
+                            di === 3 ? "text-blush line-through opacity-60" : "text-ink-faded"
                           }`}
                         >
                           {d}
@@ -468,7 +443,6 @@ function RollPanel({ priority }: {
             </div>
           </div>
 
-          {/* Ability assignment — drop targets + dropdowns */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {ABILITY_NAMES.map((ability) => {
               const assignedIndex = assignments[ability.key];
@@ -486,14 +460,11 @@ function RollPanel({ priority }: {
                     }
                   }}
                   className={`bg-warm-white border-2 rounded-sketch p-4 flex items-center gap-3 transition-all duration-150 ${
-                    isDragTarget
-                      ? "border-blush/50 bg-blush/5"
-                      : assignedIndex !== null
-                      ? "border-sage/50"
-                      : "border-sketch"
+                    isDragTarget ? "border-blush/50 bg-blush/5"
+                    : assignedIndex !== null ? "border-sage/50"
+                    : "border-sketch"
                   }`}
                 >
-                  {/* Score display / dropdown */}
                   <div className="relative">
                     <select
                       value={assignedIndex !== null ? assignedIndex : ""}
@@ -518,10 +489,10 @@ function RollPanel({ priority }: {
                       <p className="font-display text-base text-ink">{ability.label}</p>
                       <span className="font-mono text-xs text-ink-faded">{ability.abbr}</span>
                       {priority?.primary.includes(ability.label) && (
-                        <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-1.5 p-0.5">Primary</span>
+                        <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-0.5">Primary</span>
                       )}
                       {priority?.secondary.includes(ability.label) && (
-                        <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-1.5 p-0.5">Secondary</span>
+                        <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-0.5">Secondary</span>
                       )}
                       {assignedScore !== null && (
                         <span className={`font-mono text-sm ml-auto ${parseInt(modifier(assignedScore)) >= 0 ? "text-sage" : "text-blush"}`}>
@@ -534,7 +505,6 @@ function RollPanel({ priority }: {
                     </p>
                   </div>
 
-                  {/* Drop zone hint when dragging */}
                   {isDragTarget && assignedIndex === null && (
                     <div className="w-8 h-8 rounded-sketch border-2 border-dashed border-blush/50 flex items-center justify-center shrink-0">
                       <span className="text-blush text-xs">↓</span>
@@ -569,14 +539,44 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
       <div>
         <h1 className="font-display text-4xl text-ink mb-1">Ability Scores</h1>
         <p className="font-sans text-sm text-ink-faded">
-          Your six ability scores define your character&apos;s raw capabilities. Choose how you want to generate them.
+          Your six ability scores define your character's raw capabilities. Choose how you want to generate them.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* ── About — left panel ── */}
-        <div className="lg:col-span-1 order-last lg:order-first">
+        {/* ── Left: method selector + active panel ── */}
+        <div className="lg:col-span-2 space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {METHODS.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => dispatch({ type: "SET_ABILITY_METHOD", payload: { method: m.id } })}
+                className={`p-4 rounded-sketch border-2 text-left transition-all duration-150 ${
+                  method === m.id
+                    ? "bg-blush/10 border-blush shadow-sketch-accent"
+                    : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
+                }`}
+              >
+                <div className="text-2xl mb-2">{m.emoji}</div>
+                <p className={`font-display text-base leading-tight ${method === m.id ? "text-blush" : "text-ink"}`}>
+                  {m.label}
+                </p>
+                <p className="font-sans text-xs text-ink-faded mt-1 leading-snug">
+                  {m.description}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          {method === "standard_array" && <StandardArrayPanel priority={priority} />}
+          {method === "point_buy"      && <PointBuyPanel priority={priority} />}
+          {method === "roll"           && <RollPanel priority={priority} />}
+        </div>
+
+        {/* ── Right: help panel ── */}
+        <div className="lg:col-span-1">
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 sticky top-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-xl">🎲</span>
@@ -584,11 +584,10 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
             </div>
             <div className="space-y-3 font-sans text-sm text-ink-soft leading-relaxed">
 
-              {/* Class reminder + stat priority */}
               {priority && className && (
                 <div className="bg-blush/5 border border-blush/20 rounded-sketch p-3 space-y-2">
                   <p className="font-sans text-xs text-ink-faded">
-                    You&apos;ve chosen: <span className="font-bold text-ink">{className}</span>
+                    You've chosen: <span className="font-bold text-ink">{className}</span>
                   </p>
                   <div className="space-y-1.5">
                     <div className="flex items-start gap-2">
@@ -615,11 +614,10 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
                 the better your modifier — which is what actually gets added to your dice rolls.
               </p>
 
-              {/* Modifier table */}
               <div className="border border-sketch rounded-input overflow-hidden">
                 <div className="grid grid-cols-2 bg-parchment">
-                  <div className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded p-3.5 border-b border-sketch">Score</div>
-                  <div className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded p-3.5 border-b border-sketch">Modifier</div>
+                  <div className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded p-3 border-b border-sketch">Score</div>
+                  <div className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded p-3 border-b border-sketch">Modifier</div>
                 </div>
                 {[
                   [8, 9], [10, 11], [12, 13], [14, 15], [16, 17], [18, 18]
@@ -633,50 +631,16 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
                 ))}
               </div>
 
-              <div className="border-t border-sketch p-3 space-y-1.5 text-xs">
-                <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Not sure?</strong> Use Standard Array — it&apos;s balanced and fast</p>
+              <div className="border-t border-sketch p-3 space-y-1.5">
+                <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Not sure?</strong> Use Standard Array — it's balanced and fast</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Want control?</strong> Point Buy lets you plan your stats precisely</p>
                 <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Feeling lucky?</strong> Rolling is exciting but results vary wildly</p>
               </div>
             </div>
           </div>
         </div>
-    </div>
 
-        {/* ── Method + panel ── */}
-        <div className="lg:col-span-2 space-y-5">
-
-          {/* Method selector */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {METHODS.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => dispatch({ type: "SET_ABILITY_METHOD", payload: { method: m.id } })}
-                className={`p-4 rounded-sketch border-2 text-left transition-all duration-150 ${
-                  method === m.id
-                    ? "bg-blush/10 border-blush shadow-sketch-accent"
-                    : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
-                }`}
-              >
-                <div className="text-2xl mb-2">{m.emoji}</div>
-                <p className={`font-display text-base leading-tight ${method === m.id ? "text-blush" : "text-ink"}`}>
-                  {m.label}
-                </p>
-                <p className="font-sans text-xs text-ink-faded mt-1 leading-snug">
-                  {m.description}
-                </p>
-              </button>
-            ))}
-          </div>
-
-          {/* Active method panel */}
-          {method === "standard_array" && <StandardArrayPanel priority={priority} />}
-          {method === "point_buy"      && <PointBuyPanel priority={priority} />}
-          {method === "roll"           && <RollPanel priority={priority} />}
-        </div>
-
-        
       </div>
+    </div>
   );
 }

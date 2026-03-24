@@ -169,7 +169,7 @@ export function RaceStep() {
           )}
         </div>
 
-        {/* Help panel */}
+        {/* Help panel + subrace */}
         <div className="lg:col-span-1">
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 sticky top-6 transition-all duration-200 max-h-[calc(100vh-8rem)] overflow-y-auto">
 
@@ -252,6 +252,57 @@ export function RaceStep() {
               </div>
             )}
           </div>
+
+          {/* Subrace panel — shown below race info when race has subraces */}
+          {showSubrace && selectedRace && selectedRace.subraces.length > 0 && (
+            <div className="bg-warm-white border-2 border-dusty-blue/40 rounded-sketch shadow-sketch p-5 mt-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🌿</span>
+                  <h3 className="font-display text-lg text-ink">{selectedRace.name} Subrace</h3>
+                </div>
+                <span className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded border border-sketch rounded p-0.5">Optional</span>
+              </div>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => dispatch({ type: "SET_SUBRACE", payload: { subraceId: null } })}
+                  onMouseEnter={() => setHoveredSubrace(null)}
+                  className={`w-full p-3 rounded-input border-2 text-left transition-all duration-150 ${
+                    state.subraceId === null
+                      ? "bg-parchment border-sketch"
+                      : "bg-parchment border-sketch hover:border-dusty-blue/50 hover:bg-paper"
+                  }`}
+                >
+                  <p className="font-display text-sm text-ink-faded">No subrace</p>
+                  <p className="font-sans text-xs text-ink-faded mt-0.5">Play as a standard {selectedRace.name}</p>
+                  {state.subraceId === null && <p className="font-sans text-[0.6rem] text-ink-faded mt-1">Selected ✓</p>}
+                </button>
+                {selectedRace.subraces.map((subrace) => {
+                  const isSelected = state.subraceId === subrace.id;
+                  const bonuses    = formatBonuses(subrace.abilityBonuses as { ability: string; bonus: number }[] | null);
+                  return (
+                    <button
+                      key={subrace.id}
+                      type="button"
+                      onClick={() => dispatch({ type: "SET_SUBRACE", payload: { subraceId: subrace.id } })}
+                      onMouseEnter={() => setHoveredSubrace(subrace)}
+                      onMouseLeave={() => setHoveredSubrace(null)}
+                      className={`w-full p-3 rounded-input border-2 text-left transition-all duration-150 ${
+                        isSelected
+                          ? "bg-dusty-blue/10 border-dusty-blue"
+                          : "bg-parchment border-sketch hover:border-dusty-blue/50 hover:bg-paper"
+                      }`}
+                    >
+                      <p className={`font-display text-sm ${isSelected ? "text-dusty-blue" : "text-ink"}`}>{subrace.name}</p>
+                      {bonuses && <p className="font-sans text-xs text-ink-faded mt-0.5">{bonuses}</p>}
+                      {isSelected && <p className="font-sans text-[0.6rem] text-dusty-blue mt-1">Selected ✓</p>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
