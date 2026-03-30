@@ -37,6 +37,7 @@ interface Character {
   maxHp: number;
   avatarUrl: string | null;
   conditions: string[];
+  isActive: boolean;
   race: { name: string } | null;
   classes: { level: number; class: { name: string } }[];
   user: { id: string; displayName: string | null; name: string | null };
@@ -56,6 +57,7 @@ interface CampaignDetail {
   description: string | null;
   bannerUrl: string | null;
   ownerId: string;
+  inviteCode: string;
   createdAt: string;
   updatedAt: string;
   owner: { id: string; name: string | null; displayName: string | null };
@@ -248,6 +250,8 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
   campaign: CampaignDetail; currentUserId: string;
   onEdit: () => void; onDelete: () => void; onRefresh: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
+
   async function removeMember(userId: string) {
     if (!confirm("Remove this member from the campaign?")) return;
     await fetch(`/api/campaigns/${campaign.id}/members/${userId}`, { method: "DELETE" });
@@ -261,6 +265,18 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
       body: JSON.stringify({ role: "DM" }),
     });
     onRefresh();
+  }
+
+  async function regenerateInvite() {
+    if (!confirm("Generate a new invite code? The old code will stop working.")) return;
+    await fetch(`/api/campaigns/${campaign.id}/regenerate-invite`, { method: "POST" });
+    onRefresh();
+  }
+
+  async function copyCode() {
+    await navigator.clipboard.writeText(campaign.inviteCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -361,6 +377,34 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
           </div>
         </div>
 
+        {/* Invite code */}
+        <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4 space-y-2">
+          <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Invite Code</p>
+          <p className="font-sans text-xs text-ink-faded">Share this code with players so they can join from their dashboard.</p>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 bg-parchment border-2 border-sketch rounded-sketch p-2 text-center">
+              <span className="font-mono font-bold text-lg text-ink tracking-widest">{campaign.inviteCode}</span>
+            </div>
+            <button
+              onClick={copyCode}
+              title="Copy code"
+              className={`font-sans text-xs font-semibold border-2 rounded-sketch p-2 transition-all ${
+                copied
+                  ? "bg-sage/10 border-sage/40 text-sage"
+                  : "bg-parchment border-sketch text-ink-soft hover:bg-paper hover:border-blush/50"
+              }`}
+            >
+              {copied ? "✓" : "📋"}
+            </button>
+          </div>
+          <button
+            onClick={regenerateInvite}
+            className="w-full font-sans text-xs font-semibold text-ink-faded border border-sketch rounded-sketch p-1.5 hover:bg-parchment transition-all"
+          >
+            ↻ New code
+          </button>
+        </div>
+
         {/* DM tools */}
         <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4 space-y-2">
           <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-3">DM Tools</p>
@@ -380,11 +424,16 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
 
 // ── Player View ───────────────────────────────────────────────────────────────
 
-function PlayerView({ campaign, currentUserId }: {
-  campaign: CampaignDetail; currentUserId: string;
+function PlayerView({ campaign, currentUserId, onRefresh }: {
+  campaign: CampaignDetail; currentUserId: string; onRefresh: () => void;
 }) {
   const myCharacters    = campaign.characters.filter((c) => c.user.id === currentUserId);
-  const partyCharacters = campaign.characters.filter((c) => c.user.id !== currentUserId);
+  const partyCharacters = campaign.characters.filter((c) => c.user.id !== currentUserId && c.isActive);
+
+  async function setActive(characterId: string) {
+    await fetch(`/api/characters/${characterId}/set-active`, { method: "POST" });
+    onRefresh();
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -415,13 +464,25 @@ function PlayerView({ campaign, currentUserId }: {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {myCharacters.map((character) => (
-                <CharacterCard key={character.id} character={character} currentUserId={currentUserId} />
+                <div key={character.id} className="relative">
+                  <CharacterCard character={character} currentUserId={currentUserId} />
+                  <button
+                    onClick={() => setActive(character.id)}
+                    className={`absolute top-2 right-2 font-sans text-[0.55rem] font-bold uppercase tracking-wider rounded p-0.5 border transition-all ${
+                      character.isActive
+                        ? "bg-sage/20 text-sage border-sage/40"
+                        : "bg-parchment text-ink-faded border-sketch hover:border-sage/40 hover:text-sage"
+                    }`}
+                  >
+                    {character.isActive ? "✦ Active" : "Set active"}
+                  </button>
+                </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Party members */}
+        {/* Party — only active characters from other players */}
         {partyCharacters.length > 0 && (
           <div>
             <h2 className="font-display text-xl text-ink mb-3">The Party</h2>
@@ -522,6 +583,13 @@ export default function CampaignPage() {
     return () => { active = false; };
   }, [loadData]);
 
+  const refresh = useCallback(() => {
+    setLoading(true);
+    loadData()
+      .then((result) => { if (result) { setCurrentUser(result.user); setCampaign(result.campaign); } })
+      .finally(() => setLoading(false));
+  }, [loadData]);
+
   if (error) return (
     <div className="min-h-screen bg-parchment flex items-center justify-center">
       <div className="text-center">
@@ -598,13 +666,8 @@ export default function CampaignPage() {
           </div>
         ) : campaign && currentUser && (
           isDM
-            ? <DMView campaign={campaign} currentUserId={currentUser.id} onEdit={() => setShowEdit(true)} onDelete={() => setShowDelete(true)} onRefresh={() => {
-              setLoading(true);
-              loadData()
-                .then((result) => { if (result) { setCurrentUser(result.user); setCampaign(result.campaign); } })
-                .finally(() => setLoading(false));
-            }} />
-            : <PlayerView campaign={campaign} currentUserId={currentUser.id} />
+            ? <DMView campaign={campaign} currentUserId={currentUser.id} onEdit={() => setShowEdit(true)} onDelete={() => setShowDelete(true)} onRefresh={refresh} />
+            : <PlayerView campaign={campaign} currentUserId={currentUser.id} onRefresh={refresh} />
         )}
       </div>
 
