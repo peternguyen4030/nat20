@@ -179,6 +179,92 @@ function CreateCampaignModal({ onClose, onCreated }: {
   );
 }
 
+// ── Join Campaign Modal ───────────────────────────────────────────────────────
+
+function JoinCampaignModal({ onClose, onJoined }: {
+  onClose:  () => void;
+  onJoined: () => void;
+}) {
+  const router = useRouter();
+  const [code,    setCode]    = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
+
+  async function handleJoin() {
+    if (!code.trim()) return setError("Please enter an invite code");
+    setLoading(true); setError(null);
+    try {
+      const res = await fetch("/api/campaigns/join", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 409) { router.push(`/campaigns/${data.campaignId}`); return; }
+        throw new Error(data.error ?? "Failed to join campaign");
+      }
+      onJoined();
+      router.push(`/campaigns/${data.campaignId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full max-w-sm bg-warm-white border-2 border-sketch rounded-sketch shadow-[4px_4px_0_#C4B49A] animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between p-5 border-b border-sketch">
+          <h2 className="font-display text-2xl text-ink">Join Campaign</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-input border-2 border-sketch bg-parchment text-ink-faded hover:border-blush transition-all flex items-center justify-center text-sm">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          {error && (
+            <div className="bg-blush/10 border border-blush/30 rounded-input p-3">
+              <p className="font-sans text-sm text-blush">✗ {error}</p>
+            </div>
+          )}
+          <div>
+            <label className="block font-sans text-[0.7rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">
+              Invite Code
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. AB3X7YZQ"
+              value={code}
+              onChange={(e) => { setCode(e.target.value.toUpperCase()); setError(null); }}
+              onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+              autoFocus
+              maxLength={8}
+              className="w-full font-mono text-xl text-center tracking-widest bg-parchment text-ink border-2 border-sketch rounded-input p-3 outline-none focus:border-blush transition-colors placeholder:text-ink-faded placeholder:font-sans placeholder:text-sm placeholder:tracking-normal"
+            />
+            <p className="font-sans text-xs text-ink-faded mt-1.5">Ask your Dungeon Master for the 8-character campaign code.</p>
+          </div>
+        </div>
+        <div className="p-5 flex gap-3 justify-end border-t border-sketch">
+          <button onClick={onClose} className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper transition-all shadow-sketch">Cancel</button>
+          <button
+            onClick={handleJoin}
+            disabled={code.length < 6 || loading}
+            className={`font-sans font-bold text-sm text-white rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${
+              code.length >= 6 && !loading
+                ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
+                : "bg-tan border-sketch opacity-50 cursor-not-allowed"
+            }`}
+          >
+            {loading ? (
+              <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> Joining...</>
+            ) : "Join Campaign ✦"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Campaign Card ─────────────────────────────────────────────────────────────
 
 function CampaignCard({ campaign, isOwner }: { campaign: Campaign; isOwner: boolean }) {
@@ -225,14 +311,12 @@ function CharacterCard({ character }: { character: Character }) {
     <Link href={`/characters/${character.id}`}>
       <div className="group bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4 hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all duration-150 cursor-pointer">
         <div className="flex items-start gap-3">
-          {/* Portrait medallion */}
           <div className="shrink-0 relative">
             <Avatar
               src={character.avatarUrl}
               size={44}
               className="rounded-sketch border-2 border-sketch group-hover:border-blush/40 transition-colors"
             />
-            {/* Level badge */}
             <div className="absolute -bottom-1.5 -right-1.5 w-5 h-5 bg-ink border border-ink rounded-full flex items-center justify-center">
               <span className="font-mono text-[0.5rem] font-bold text-warm-white leading-none">{character.level}</span>
             </div>
@@ -244,7 +328,6 @@ function CharacterCard({ character }: { character: Character }) {
               {character.race?.name ?? "Unknown"}{primaryClass ? ` · ${primaryClass.class.name}` : ""}
             </p>
 
-            {/* HP bar */}
             <div className="mt-2">
               <div className="flex justify-between mb-1">
                 <span className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">HP</span>
@@ -255,7 +338,6 @@ function CharacterCard({ character }: { character: Character }) {
               </div>
             </div>
 
-            {/* Active conditions */}
             {hasConditions && (
               <div className="flex flex-wrap gap-1 mt-2">
                 {character.conditions.slice(0, 3).map((c) => (
@@ -268,7 +350,6 @@ function CharacterCard({ character }: { character: Character }) {
           </div>
         </div>
 
-        {/* Campaign tag */}
         <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-sketch/50">
           <span className="text-xs">{character.campaign.emoji ?? "⚔️"}</span>
           <span className="font-sans text-xs text-ink-faded truncate">{character.campaign.name}</span>
@@ -297,7 +378,7 @@ function EmptyJournal({ onCreateCampaign }: { onCreateCampaign: () => void }) {
         Begin the Quest ✦
       </button>
       <p className="font-display text-xs text-ink-faded mt-4 italic">
-        "Not all those who wander are lost — but they do need a good map."
+        &quot;Not all those who wander are lost — but they do need a good map.&quot;
       </p>
     </div>
   );
@@ -324,10 +405,11 @@ function ChapterHeader({ title, icon, action }: {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showNewCampaign, setShowNewCampaign] = useState(false);
+  const [data,             setData]             = useState<DashboardData | null>(null);
+  const [user,             setUser]             = useState<SessionUser | null>(null);
+  const [loading,          setLoading]          = useState(true);
+  const [showNewCampaign,  setShowNewCampaign]  = useState(false);
+  const [showJoinCampaign, setShowJoinCampaign] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -388,7 +470,7 @@ export default function DashboardPage() {
           {/* ── Left sidebar ── */}
           <div className="lg:col-span-1 space-y-4">
 
-            {/* Profile card — compact identity row */}
+            {/* Profile card */}
             <Link href="/profile">
               <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-3 flex items-center gap-3 hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all duration-150 cursor-pointer group">
                 {loading ? (
@@ -427,6 +509,11 @@ export default function DashboardPage() {
                 className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2"
               >
                 <span>🏰</span> New Campaign
+              </button>
+              <button onClick={() => setShowJoinCampaign(true)}
+                className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2"
+              >
+                <span>🔑</span> Join Campaign
               </button>
               <Link href="/profile">
                 <button className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2">
@@ -556,6 +643,13 @@ export default function DashboardPage() {
         <CreateCampaignModal
           onClose={() => setShowNewCampaign(false)}
           onCreated={() => setShowNewCampaign(false)}
+        />
+      )}
+
+      {showJoinCampaign && (
+        <JoinCampaignModal
+          onClose={() => setShowJoinCampaign(false)}
+          onJoined={() => setShowJoinCampaign(false)}
         />
       )}
     </div>
