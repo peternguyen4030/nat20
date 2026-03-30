@@ -184,63 +184,71 @@ function EditCampaignModal({ campaign, onClose, onSaved }: {
 
 // ── Character Card ────────────────────────────────────────────────────────────
 
-function CharacterCard({ character, currentUserId }: {
-  character: Character; currentUserId: string;
+function CharacterCard({ character, currentUserId, clickable = true }: {
+  character: Character;
+  currentUserId: string;
+  clickable?: boolean;
 }) {
   const primaryClass = character.classes?.[0];
   const hpPercent    = Math.round((character.currentHp / character.maxHp) * 100);
   const hpColor      = hpPercent > 60 ? "bg-sage" : hpPercent > 30 ? "bg-gold" : "bg-blush";
   const isMyChar     = character.user.id === currentUserId;
 
-  return (
-    <Link href={`/characters/${character.id}`}>
-      <div className={`group bg-warm-white border-2 rounded-sketch shadow-sketch p-4 hover:-translate-x-px hover:-translate-y-px transition-all duration-150 cursor-pointer ${
-        isMyChar ? "border-blush/30 bg-blush/5" : "border-sketch hover:border-blush/40"
-      }`}>
-        <div className="flex items-start gap-3">
-          <div className="relative shrink-0">
-            <Avatar src={character.avatarUrl} size={44}
-              className={`border-2 ${isMyChar ? "border-blush/40" : "border-sketch group-hover:border-blush/30"} transition-colors`}
-            />
-            <div className="absolute -bottom-1.5 -right-1.5 w-5 h-5 bg-ink border border-ink rounded-full flex items-center justify-center">
-              <span className="font-mono text-[0.5rem] font-bold text-warm-white">{character.level}</span>
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-display text-base text-ink leading-tight">{character.name}</p>
-              {isMyChar && (
-                <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider bg-blush/10 text-blush border border-blush/30 rounded p-0.5">Yours</span>
-              )}
-            </div>
-            <p className="font-sans text-xs text-ink-faded mt-0.5">
-              {character.race?.name ?? "Unknown"}{primaryClass ? ` · ${primaryClass.class.name}` : ""}
-            </p>
-            {!isMyChar && (
-              <p className="font-sans text-xs text-ink-faded/70 mt-0.5">
-                {character.user.displayName ?? character.user.name ?? "Player"}
-              </p>
-            )}
-            <div className="mt-2">
-              <div className="flex justify-between mb-1">
-                <span className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">HP</span>
-                <span className="font-mono text-[0.6rem] text-ink-faded">{character.currentHp}/{character.maxHp}</span>
-              </div>
-              <div className="h-1.5 bg-parchment border border-sketch rounded-full overflow-hidden">
-                <div className={`h-full rounded-full ${hpColor}`} style={{ width: `${hpPercent}%` }} />
-              </div>
-            </div>
-            {(character.conditions?.length ?? 0) > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {character.conditions.slice(0, 2).map((c) => (
-                  <span key={c} className="font-sans text-[0.5rem] font-bold uppercase text-blush border border-blush/30 bg-blush/5 rounded p-0.5">{c}</span>
-                ))}
-              </div>
-            )}
+  const card = (
+    <div className={`group bg-warm-white border-2 rounded-sketch shadow-sketch p-4 transition-all duration-150 ${
+      clickable ? "hover:-translate-x-px hover:-translate-y-px cursor-pointer" : "cursor-default"
+    } ${
+      isMyChar ? "border-blush/30 bg-blush/5" : "border-sketch hover:border-blush/40"
+    }`}>
+      <div className="flex items-start gap-3">
+        <div className="relative shrink-0">
+          <Avatar src={character.avatarUrl} size={44}
+            className={`border-2 ${isMyChar ? "border-blush/40" : "border-sketch group-hover:border-blush/30"} transition-colors`}
+          />
+          <div className="absolute -bottom-1.5 -right-1.5 w-5 h-5 bg-ink border border-ink rounded-full flex items-center justify-center">
+            <span className="font-mono text-[0.5rem] font-bold text-warm-white">{character.level}</span>
           </div>
         </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-display text-base text-ink leading-tight">{character.name}</p>
+            {isMyChar && (
+              <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider bg-blush/10 text-blush border border-blush/30 rounded p-0.5">Yours</span>
+            )}
+          </div>
+          <p className="font-sans text-xs text-ink-faded mt-0.5">
+            {character.race?.name ?? "Unknown"}{primaryClass ? ` · ${primaryClass.class.name}` : ""}
+          </p>
+          {!isMyChar && (
+            <p className="font-sans text-xs text-ink-faded/70 mt-0.5">
+              {character.user.displayName ?? character.user.name ?? "Player"}
+            </p>
+          )}
+          <div className="mt-2">
+            <div className="flex justify-between mb-1">
+              <span className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">HP</span>
+              <span className="font-mono text-[0.6rem] text-ink-faded">{character.currentHp}/{character.maxHp}</span>
+            </div>
+            <div className="h-1.5 bg-parchment border border-sketch rounded-full overflow-hidden">
+              <div className={`h-full rounded-full ${hpColor}`} style={{ width: `${hpPercent}%` }} />
+            </div>
+          </div>
+          {(character.conditions?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {character.conditions.slice(0, 2).map((c) => (
+                <span key={c} className="font-sans text-[0.5rem] font-bold uppercase text-blush border border-blush/30 bg-blush/5 rounded p-0.5">{c}</span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </Link>
+    </div>
+  );
+
+  return (
+    clickable
+      ? <Link href={`/characters/${character.id}`}>{card}</Link>
+      : card
   );
 }
 
@@ -251,7 +259,7 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
   onEdit: () => void; onDelete: () => void; onRefresh: () => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const partyCharacters = campaign.characters.filter((c) => c.user.id !== currentUserId && c.isActive);
+  const partyCharacters = campaign.characters.filter((c) => c.isActive);
 
   async function removeMember(userId: string) {
     if (!confirm("Remove this member from the campaign?")) return;
@@ -306,7 +314,12 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
             <h3 className="font-display text-lg text-ink mb-2">The Party</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {partyCharacters.map((character) => (
-                <CharacterCard key={character.id} character={character} currentUserId={currentUserId} />
+                <CharacterCard
+                  key={character.id}
+                  character={character}
+                  currentUserId={currentUserId}
+                  clickable={character.user.id === currentUserId}
+                />
               ))}
             </div>
           </div>
@@ -444,7 +457,6 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
   );
 }
 
-// ── Player View ───────────────────────────────────────────────────────────────
 
 // ── Player View ───────────────────────────────────────────────────────────────
 
@@ -452,7 +464,7 @@ function PlayerView({ campaign, currentUserId, onRefresh }: {
   campaign: CampaignDetail; currentUserId: string; onRefresh: () => void;
 }) {
   const myCharacters    = campaign.characters.filter((c) => c.user.id === currentUserId);
-  const partyCharacters = campaign.characters.filter((c) => c.user.id !== currentUserId && c.isActive);
+  const partyCharacters = campaign.characters.filter((c) => c.isActive);
 
   async function setActive(e: React.MouseEvent, characterId: string) {
     e.preventDefault();
