@@ -3,64 +3,102 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
-// PATCH /api/campaigns/[campaignId]/npcs/[npcId]
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { campaignId: string; npcId: string } }
+export const dynamic = "force-dynamic";
+
+export async function GET(
+  _req: NextRequest,
+  context: { params: Promise<{ campaignId: string }> }
 ) {
   try {
+    const { campaignId } = await context.params;
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // Verify membership
     const member = await prisma.campaignMember.findUnique({
-      where: { campaignId_userId: { campaignId: params.campaignId, userId: session.user.id } },
+      where: { campaignId_userId: { campaignId, userId: session.user.id } },
     });
-    if (!member || member.role !== "DM") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const { name, maxHp, currentHp, armorClass, speed, initiativeModifier, attacks } = await req.json();
+    // Fetch or create board
+    const board = await prisma.campaignBoard.upsert({
+      where: { campaignId },
+      create: { campaignId },
+      update: {},
+      include: { activeMap: true },
+    });
 
-    const npc = await prisma.nPC.update({
-      where: { id: params.npcId },
-      data: {
-        ...(name              !== undefined && { name: name.trim() }),
-        ...(maxHp             !== undefined && { maxHp: Number(maxHp) }),
-        ...(currentHp         !== undefined && { currentHp: Number(currentHp) }),
-        ...(armorClass        !== undefined && { armorClass: Number(armorClass) }),
-        ...(speed             !== undefined && { speed: Number(speed) }),
-        ...(initiativeModifier !== undefined && { initiativeModifier: Number(initiativeModifier) }),
-        ...(attacks           !== undefined && { attacks }),
+    // Fetch active characters with full stats
+    const characters = await prisma.character.findMany({
+      where: { campaignId, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        level: true,
+        currentHp: true,
+        maxHp: true,
+        temporaryHp: true,
+        armorClass: true,
+        speed: true,
+        avatarUrl: true,
+        conditions: true,
+        inspiration: true,
+        user: { select: { id: true, displayName: true, name: true } },
+        race: { select: { name: true } },
+        classes: { select: { level: true, class: { select: { name: true } } } },
       },
     });
 
-    return NextResponse.json(npc);
+    // Fetch campaign assets for map picker (DM only — safe to include, UI controls visibility)
+    const assets = await prisma.campaignAsset.findMany({
+      where: { campaignId, type: "MAP" },
+      select: { id: true, name: true, url: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json(
+      { board, characters, assets },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (error) {
-    console.error("NPC update error:", error);
-    return NextResponse.json({ error: "Failed to update NPC" }, { status: 500 });
+    console.error("Board fetch error:", error);
+    return NextResponse.json({ error: "Failed to load board" }, { status: 500 });
   }
 }
 
-// DELETE /api/campaigns/[campaignId]/npcs/[npcId]
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { campaignId: string; npcId: string } }
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ campaignId: string }> }
 ) {
   try {
+    const { campaignId } = await context.params;
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // DM only
     const member = await prisma.campaignMember.findUnique({
-      where: { campaignId_userId: { campaignId: params.campaignId, userId: session.user.id } },
+      where: { campaignId_userId: { campaignId, userId: session.user.id } },
     });
     if (!member || member.role !== "DM") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.nPC.delete({ where: { id: params.npcId } });
-    return NextResponse.json({ success: true });
+    const { activeMapId, boardState, combatActive } = await req.json();
+
+    const board = await prisma.campaignBoard.upsert({
+      where: { campaignId },
+      create: { campaignId, activeMapId, boardState, combatActive },
+      update: {
+        ...(activeMapId !== undefined && { activeMapId }),
+        ...(boardState  !== undefined && { boardState }),
+        ...(combatActive !== undefined && { combatActive }),
+      },
+      include: { activeMap: true },
+    });
+
+    return NextResponse.json(board, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
-    console.error("NPC delete error:", error);
-    return NextResponse.json({ error: "Failed to delete NPC" }, { status: 500 });
+    console.error("Board update error:", error);
+    return NextResponse.json({ error: "Failed to update board" }, { status: 500 });
   }
 }
