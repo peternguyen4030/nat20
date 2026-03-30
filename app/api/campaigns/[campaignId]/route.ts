@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ campaignId: string }> }
@@ -42,7 +44,11 @@ export async function GET(
     const isMember = campaign.members.some((m) => m.user.id === session.user.id);
     if (!isMember) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    return NextResponse.json(campaign);
+    return NextResponse.json(campaign, {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Failed to fetch campaign" }, { status: 500 });

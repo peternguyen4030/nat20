@@ -261,7 +261,6 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
   async function promoteMember(userId: string) {
     if (!confirm("Promote this player to DM? You will be demoted to player.")) return;
 
-    // Promote first while we still have DM privileges, then demote ourselves.
     await fetch(`/api/campaigns/${campaign.id}/members/${userId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -294,7 +293,7 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
       {/* ── Left: characters ── */}
       <div className="lg:col-span-2 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl text-ink">Party</h2>
+          <h2 className="font-display text-xl text-ink">Characters</h2>
           <Link href={`/characters/create?campaignId=${campaign.id}`}>
             <span className="font-sans text-xs text-blush underline decoration-dotted underline-offset-2 hover:text-ink transition-colors">+ Add Character</span>
           </Link>
@@ -440,7 +439,13 @@ function PlayerView({ campaign, currentUserId, onRefresh }: {
   const partyCharacters = campaign.characters.filter((c) => c.user.id !== currentUserId && c.isActive);
 
   async function setActive(characterId: string) {
-    await fetch(`/api/characters/${characterId}/set-active`, { method: "POST" });
+    const res = await fetch(`/api/characters/${characterId}/set-active`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      // Keep UI simple: refresh anyway so users see the latest server state.
+      console.error("Failed to set active character");
+    }
     onRefresh();
   }
 
@@ -570,7 +575,7 @@ export default function CampaignPage() {
   const loadData = useCallback(async () => {
     const [sessionRes, campaignRes] = await Promise.all([
       authClient.getSession(),
-      fetch(`/api/campaigns/${campaignId}`).then((r) => {
+      fetch(`/api/campaigns/${campaignId}`, { cache: "no-store" }).then((r) => {
         if (!r.ok) throw new Error("Campaign not found");
         return r.json();
       }),
