@@ -432,20 +432,19 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
 
 // ── Player View ───────────────────────────────────────────────────────────────
 
+// ── Player View ───────────────────────────────────────────────────────────────
+
 function PlayerView({ campaign, currentUserId, onRefresh }: {
   campaign: CampaignDetail; currentUserId: string; onRefresh: () => void;
 }) {
   const myCharacters    = campaign.characters.filter((c) => c.user.id === currentUserId);
   const partyCharacters = campaign.characters.filter((c) => c.user.id !== currentUserId && c.isActive);
 
-  async function setActive(characterId: string) {
-    const res = await fetch(`/api/characters/${characterId}/set-active`, {
-      method: "POST",
-    });
-    if (!res.ok) {
-      // Keep UI simple: refresh anyway so users see the latest server state.
-      console.error("Failed to set active character");
-    }
+  async function setActive(e: React.MouseEvent, characterId: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    const res = await fetch(`/api/characters/${characterId}/set-active`, { method: "POST" });
+    if (!res.ok) console.error("Failed to set active character");
     onRefresh();
   }
 
@@ -458,7 +457,10 @@ function PlayerView({ campaign, currentUserId, onRefresh }: {
         {/* My characters */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display text-xl text-ink">My Characters</h2>
+            <div>
+              <h2 className="font-display text-xl text-ink">My Characters</h2>
+              <p className="font-sans text-xs text-ink-faded mt-0.5">Set one as active to appear in the party.</p>
+            </div>
             <Link href={`/characters/create?campaignId=${campaign.id}`}>
               <span className="font-sans text-xs text-blush underline decoration-dotted underline-offset-2 hover:text-ink transition-colors">+ New Character</span>
             </Link>
@@ -480,8 +482,9 @@ function PlayerView({ campaign, currentUserId, onRefresh }: {
               {myCharacters.map((character) => (
                 <div key={character.id} className="relative">
                   <CharacterCard character={character} currentUserId={currentUserId} />
+                  {/* Stop propagation so the button doesn't trigger the Link */}
                   <button
-                    onClick={() => setActive(character.id)}
+                    onClick={(e) => setActive(e, character.id)}
                     className={`absolute top-2 right-2 font-sans text-[0.55rem] font-bold uppercase tracking-wider rounded p-0.5 border transition-all ${
                       character.isActive
                         ? "bg-sage/20 text-sage border-sage/40"
@@ -497,16 +500,23 @@ function PlayerView({ campaign, currentUserId, onRefresh }: {
         </div>
 
         {/* Party — only active characters from other players */}
-        {partyCharacters.length > 0 && (
-          <div>
-            <h2 className="font-display text-xl text-ink mb-3">The Party</h2>
+        <div>
+          <div className="mb-3">
+            <h2 className="font-display text-xl text-ink">The Party</h2>
+            <p className="font-sans text-xs text-ink-faded mt-0.5">Players who have set an active character.</p>
+          </div>
+          {partyCharacters.length === 0 ? (
+            <div className="bg-warm-white border-2 border-dashed border-sketch rounded-sketch p-6 text-center">
+              <p className="font-sans text-sm text-ink-faded">No other players have set an active character yet.</p>
+            </div>
+          ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {partyCharacters.map((character) => (
                 <CharacterCard key={character.id} character={character} currentUserId={currentUserId} />
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* ── Right: campaign info + members ── */}
