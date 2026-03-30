@@ -251,6 +251,7 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
   onEdit: () => void; onDelete: () => void; onRefresh: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const partyCharacters = campaign.characters.filter((c) => c.user.id !== currentUserId && c.isActive);
 
   async function removeMember(userId: string) {
     if (!confirm("Remove this member from the campaign?")) return;
@@ -299,6 +300,19 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
           </Link>
         </div>
 
+        {/* The Party — only active characters from other players */}
+        {partyCharacters.length > 0 && (
+          <div>
+            <h3 className="font-display text-lg text-ink mb-2">The Party</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {partyCharacters.map((character) => (
+                <CharacterCard key={character.id} character={character} currentUserId={currentUserId} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* All characters */}
         {campaign.characters.length === 0 ? (
           <div className="bg-warm-white border-2 border-dashed border-sketch rounded-sketch p-8 text-center">
             <p className="text-3xl mb-2">🧙</p>
