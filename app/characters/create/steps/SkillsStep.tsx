@@ -12,7 +12,7 @@ import { useState, useEffect } from "react";
 const ABILITY_COLOR: Record<string, string> = {
   STR: "text-blush border-blush/30 bg-blush/10",
   DEX: "text-sage border-sage/30 bg-sage/10",
-  CON: "text-gold border-gold/30 bg-gold/10",
+  CON: "text-[#D4A853] border-[#D4A853]/30 bg-[#D4A853]/10",
   INT: "text-dusty-blue border-dusty-blue/30 bg-dusty-blue/10",
   WIS: "text-sage border-sage/30 bg-sage/10",
   CHA: "text-blush border-blush/30 bg-blush/10",
@@ -31,8 +31,8 @@ function modifier(score: number): string {
 export function SkillsStep() {
   const { state, dispatch } = useWizard();
   const [hoveredSkill, setHoveredSkill] = useState<SkillDefinition | null>(null);
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [classes, setClasses]           = useState<Class[]>([]);
+  const [loading, setLoading]           = useState(true);
 
   useEffect(() => {
     fetch("/api/classes")
@@ -42,12 +42,12 @@ export function SkillsStep() {
   }, []);
 
   const selectedClass = classes.find((c) => c.id === state.classId);
-  const classIndex = selectedClass?.index ?? "";
-  const options = CLASS_SKILL_OPTIONS[classIndex];
+  const classIndex    = selectedClass?.index ?? "";
+  const options       = CLASS_SKILL_OPTIONS[classIndex];
   const availableKeys = options?.skills ?? [];
-  const pickCount = options?.count ?? 2;
-  const selected = state.selectedSkills;
-  const remaining = pickCount - selected.length;
+  const pickCount     = options?.count ?? 2;
+  const selected      = state.selectedSkills;
+  const remaining     = pickCount - selected.length;
 
   // Background grants fixed skills — show them as locked
   const bgSkills: string[] = []; // populated post-MVP from background data
@@ -98,15 +98,16 @@ export function SkillsStep() {
         <div className="lg:col-span-2 space-y-4">
 
           {/* Pick counter */}
-          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch px-4 py-3 flex items-center justify-between">
+          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               {Array.from({ length: pickCount }).map((_, i) => (
                 <div
                   key={i}
-                  className={`w-7 h-7 rounded-input border-2 flex items-center justify-center text-sm transition-all duration-150 ${i < selected.length
+                  className={`w-7 h-7 rounded-input border-2 flex items-center justify-center text-sm transition-all duration-150 ${
+                    i < selected.length
                       ? "bg-blush border-blush text-white"
                       : "bg-parchment border-sketch text-ink-faded"
-                    }`}
+                  }`}
                 >
                   {i < selected.length ? "✓" : "○"}
                 </div>
@@ -129,12 +130,12 @@ export function SkillsStep() {
           </div>
 
           {/* Skill grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {SKILLS.map((skill) => {
               const isAvailable = availableKeys.includes(skill.key);
-              const isSelected = selected.includes(skill.key);
-              const isLocked = bgSkills.includes(skill.key);
-              const isDisabled = !isAvailable && !isSelected && !isLocked;
+              const isSelected  = selected.includes(skill.key);
+              const isLocked    = bgSkills.includes(skill.key);
+              const isDisabled  = !isAvailable && !isSelected && !isLocked;
 
               return (
                 <button
@@ -144,34 +145,36 @@ export function SkillsStep() {
                   onMouseEnter={() => setHoveredSkill(skill)}
                   onMouseLeave={() => setHoveredSkill(null)}
                   onClick={() => toggleSkill(skill.key)}
-                  className={`p-3 rounded-sketch border-2 text-left transition-all duration-150 relative ${isLocked
+                  className={`p-3 rounded-sketch border-2 text-left transition-all duration-150 relative ${
+                    isLocked
                       ? "bg-sage/10 border-sage/40 cursor-default"
                       : isSelected
-                        ? "bg-blush/10 border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
-                        : isDisabled
-                          ? "bg-parchment border-sketch/40 opacity-35 cursor-not-allowed"
-                          : remaining <= 0
-                            ? "bg-warm-white border-sketch opacity-40 cursor-not-allowed"
-                            : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px cursor-pointer"
-                    }`}
+                      ? "bg-blush/10 border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
+                      : isDisabled
+                      ? "bg-parchment border-sketch/40 opacity-35 cursor-not-allowed"
+                      : remaining <= 0
+                      ? "bg-warm-white border-sketch opacity-40 cursor-not-allowed"
+                      : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px cursor-pointer"
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-1">
-                    <p className={`font-sans text-sm font-semibold leading-tight ${isSelected ? "text-blush" : isLocked ? "text-sage" : isDisabled ? "text-ink-faded" : "text-ink"
-                      }`}>
+                    <p className={`font-sans text-sm font-semibold leading-tight ${
+                      isSelected ? "text-blush" : isLocked ? "text-sage" : isDisabled ? "text-ink-faded" : "text-ink"
+                    }`}>
                       {skill.name}
                     </p>
                     <div className="flex items-center gap-1 shrink-0">
                       {(() => {
                         const scoreKey = ABILITY_SCORE_KEY[skill.ability] as keyof typeof state.abilityScores;
-                        const score = state.abilityScores[scoreKey];
-                        const mod = modifier(score);
+                        const score    = state.abilityScores[scoreKey];
+                        const mod      = modifier(score);
                         return (
                           <span className={`font-mono text-[0.6rem] font-bold ${mod.startsWith("+") ? "text-sage" : "text-blush"}`}>
                             {mod}
                           </span>
                         );
                       })()}
-                      <span className={`font-mono text-[0.6rem] font-bold px-1 py-0.5 rounded border ${ABILITY_COLOR[skill.ability]}`}>
+                      <span className={`font-mono text-[0.6rem] font-bold p-1.5 rounded border ${ABILITY_COLOR[skill.ability]}`}>
                         {skill.ability}
                       </span>
                     </div>
@@ -198,7 +201,7 @@ export function SkillsStep() {
               <>
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="font-display text-2xl text-ink">{displaySkill.name}</h2>
-                  <span className={`font-mono text-xs font-bold px-2 py-1 rounded border ${ABILITY_COLOR[displaySkill.ability]}`}>
+                  <span className={`font-mono text-xs font-bold p-2 rounded border ${ABILITY_COLOR[displaySkill.ability]}`}>
                     {displaySkill.ability}
                   </span>
                 </div>
@@ -208,9 +211,9 @@ export function SkillsStep() {
                 <div className="border-t border-sketch p-3">
                   {(() => {
                     const scoreKey = ABILITY_SCORE_KEY[displaySkill.ability] as keyof typeof state.abilityScores;
-                    const score = state.abilityScores[scoreKey];
-                    const mod = modifier(score);
-                    const total = (parseInt(mod) + 2).toString();
+                    const score    = state.abilityScores[scoreKey];
+                    const mod      = modifier(score);
+                    const total    = (parseInt(mod) + 2).toString();
                     return (
                       <p className="font-sans text-xs text-ink-faded">
                         Your <strong className="text-ink">{displaySkill.ability}</strong> modifier is{" "}
@@ -243,7 +246,6 @@ export function SkillsStep() {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );

@@ -18,8 +18,8 @@ model User {
   image         String?
   passwordHash  String?
   displayName   String?
-  avatarUrl     String? // uploaded via Uploadthing
-  bio           String? // short profile bio
+  avatarUrl     String?
+  bio           String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -28,6 +28,7 @@ model User {
   characters     Character[]
   sessions       Session[]
   accounts       Account[]
+  actionLogs     ActionLog[]
 }
 
 model Session {
@@ -84,8 +85,9 @@ model Campaign {
   name         String
   description  String?
   emoji        String?
-  bannerUrl    String? // uploaded via Uploadthing
+  bannerUrl    String?
   ownerId      String
+  inviteCode   String?   @unique
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   lastPlayedAt DateTime?
@@ -94,6 +96,10 @@ model Campaign {
   members    CampaignMember[]
   characters Character[]
   sessions   CombatSession[]
+  actionLogs ActionLog[]
+  board      CampaignBoard?
+  assets     CampaignAsset[]
+  npcs       NPC[]
 
   @@index([ownerId])
 }
@@ -118,6 +124,43 @@ enum CampaignMemberRole {
 }
 
 /////////////////////////////////////////////////
+// ACTION LOG
+/////////////////////////////////////////////////
+
+model ActionLog {
+  id          String        @id @default(uuid())
+  campaignId  String
+  sessionId   String?       // null for campaign-level actions
+  userId      String
+  characterId String?
+  actionType  LogActionType
+  description String
+  result      String?
+  createdAt   DateTime      @default(now())
+
+  campaign  Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  session   CombatSession? @relation(fields: [sessionId], references: [id])
+  user      User           @relation(fields: [userId], references: [id])
+  character Character?     @relation(fields: [characterId], references: [id])
+
+  @@index([campaignId])
+  @@index([sessionId])
+  @@index([userId])
+}
+
+enum LogActionType {
+  COMBAT_ATTACK
+  COMBAT_SPELL
+  COMBAT_MOVE
+  COMBAT_OTHER
+  LEVEL_UP
+  INSPIRATION_AWARDED
+  INSPIRATION_SPENT
+  HP_CHANGE
+  CAMPAIGN_EVENT
+}
+
+/////////////////////////////////////////////////
 // CHARACTER CORE
 /////////////////////////////////////////////////
 
@@ -133,31 +176,26 @@ model Character {
   speed            Int     @default(30)
   initiative       Int     @default(0)
   inspiration      Boolean @default(false)
-  avatarUrl        String? // uploaded via Uploadthing
+  isActive         Boolean @default(false)
+  avatarUrl        String?
   backgroundId     String?
   gender           String?
   pronouns         String?
   notes            String?
 
-  // Personality — populated during wizard step 8
   personalityTrait String?
   ideal            String?
   bond             String?
   flaw             String?
 
-  // Combat state — JSON for MVP simplicity
-  deathSaves Json? // { successes: 0, failures: 0 }
-  hitDice    Json? // { total: 1, used: 0 }
-  spellSlots Json? // { "1": { max: 2, used: 0 }, "2": { max: 0, used: 0 } }
+  deathSaves Json?
+  hitDice    Json?
+  spellSlots Json?
 
-  // Bonus overrides — additive on top of calculated values
-  savingThrowBonuses Json? // { strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0 }
-  skillBonuses       Json? // { acrobatics: 0, athletics: 0, ... keyed by skill index }
+  savingThrowBonuses Json?
+  skillBonuses       Json?
 
-  // Languages — named list rather than just a count
-  languages String[] @default([])
-
-  // Conditions — enum array for type safety
+  languages  String[]  @default([])
   conditions Condition[]
 
   createdAt DateTime @default(now())
@@ -180,6 +218,7 @@ model Character {
   spells          CharacterSpell[]
   actionsAsActor  CombatAction[]         @relation("Actor")
   actionsAsTarget CombatAction[]         @relation("Target")
+  actionLogs      ActionLog[]
 
   @@index([userId])
   @@index([campaignId])
@@ -187,7 +226,6 @@ model Character {
   @@index([backgroundId])
 }
 
-// D&D 5e standard conditions
 enum Condition {
   BLINDED
   CHARMED
@@ -207,7 +245,7 @@ enum Condition {
 }
 
 /////////////////////////////////////////////////
-// ABILITY SCORES (1-1)
+// ABILITY SCORES
 /////////////////////////////////////////////////
 
 model AbilityScore {
@@ -265,7 +303,6 @@ model Feature {
   description String
   type        FeatureType
 
-  // Combat classification — populated by seed script
   category     ActionCategory?
   actionType   ActionType?
   combatUsable Boolean         @default(false)
@@ -482,12 +519,11 @@ enum ItemType {
 model CharacterItem {
   id          String  @id @default(uuid())
   characterId String
-  itemId      String? // nullable — allows custom items not in the Item table
+  itemId      String?
   quantity    Int     @default(1)
   equipped    Boolean @default(false)
   attuned     Boolean @default(false)
 
-  // Custom item fields — used when itemId is null
   customName        String?
   customDescription String?
   customType        String?
@@ -515,8 +551,9 @@ model CombatSession {
   bonusActionUsed        Boolean @default(false)
   reactionUsed           Boolean @default(false)
 
-  campaign Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  actions  CombatAction[]
+  campaign   Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  actions    CombatAction[]
+  actionLogs ActionLog[]
 
   @@index([campaignId])
   @@index([active])
@@ -530,19 +567,25 @@ model CombatAction {
   actionType  CombatActionType
   actionSlot  ActionSlot       @default(ACTION)
   spellId     String?
+  npcActorId  String?
+  npcTargetId String?
   attackRoll  Int?
   damageDealt Int?
   notes       String?
   createdAt   DateTime         @default(now())
 
-  session CombatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  actor   Character     @relation("Actor", fields: [actorId], references: [id])
-  target  Character?    @relation("Target", fields: [targetId], references: [id])
-  spell   Spell?        @relation(fields: [spellId], references: [id])
+  session   CombatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  actor     Character     @relation("Actor", fields: [actorId], references: [id])
+  target    Character?    @relation("Target", fields: [targetId], references: [id])
+  spell     Spell?        @relation(fields: [spellId], references: [id])
+  npcActor  NPC?          @relation("NPCActor", fields: [npcActorId], references: [id])
+  npcTarget NPC?          @relation("NPCTarget", fields: [npcTargetId], references: [id])
 
   @@index([sessionId])
   @@index([actorId])
   @@index([targetId])
+  @@index([npcActorId])
+  @@index([npcTargetId])
 }
 
 enum ActionSlot {
@@ -561,4 +604,84 @@ enum CombatActionType {
   HIDE
   READY
   OTHER
+}
+
+/////////////////////////////////////////////////
+// CAMPAIGN BOARD
+/////////////////////////////////////////////////
+
+model CampaignBoard {
+  id              String   @id @default(uuid())
+  campaignId      String   @unique
+  activeMapId     String?
+  boardState      Json?    // positions, tokens, annotations
+  combatActive    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  campaign  Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  activeMap CampaignAsset? @relation(fields: [activeMapId], references: [id])
+
+  @@index([campaignId])
+}
+
+/////////////////////////////////////////////////
+// CAMPAIGN ASSETS (maps, tokens)
+/////////////////////////////////////////////////
+
+model CampaignAsset {
+  id         String          @id @default(uuid())
+  campaignId String
+  name       String
+  url        String          // uploaded via Uploadthing
+  type       CampaignAssetType
+  createdAt  DateTime        @default(now())
+
+  campaign Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  boards   CampaignBoard[]
+
+  @@index([campaignId])
+}
+
+enum CampaignAssetType {
+  MAP
+  TOKEN
+}
+
+/////////////////////////////////////////////////
+// NPC / MONSTER
+/////////////////////////////////////////////////
+
+model NPC {
+  id                String   @id @default(uuid())
+  campaignId        String
+  name              String
+  maxHp             Int
+  currentHp         Int
+  armorClass        Int      @default(10)
+  speed             Int      @default(30)
+  initiativeModifier Int     @default(0)
+  avatarUrl         String?  // token image
+
+  // Ability scores
+  strength          Int      @default(10)
+  dexterity         Int      @default(10)
+  constitution      Int      @default(10)
+  intelligence      Int      @default(10)
+  wisdom            Int      @default(10)
+  charisma          Int      @default(10)
+
+  // Attacks — JSON array for flexibility
+  // e.g. [{ name: "Shortsword", toHit: 4, damageDice: "1d6", damageType: "piercing" }]
+  attacks           Json?
+
+  conditions        Condition[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  campaign          Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  actionsAsActor    CombatAction[] @relation("NPCActor")
+  actionsAsTarget   CombatAction[] @relation("NPCTarget")
+
+  @@index([campaignId])
 }

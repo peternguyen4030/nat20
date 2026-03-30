@@ -30,7 +30,7 @@ const BOARD_NAILS = [
 export default async function Home() {
   const session = await auth.api.getSession({
     headers: await headers(),
-  });
+  }).catch(() => null);
   if (session) {
     redirect("/dashboard");
   }
