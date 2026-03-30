@@ -259,6 +259,7 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
   onEdit: () => void; onDelete: () => void; onRefresh: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const myCharacters    = campaign.characters.filter((c) => c.user.id === currentUserId);
   const partyCharacters = campaign.characters.filter((c) => c.isActive);
 
   async function removeMember(userId: string) {
@@ -299,19 +300,52 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      {/* ── Left: characters ── */}
-      <div className="lg:col-span-2 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl text-ink">Characters</h2>
-          <Link href={`/characters/create?campaignId=${campaign.id}`}>
-            <span className="font-sans text-xs text-blush underline decoration-dotted underline-offset-2 hover:text-ink transition-colors">+ Add Character</span>
-          </Link>
+      {/* ── Left: my characters + party ── */}
+      <div className="lg:col-span-2 space-y-6">
+
+        {/* My characters (DM cannot set active) */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="font-display text-xl text-ink">My Characters</h2>
+              <p className="font-sans text-xs text-ink-faded mt-0.5">Your characters in this campaign.</p>
+            </div>
+            <Link href={`/characters/create?campaignId=${campaign.id}`}>
+              <span className="font-sans text-xs text-blush underline decoration-dotted underline-offset-2 hover:text-ink transition-colors">+ New Character</span>
+            </Link>
+          </div>
+
+          {myCharacters.length === 0 ? (
+            <div className="bg-warm-white border-2 border-dashed border-sketch rounded-sketch p-8 text-center">
+              <p className="text-3xl mb-2">🧙</p>
+              <p className="font-display text-lg text-ink">You haven&apos;t created a character yet</p>
+              <p className="font-sans text-xs text-ink-faded mt-1 mb-4">Create a character to join the adventure.</p>
+              <Link href={`/characters/create?campaignId=${campaign.id}`}>
+                <button className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-2 hover:-translate-x-px hover:-translate-y-px transition-all">
+                  Create a Character ✦
+                </button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {myCharacters.map((character) => (
+                <CharacterCard key={character.id} character={character} currentUserId={currentUserId} />
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* The Party — only active characters from other players */}
-        {partyCharacters.length > 0 && (
-          <div>
-            <h3 className="font-display text-lg text-ink mb-2">The Party</h3>
+        {/* The Party */}
+        <div>
+          <div className="mb-3">
+            <h2 className="font-display text-xl text-ink">The Party</h2>
+            <p className="font-sans text-xs text-ink-faded mt-0.5">Players who have set an active character.</p>
+          </div>
+          {partyCharacters.length === 0 ? (
+            <div className="bg-warm-white border-2 border-dashed border-sketch rounded-sketch p-6 text-center">
+              <p className="font-sans text-sm text-ink-faded">No other players have set an active character yet.</p>
+            </div>
+          ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {partyCharacters.map((character) => (
                 <CharacterCard
@@ -322,28 +356,8 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
                 />
               ))}
             </div>
-          </div>
-        )}
-
-        {/* All characters */}
-        {campaign.characters.length === 0 ? (
-          <div className="bg-warm-white border-2 border-dashed border-sketch rounded-sketch p-8 text-center">
-            <p className="text-3xl mb-2">🧙</p>
-            <p className="font-display text-lg text-ink">No characters yet</p>
-            <p className="font-sans text-xs text-ink-faded mt-1 mb-4">Invite players to join and create their characters.</p>
-            <Link href={`/characters/create?campaignId=${campaign.id}`}>
-              <button className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-2 hover:-translate-x-px hover:-translate-y-px transition-all">
-                Create a Character ✦
-              </button>
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {campaign.characters.map((character) => (
-              <CharacterCard key={character.id} character={character} currentUserId={currentUserId} />
-            ))}
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Session history */}
         {campaign.sessions.length > 0 && (
@@ -538,7 +552,12 @@ function PlayerView({ campaign, currentUserId, onRefresh }: {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {partyCharacters.map((character) => (
-                <CharacterCard key={character.id} character={character} currentUserId={currentUserId} />
+                <CharacterCard
+                  key={character.id}
+                  character={character}
+                  currentUserId={currentUserId}
+                  clickable={character.user.id === currentUserId}
+                />
               ))}
             </div>
           )}
