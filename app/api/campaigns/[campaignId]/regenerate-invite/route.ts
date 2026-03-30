@@ -10,9 +10,10 @@ function generateInviteCode(): string {
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { campaignId: string } }
+  context: { params: Promise<{ campaignId: string }> }
 ) {
   try {
+    const { campaignId } = await context.params;
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -20,7 +21,7 @@ export async function POST(
 
     // Verify requester is the DM
     const member = await prisma.campaignMember.findUnique({
-      where: { campaignId_userId: { campaignId: params.campaignId, userId: session.user.id } },
+      where: { campaignId_userId: { campaignId, userId: session.user.id } },
     });
     if (!member || member.role !== "DM") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -35,7 +36,7 @@ export async function POST(
     }
 
     const campaign = await prisma.campaign.update({
-      where: { id: params.campaignId },
+      where: { id: campaignId },
       data:  { inviteCode },
       select: { inviteCode: true },
     });

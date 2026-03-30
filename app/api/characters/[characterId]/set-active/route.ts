@@ -5,9 +5,10 @@ import { headers } from "next/headers";
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { characterId: string } }
+  context: { params: Promise<{ characterId: string }> }
 ) {
   try {
+    const { characterId } = await context.params;
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,7 +16,7 @@ export async function POST(
 
     // Verify ownership
     const character = await prisma.character.findUnique({
-      where: { id: params.characterId },
+      where: { id: characterId },
       select: { id: true, userId: true, campaignId: true },
     });
 
@@ -32,12 +33,12 @@ export async function POST(
         where: {
           userId:     session.user.id,
           campaignId: character.campaignId,
-          id:         { not: params.characterId },
+          id:         { not: characterId },
         },
         data: { isActive: false },
       }),
       prisma.character.update({
-        where: { id: params.characterId },
+        where: { id: characterId },
         data:  { isActive: true },
       }),
     ]);
