@@ -715,7 +715,7 @@ export default function CampaignBoardPage() {
           )}
 
           {isDM && (
-            <div className="border-t border-sketch pt-2 space-y-2">
+            <div className="border-t border-sketch p-2 space-y-2">
               <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">DM Tools</p>
               <Link href={`/campaigns/${campaignId}/board/combat`}>
                 <button className="w-full font-sans font-semibold text-sm text-white bg-blush border-2 border-blush rounded-sketch p-2 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch-accent flex items-center gap-2">
