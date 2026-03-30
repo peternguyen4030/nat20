@@ -33,6 +33,10 @@ export async function GET() {
         include: {
           campaign: {
             include: {
+              members: {
+                where: { userId },
+                select: { role: true, user: { select: { id: true, displayName: true, name: true } } },
+              },
               owner: { select: { id: true, displayName: true, name: true } },
               _count: { select: { characters: true, sessions: true } },
             },

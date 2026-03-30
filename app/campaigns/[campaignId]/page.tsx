@@ -712,11 +712,18 @@ export default function CampaignPage() {
                   )}
                 </div>
               </div>
-              <Link href={`/characters/create?campaignId=${campaign.id}`}>
-                <button className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-2.5 hover:-translate-x-px hover:-translate-y-px transition-all flex items-center gap-2">
-                  🧙 {isDM ? "Add Character" : "Create Character"}
-                </button>
-              </Link>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Link href={`/campaigns/${campaign.id}/board`}>
+                  <button className="font-sans font-bold text-sm text-ink-soft bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-2.5 hover:-translate-x-px hover:-translate-y-px transition-all flex items-center gap-2">
+                    🗺️ Session Board
+                  </button>
+                </Link>
+                <Link href={`/characters/create?campaignId=${campaign.id}`}>
+                  <button className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent p-2.5 hover:-translate-x-px hover:-translate-y-px transition-all flex items-center gap-2">
+                    🧙 {isDM ? "Add Character" : "Create Character"}
+                  </button>
+                </Link>
+              </div>
             </div>
           )}
         </div>

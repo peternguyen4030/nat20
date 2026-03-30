@@ -267,7 +267,9 @@ function JoinCampaignModal({ onClose, onJoined }: {
 
 // ── Campaign Card ─────────────────────────────────────────────────────────────
 
-function CampaignCard({ campaign, isOwner }: { campaign: Campaign; isOwner: boolean }) {
+function CampaignCard({ campaign, currentUserId }: { campaign: Campaign; currentUserId: string }) {
+  const myRole = campaign.members.find((m) => m.user.id === currentUserId)?.role ?? "PLAYER";
+  const isDM = myRole === "DM";
   return (
     <Link href={`/campaigns/${campaign.id}`}>
       <div className="group relative bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4 hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all duration-150 cursor-pointer overflow-hidden">
@@ -280,9 +282,9 @@ function CampaignCard({ campaign, isOwner }: { campaign: Campaign; isOwner: bool
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <p className="font-display text-lg text-ink leading-tight">{campaign.name}</p>
-              <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${isOwner ? "bg-blush/10 text-blush border-blush/30" : "bg-dusty-blue/10 text-dusty-blue border-dusty-blue/30"
+              <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${isDM ? "bg-blush/10 text-blush border-blush/30" : "bg-dusty-blue/10 text-dusty-blue border-dusty-blue/30"
                 }`}>
-                {isOwner ? "DM" : "Player"}
+                {isDM ? "DM" : "Player"}
               </span>
             </div>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -427,8 +429,8 @@ export default function DashboardPage() {
   }, []);
 
   const allCampaigns = [
-    ...(data?.ownedCampaigns ?? []).map((c) => ({ ...c, isOwner: true })),
-    ...(data?.joinedCampaigns ?? []).map((c) => ({ ...c, isOwner: false })),
+    ...(data?.ownedCampaigns ?? []),
+    ...(data?.joinedCampaigns ?? []),
   ].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   const isEmpty = !loading && allCampaigns.length === 0;
@@ -600,7 +602,7 @@ export default function DashboardPage() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {allCampaigns.map((campaign) => (
-                      <CampaignCard key={campaign.id} campaign={campaign} isOwner={campaign.isOwner} />
+                      <CampaignCard key={campaign.id} campaign={campaign} currentUserId={user!.id} />
                     ))}
                   </div>
                 )}

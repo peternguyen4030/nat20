@@ -27,10 +27,21 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 
-    const updated = await prisma.campaignMember.update({
-      where: { campaignId_userId: { campaignId, userId } },
-      data:  { role },
-    });
+    const [updated] = await prisma.$transaction([
+      prisma.campaignMember.update({
+        where: { campaignId_userId: { campaignId, userId } },
+        data:  { role },
+      }),
+      // If a member becomes DM, ensure none of their characters remain "active"/visible.
+      ...(role === "DM"
+        ? [
+            prisma.character.updateMany({
+              where: { campaignId, userId, isActive: true },
+              data:  { isActive: false },
+            }),
+          ]
+        : []),
+    ]);
 
     return NextResponse.json(updated);
   } catch (error) {
