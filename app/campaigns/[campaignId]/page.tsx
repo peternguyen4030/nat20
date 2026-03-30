@@ -259,10 +259,19 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
   }
 
   async function promoteMember(userId: string) {
-    if (!confirm("Promote this player to DM?")) return;
+    if (!confirm("Promote this player to DM? You will be demoted to player.")) return;
+
+    // Promote first while we still have DM privileges, then demote ourselves.
     await fetch(`/api/campaigns/${campaign.id}/members/${userId}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role: "DM" }),
+    });
+
+    await fetch(`/api/campaigns/${campaign.id}/members/${currentUserId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "PLAYER" }),
     });
     onRefresh();
   }
