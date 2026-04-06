@@ -8,8 +8,7 @@ import {
   parseCombatBoardState,
 } from "@/lib/combat-board-state";
 
-// POST /api/campaigns/[campaignId]/combat/initiative
-// Player submits their initiative roll
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ campaignId: string }> }
