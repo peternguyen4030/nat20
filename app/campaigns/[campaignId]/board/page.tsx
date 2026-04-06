@@ -690,7 +690,7 @@ export default function CampaignBoardPage() {
 
           {isDM && npcs.length > 0 && (
             <>
-              <div className="border-t border-sketch pt-2">
+              <div className="border-t border-sketch p-2">
                 <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">NPCs</p>
                 <div className="space-y-1">
                   {npcs.map((n) => {
