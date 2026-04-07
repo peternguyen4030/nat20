@@ -24,12 +24,12 @@ interface InitiativeEntry {
 }
 
 interface BoardState {
-  tokens:           Record<string, { col: number; row: number }>;
-  combatActive?:    boolean;
+  tokens:            Record<string, { col: number; row: number }>;
+  combatActive?:     boolean;
   currentTurnIndex?: number;
-  round?:           number;
-  combatSessionId?: string | null;
-  initiativeOrder?: InitiativeEntry[];
+  round?:            number;
+  combatSessionId?:  string | null;
+  initiativeOrder?:  InitiativeEntry[];
 }
 
 interface Board {
@@ -284,36 +284,46 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
   characters: Character[]; npcs: NPC[]; campaignId: string;
   onStarted: (boardState: BoardState) => void; onClose: () => void;
 }) {
-  type Entry = { key: string; name: string; type: "character" | "npc"; modifier: number; initiative: number; rolled: boolean };
+  type Entry = {
+    key: string; name: string; type: "character" | "npc";
+    modifier: number; initiative: number; excluded: boolean;
+  };
 
   const [entries, setEntries] = useState<Entry[]>(() => [
-    ...characters.map((c) => ({ key: `char_${c.id}`, name: c.name, type: "character" as const, modifier: c.initiative, initiative: 0, rolled: false })),
-    ...npcs.map((n) => ({ key: `npc_${n.id}`, name: n.name, type: "npc" as const, modifier: n.initiativeModifier, initiative: 0, rolled: false })),
+    ...characters.map((c) => ({ key: `char_${c.id}`, name: c.name, type: "character" as const, modifier: c.initiative, initiative: 0, excluded: false })),
+    ...npcs.map((n) => ({ key: `npc_${n.id}`, name: n.name, type: "npc" as const, modifier: n.initiativeModifier, initiative: 0, excluded: false })),
   ]);
   const [loading, setLoading] = useState(false);
 
   function rollAllNPCs() {
-    setEntries((prev) => prev.map((e) => e.type === "npc" ? { ...e, initiative: Math.floor(Math.random() * 20) + 1 + e.modifier, rolled: true } : e));
-  }
-
-  function setInitiative(key: string, value: number) {
-    setEntries((prev) => prev.map((e) => e.key === key ? { ...e, initiative: value, rolled: true } : e));
+    setEntries((prev) => prev.map((e) =>
+      e.type === "npc" && !e.excluded
+        ? { ...e, initiative: Math.floor(Math.random() * 20) + 1 + e.modifier }
+        : e
+    ));
   }
 
   function rollOne(key: string, modifier: number) {
     const roll = Math.floor(Math.random() * 20) + 1 + modifier;
-    setInitiative(key, roll);
+    setEntries((prev) => prev.map((e) => e.key === key ? { ...e, initiative: roll } : e));
   }
 
-  const sorted = [...entries].sort((a, b) => b.initiative - a.initiative);
-  const allRolled = entries.every((e) => e.rolled);
+  function toggleExcluded(key: string) {
+    setEntries((prev) => prev.map((e) => e.key === key ? { ...e, excluded: !e.excluded } : e));
+  }
+
+  const active   = entries.filter((e) => !e.excluded);
+  const sorted   = [...active].sort((a, b) => b.initiative - a.initiative);
+  const npcsDone = entries.filter((e) => e.type === "npc" && !e.excluded).every((e) => e.initiative > 0);
 
   async function handleStart() {
     setLoading(true);
     try {
       const res = await fetch(`/api/campaigns/${campaignId}/combat/start`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initiativeOrder: entries.map((e) => ({ key: e.key, name: e.name, initiative: e.initiative, type: e.type })) }),
+        body: JSON.stringify({
+          initiativeOrder: active.map((e) => ({ key: e.key, name: e.name, initiative: e.initiative, type: e.type })),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -322,56 +332,83 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
   }
 
   return (
-    <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-lg bg-warm-white border-2 border-sketch rounded-sketch shadow-[4px_4px_0_#C4B49A] max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-sketch">
           <h2 className="font-display text-2xl text-ink">⚔️ Start Combat</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-input border-2 border-sketch bg-parchment text-ink-faded hover:border-blush transition-all flex items-center justify-center text-sm">✕</button>
         </div>
-        <div className="p-5 flex-1 overflow-y-auto space-y-3">
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-sans text-xs text-ink-faded">Roll initiative for all combatants. Players can roll their own from the board.</p>
-            <button onClick={rollAllNPCs} className="font-sans font-semibold text-xs text-white bg-ink border border-ink rounded p-1.5 hover:bg-ink/80 transition-all flex items-center gap-1">
+
+        <div className="p-5 flex-1 overflow-y-auto space-y-2">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-sans text-xs text-ink-faded">Roll NPCs below. Players roll their own initiative from the board. Use ✕ to exclude a combatant.</p>
+            <button onClick={rollAllNPCs} className="font-sans font-semibold text-xs text-white bg-ink border border-ink rounded p-1.5 hover:bg-ink/80 transition-all flex items-center gap-1 shrink-0 ml-2">
               🎲 Roll all NPCs
             </button>
           </div>
 
           {entries.map((entry) => (
-            <div key={entry.key} className={`flex items-center gap-3 p-3 rounded-sketch border-2 ${entry.type === "npc" ? "border-blush/20 bg-blush/5" : "border-sketch bg-parchment"}`}>
+            <div key={entry.key} className={`flex items-center gap-3 p-3 rounded-sketch border-2 transition-all ${
+              entry.excluded ? "border-sketch/30 bg-parchment opacity-40" :
+              entry.type === "npc" ? "border-blush/20 bg-blush/5" : "border-sketch bg-parchment"
+            }`}>
               <span className="text-lg shrink-0">{entry.type === "npc" ? "👹" : "🧙"}</span>
               <div className="flex-1 min-w-0">
                 <p className="font-sans text-sm font-semibold text-ink truncate">{entry.name}</p>
-                <p className="font-sans text-xs text-ink-faded">Mod: {entry.modifier >= 0 ? "+" : ""}{entry.modifier} · {entry.type === "character" ? "Player" : "NPC"}</p>
+                <p className="font-sans text-xs text-ink-faded">
+                  {entry.type === "character"
+                    ? "Player — will roll own initiative"
+                    : `Mod: ${entry.modifier >= 0 ? "+" : ""}${entry.modifier}`}
+                </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <button onClick={() => rollOne(entry.key, entry.modifier)} className="font-sans text-xs border border-sketch rounded p-1 hover:bg-parchment transition-colors">🎲</button>
-                <input
-                  type="number" value={entry.rolled ? String(entry.initiative) : ""}
-                  placeholder="—"
-                  onChange={(e) => { const v = Number(e.target.value); if (!isNaN(v)) setInitiative(entry.key, v); }}
-                  className="w-14 font-mono text-sm text-center bg-warm-white border-2 border-sketch rounded p-1 outline-none focus:border-blush"
-                />
+                {entry.type === "npc" && !entry.excluded && (
+                  <>
+                    <button onClick={() => rollOne(entry.key, entry.modifier)}
+                      className="font-sans text-xs border border-sketch rounded p-1 hover:bg-parchment transition-colors">🎲</button>
+                    <span className={`font-mono text-sm font-bold w-8 text-center ${entry.initiative > 0 ? "text-ink" : "text-ink-faded"}`}>
+                      {entry.initiative > 0 ? entry.initiative : "—"}
+                    </span>
+                  </>
+                )}
+                {entry.type === "character" && !entry.excluded && (
+                  <span className="font-sans text-[0.6rem] text-ink-faded italic">pending</span>
+                )}
+                <button
+                  onClick={() => toggleExcluded(entry.key)}
+                  title={entry.excluded ? "Include in combat" : "Exclude from combat"}
+                  className={`w-6 h-6 rounded border text-xs flex items-center justify-center transition-all ${
+                    entry.excluded ? "border-sage/40 text-sage hover:bg-sage/10" : "border-sketch text-ink-faded hover:border-blush/40 hover:text-blush"
+                  }`}>
+                  {entry.excluded ? "+" : "✕"}
+                </button>
               </div>
             </div>
           ))}
 
-          {entries.some((e) => e.rolled) && (
-            <div className="border-t border-sketch p-3">
-              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Initiative Order (preview)</p>
+          {sorted.some((e) => e.type === "npc" && e.initiative > 0) && (
+            <div className="border-t border-sketch pt-3 mt-2">
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Order Preview (players added on roll)</p>
               {sorted.map((e, i) => (
-                <div key={e.key} className="flex items-center gap-2 py-1">
+                <div key={e.key} className="flex items-center gap-2 py-0.5">
                   <span className="font-mono text-xs text-ink-faded w-4">{i + 1}.</span>
                   <span className="font-sans text-xs text-ink flex-1">{e.name}</span>
-                  <span className={`font-mono text-sm font-bold ${e.rolled ? "text-ink" : "text-ink-faded"}`}>{e.rolled ? e.initiative : "—"}</span>
+                  <span className="font-mono text-xs font-bold text-ink">
+                    {e.type === "npc" ? e.initiative : "pending"}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </div>
+
         <div className="p-5 border-t border-sketch flex gap-3 justify-end">
           <button onClick={onClose} className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper transition-all shadow-sketch">Cancel</button>
-          <button type="button" onClick={handleStart} disabled={loading || !allRolled}
-            className={`font-sans font-bold text-sm text-white rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${!loading && allRolled ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px" : "bg-tan border-sketch opacity-60 cursor-not-allowed"}`}>
+          <button type="button" onClick={handleStart} disabled={loading || !npcsDone}
+            className={`font-sans font-bold text-sm text-white rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${
+              !loading && npcsDone ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px" : "bg-tan border-sketch opacity-60 cursor-not-allowed"
+            }`}>
             {loading ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Starting...</> : "Begin Combat ⚔️"}
           </button>
         </div>
@@ -388,8 +425,9 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
   onNextTurn: () => void; onEndCombat: () => void; onActionUsed: (key: string, slot: "action" | "bonus" | "reaction") => void;
 }) {
   const currentEntry = order[currentIndex];
-  const isMyTurn = currentEntry?.key === `char_${characters.find((c) => c.user.id === currentUserId)?.id}`;
-  const myChar   = characters.find((c) => c.user.id === currentUserId);
+  const myChar       = characters.find((c) => c.user.id === currentUserId);
+  const myEntry      = myChar ? order.find((e) => e.key === `char_${myChar.id}`) : null;
+  const isMyTurn     = currentEntry?.key === `char_${myChar?.id}`;
 
   return (
     <div className="space-y-2">
@@ -407,6 +445,11 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
         )}
       </div>
 
+      {/* Player initiative roll prompt — shown whenever this player hasn't rolled yet */}
+      {myEntry && !myEntry.rolled && myChar && (
+        <InitiativeRollPrompt character={myChar} campaignId={campaignId} />
+      )}
+
       {/* Initiative order */}
       <div className="space-y-1">
         {order.map((entry, i) => {
@@ -415,15 +458,18 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
             <div key={entry.key} className={`flex items-center gap-2 p-2 rounded-sketch border transition-all ${isCurrent ? "border-gold bg-gold/10 shadow-sketch-sm" : "border-sketch bg-parchment"}`}>
               <span className="font-mono text-xs text-ink-faded w-4">{i + 1}.</span>
               <span className="font-sans text-xs font-semibold text-ink flex-1 truncate">{entry.name}</span>
-              <span className="font-mono text-xs font-bold text-ink">{entry.initiative}</span>
+              <span className={`font-mono text-xs font-bold ${entry.rolled ? "text-ink" : "text-ink-faded"}`}>
+                {entry.rolled ? entry.initiative : "?"}
+              </span>
               {isCurrent && <span className="font-sans text-[0.5rem] font-bold uppercase text-gold border border-gold/40 rounded p-0.5">Turn</span>}
+              {!entry.rolled && <span className="font-sans text-[0.5rem] text-ink-faded italic">rolling</span>}
             </div>
           );
         })}
       </div>
 
-      {/* Player action panel */}
-      {isMyTurn && myChar && combatSessionId && (
+      {/* Player action panel — only on their turn and after they've rolled */}
+      {isMyTurn && myChar && myEntry?.rolled && combatSessionId && (
         <PlayerActionPanel
           character={myChar}
           entry={currentEntry}
@@ -431,11 +477,6 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
           combatSessionId={combatSessionId}
           onActionUsed={onActionUsed}
         />
-      )}
-
-      {/* Player initiative roll prompt */}
-      {!isMyTurn && myChar && !currentEntry?.rolled && order.find((e) => e.key === `char_${myChar.id}` && !e.rolled) && (
-        <InitiativeRollPrompt character={myChar} campaignId={campaignId} />
       )}
     </div>
   );
@@ -445,26 +486,35 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
 
 function InitiativeRollPrompt({ character, campaignId }: { character: Character; campaignId: string }) {
   const [submitted, setSubmitted] = useState(false);
-  const [total, setTotal] = useState<number | null>(null);
+  const [total,     setTotal]     = useState<number | null>(null);
+  const [error,     setError]     = useState<string | null>(null);
 
   async function submit(t: number) {
     setTotal(t);
-    await fetch(`/api/campaigns/${campaignId}/combat/initiative`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ characterId: character.id, total: t, modifier: character.initiative }),
-    });
-    setSubmitted(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/combat/initiative`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ characterId: character.id, total: t, modifier: character.initiative }),
+      });
+      if (!res.ok) throw new Error("Failed to submit");
+      setSubmitted(true);
+    } catch {
+      setError("Failed to submit. Try again.");
+    }
   }
 
   if (submitted) return (
     <div className="bg-sage/10 border border-sage/30 rounded-sketch p-3 text-center">
       <p className="font-sans text-xs text-sage font-semibold">✓ Initiative submitted: {total}</p>
+      <p className="font-sans text-xs text-ink-faded mt-0.5">Waiting for your turn...</p>
     </div>
   );
 
   return (
     <div className="bg-gold/10 border-2 border-gold/40 rounded-sketch p-3 space-y-2">
-      <p className="font-sans text-xs font-bold text-ink">Roll your initiative!</p>
+      <p className="font-sans text-xs font-bold text-ink">🎲 Roll your initiative!</p>
+      <p className="font-sans text-xs text-ink-faded">Your initiative modifier: {character.initiative >= 0 ? "+" : ""}{character.initiative}</p>
+      {error && <p className="font-sans text-xs text-blush">{error}</p>}
       <DiceRoller sides={20} modifier={character.initiative} label="Roll d20 + initiative mod" onRoll={(t) => submit(t)} />
     </div>
   );
@@ -518,13 +568,10 @@ function PlayerActionPanel({ character, entry, campaignId, combatSessionId, onAc
   return (
     <div className="bg-gold/5 border-2 border-gold/40 rounded-sketch p-3 space-y-3">
       <p className="font-sans text-xs font-bold text-ink">Your Turn — {character.name}</p>
-
-      {/* Attack roll + damage */}
       <div className="space-y-1.5">
         <DiceRoller sides={20} modifier={0} label="Attack roll" onRoll={(t) => setAttackRoll(t)} />
         <DiceRoller sides={6}  modifier={0} label="Damage roll"  onRoll={(t) => setDamage(t)} />
       </div>
-
       {SLOTS.map((slot) => (
         <div key={slot.key} className={`space-y-1 ${slot.used ? "opacity-40" : ""}`}>
           <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded flex items-center gap-1">
@@ -532,28 +579,14 @@ function PlayerActionPanel({ character, entry, campaignId, combatSessionId, onAc
           </p>
           {!slot.used && (
             <div className="grid grid-cols-2 gap-1">
-              {/* Standard actions */}
               {slot.key === "action" && (
                 <>
-                  <button onClick={() => submitAction("Attack", slot.apiSlot, "ATTACK")} disabled={submitting}
-                    className="font-sans text-xs text-ink bg-parchment border border-sketch rounded p-1.5 hover:bg-paper hover:border-blush/40 transition-all text-left">
-                    ⚔️ Attack
-                  </button>
-                  <button onClick={() => submitAction("Dash", slot.apiSlot, "DASH")} disabled={submitting}
-                    className="font-sans text-xs text-ink bg-parchment border border-sketch rounded p-1.5 hover:bg-paper hover:border-blush/40 transition-all text-left">
-                    💨 Dash
-                  </button>
-                  <button onClick={() => submitAction("Dodge", slot.apiSlot, "DODGE")} disabled={submitting}
-                    className="font-sans text-xs text-ink bg-parchment border border-sketch rounded p-1.5 hover:bg-paper hover:border-blush/40 transition-all text-left">
-                    🛡️ Dodge
-                  </button>
-                  <button onClick={() => submitAction("Help", slot.apiSlot, "HELP")} disabled={submitting}
-                    className="font-sans text-xs text-ink bg-parchment border border-sketch rounded p-1.5 hover:bg-paper hover:border-blush/40 transition-all text-left">
-                    🤝 Help
-                  </button>
+                  <button onClick={() => submitAction("Attack", slot.apiSlot, "ATTACK")} disabled={submitting} className="font-sans text-xs text-ink bg-parchment border border-sketch rounded p-1.5 hover:bg-paper hover:border-blush/40 transition-all text-left">⚔️ Attack</button>
+                  <button onClick={() => submitAction("Dash",   slot.apiSlot, "DASH")}   disabled={submitting} className="font-sans text-xs text-ink bg-parchment border border-sketch rounded p-1.5 hover:bg-paper hover:border-blush/40 transition-all text-left">💨 Dash</button>
+                  <button onClick={() => submitAction("Dodge",  slot.apiSlot, "DODGE")}  disabled={submitting} className="font-sans text-xs text-ink bg-parchment border border-sketch rounded p-1.5 hover:bg-paper hover:border-blush/40 transition-all text-left">🛡️ Dodge</button>
+                  <button onClick={() => submitAction("Help",   slot.apiSlot, "HELP")}   disabled={submitting} className="font-sans text-xs text-ink bg-parchment border border-sketch rounded p-1.5 hover:bg-paper hover:border-blush/40 transition-all text-left">🤝 Help</button>
                 </>
               )}
-              {/* Class features */}
               {combatFeatures.filter((f) => {
                 if (slot.key === "action")   return f.slot === "action";
                 if (slot.key === "bonus")    return f.slot === "bonus_action";
@@ -561,20 +594,15 @@ function PlayerActionPanel({ character, entry, campaignId, combatSessionId, onAc
                 return false;
               }).map((f) => (
                 <button key={f.name} onClick={() => submitAction(f.name, slot.apiSlot, "OTHER")} disabled={submitting}
-                  className="font-sans text-xs text-ink bg-parchment border border-sketch rounded p-1.5 hover:bg-paper hover:border-blush/40 transition-all text-left truncate">
-                  ✨ {f.name}
-                </button>
+                  className="font-sans text-xs text-ink bg-parchment border border-sketch rounded p-1.5 hover:bg-paper hover:border-blush/40 transition-all text-left truncate">✨ {f.name}</button>
               ))}
-              {/* Spells */}
               {spellActions.filter((s) => {
                 if (slot.key === "action") return s.slot === "action";
                 if (slot.key === "bonus")  return s.slot === "bonus_action";
                 return false;
               }).map((s) => (
                 <button key={s.name} onClick={() => submitAction(s.name, slot.apiSlot, "CAST")} disabled={submitting}
-                  className="font-sans text-xs text-dusty-blue bg-dusty-blue/5 border border-dusty-blue/30 rounded p-1.5 hover:bg-dusty-blue/10 transition-all text-left truncate">
-                  🔮 {s.name}
-                </button>
+                  className="font-sans text-xs text-dusty-blue bg-dusty-blue/5 border border-dusty-blue/30 rounded p-1.5 hover:bg-dusty-blue/10 transition-all text-left truncate">🔮 {s.name}</button>
               ))}
             </div>
           )}
@@ -587,34 +615,25 @@ function PlayerActionPanel({ character, entry, campaignId, combatSessionId, onAc
 // ── Action Log Tab ────────────────────────────────────────────────────────────
 
 function ActionLogTab({ campaignId }: { campaignId: string }) {
-  const [logs, setLogs]     = useState<ActionLogEntry[]>([]);
+  const [logs,    setLogs]    = useState<ActionLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchLogs = useCallback(async () => {
-    const res = await fetch(`/api/campaigns/${campaignId}/action-log`);
-    if (res.ok) setLogs(await res.json());
-    else setLogs([]);
+  const fetchLogs = useCallback(() => {
+    fetch(`/api/campaigns/${campaignId}/action-log`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((data: ActionLogEntry[]) => setLogs(data))
+      .catch(() => setLogs([]));
   }, [campaignId]);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      await fetchLogs();
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchLogs]);
 
   useEffect(() => {
     let cancelled = false;
-    queueMicrotask(() => {
-      setLoading(true);
-      void fetchLogs().finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    });
+    fetch(`/api/campaigns/${campaignId}/action-log`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((data: ActionLogEntry[]) => { if (!cancelled) setLogs(data); })
+      .catch(() => { if (!cancelled) setLogs([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [fetchLogs]);
+  }, [campaignId]);
 
   const ACTION_ICONS: Record<string, string> = {
     COMBAT_ATTACK: "⚔️", COMBAT_SPELL: "🔮", COMBAT_MOVE: "💨",
@@ -633,7 +652,7 @@ function ActionLogTab({ campaignId }: { campaignId: string }) {
 
   return (
     <div className="space-y-1">
-      <button type="button" onClick={refresh} className="w-full font-sans text-xs text-ink-faded border border-sketch rounded p-1.5 hover:bg-parchment transition-all mb-2">↻ Refresh</button>
+      <button type="button" onClick={fetchLogs} className="w-full font-sans text-xs text-ink-faded border border-sketch rounded p-1.5 hover:bg-parchment transition-all mb-2">↻ Refresh</button>
       {logs.map((log) => (
         <div key={log.id} className="bg-parchment border border-sketch rounded p-2">
           <div className="flex items-start gap-1.5">
@@ -720,7 +739,6 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
       const col = isDragging && dragPosRef.current ? dragPosRef.current.col : t.col;
       const row = isDragging && dragPosRef.current ? dragPosRef.current.row : t.row;
       const cx = col * CELL + CELL / 2; const cy = row * CELL + CELL / 2; const r = CELL * 0.38;
-      // Active turn glow
       if (t.isActiveTurn) {
         ctx.save(); ctx.shadowColor = "#C1A86A"; ctx.shadowBlur = 16;
         ctx.beginPath(); ctx.arc(cx, cy, r + 4, 0, Math.PI * 2); ctx.strokeStyle = "#C1A86A"; ctx.lineWidth = 3; ctx.stroke();
@@ -764,7 +782,7 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
     return () => window.removeEventListener("resize", resize);
   }, [draw]);
 
-  function canvasToWorld(e: React.MouseEvent<HTMLCanvasElement> | MouseEvent) {
+  function canvasToWorld(e: React.MouseEvent<HTMLCanvasElement>) {
     const rect = canvasRef.current!.getBoundingClientRect();
     return { wx: (e.clientX - rect.left - offsetRef.current.x) / scaleRef.current, wy: (e.clientY - rect.top - offsetRef.current.y) / scaleRef.current };
   }
@@ -800,7 +818,6 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
       const newTokens = { ...(boardState.tokens ?? {}), [key]: { col, row } };
       const newState: BoardState = { ...boardState, tokens: newTokens };
       draggingRef.current = null; dragPosRef.current = null; draw();
-      // Optimistic update first, then persist — prevents poll from reverting
       onBoardUpdate(newState);
       await fetch(`/api/campaigns/${campaignId}/board`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ boardState: newState }) });
     }
@@ -864,55 +881,49 @@ export default function CampaignBoardPage() {
 
   useEffect(() => {
     let active = true;
-    loadData().then((r) => { if (!active || !r) return; setCurrentUser(r.user); setIsDM(r.isDM); setCampaignName(r.campaignName); setBoard(r.board); setCharacters(r.characters); setAssets(r.assets); setNpcs(r.npcs); })
+    loadData()
+      .then((r) => { if (!active || !r) return; setCurrentUser(r.user); setIsDM(r.isDM); setCampaignName(r.campaignName); setBoard(r.board); setCharacters(r.characters); setAssets(r.assets); setNpcs(r.npcs); })
       .catch((err) => { if (active) setError(err.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [loadData]);
 
-
-  // ── Pusher realtime subscription (optional — polling if env missing) ───────
+  // ── Pusher realtime subscription ──────────────────────────────────────────
   useEffect(() => {
-    const charInterval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/campaigns/${campaignId}/board`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setCharacters(data.characters);
-        setNpcs(data.npcs ?? []);
-      } catch { /* silent */ }
+    // 30s background refresh for HP/conditions which change outside board events
+    const charInterval = setInterval(() => {
+      fetch(`/api/campaigns/${campaignId}/board`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data) { setCharacters(data.characters); setNpcs(data.npcs ?? []); } })
+        .catch(() => { /* silent */ });
     }, 30000);
 
     const pusher = getPusherClient();
-    if (!pusher) {
-      return () => { clearInterval(charInterval); };
-    }
+    if (!pusher) return () => clearInterval(charInterval);
 
     const channel = pusher.subscribe(`campaign-${campaignId}`);
 
     function applyBoardState(incoming: BoardState) {
       setBoard((prev) => {
         if (!prev) return prev;
-        const merged = { ...(prev.boardState ?? {}), ...incoming };
-        return { ...prev, boardState: merged as BoardState };
+        const prevState = prev.boardState ?? { tokens: {} };
+        // Deep merge: preserve existing tokens when incoming doesn't include them
+        const merged: BoardState = {
+          ...prevState,
+          ...incoming,
+          tokens: { ...(prevState.tokens ?? {}), ...(incoming.tokens ?? {}) },
+          // Replace initiativeOrder wholesale when incoming has it
+          initiativeOrder: incoming.initiativeOrder ?? prevState.initiativeOrder,
+        };
+        return { ...prev, boardState: merged };
       });
     }
 
-    channel.bind(PUSHER_EVENTS.BOARD_UPDATED,     (data: { board: Board }) => {
-      setBoard(data.board);
-    });
-    channel.bind(PUSHER_EVENTS.COMBAT_STARTED,    (data: { boardState: BoardState }) => {
-      applyBoardState(data.boardState);
-    });
-    channel.bind(PUSHER_EVENTS.COMBAT_ENDED,      (data: { boardState: BoardState }) => {
-      applyBoardState(data.boardState);
-    });
-    channel.bind(PUSHER_EVENTS.TURN_ADVANCED,     (data: { boardState: BoardState }) => {
-      applyBoardState(data.boardState);
-    });
-    channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState }) => {
-      applyBoardState(data.boardState);
-    });
+    channel.bind(PUSHER_EVENTS.BOARD_UPDATED,     (data: { board: Board })          => { setBoard(data.board); });
+    channel.bind(PUSHER_EVENTS.COMBAT_STARTED,    (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
+    channel.bind(PUSHER_EVENTS.COMBAT_ENDED,      (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
+    channel.bind(PUSHER_EVENTS.TURN_ADVANCED,     (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
+    channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
 
     return () => {
       channel.unbind_all();
@@ -963,12 +974,12 @@ export default function CampaignBoardPage() {
     });
   }
 
-  const boardState = board?.boardState as BoardState | null;
-  const combatActive = boardState?.combatActive ?? false;
-  const initiativeOrder = boardState?.initiativeOrder ?? [];
+  const boardState       = board?.boardState as BoardState | null;
+  const combatActive     = boardState?.combatActive ?? false;
+  const initiativeOrder  = boardState?.initiativeOrder ?? [];
   const currentTurnIndex = boardState?.currentTurnIndex ?? 0;
-  const round = boardState?.round ?? 1;
-  const combatSessionId = boardState?.combatSessionId ?? null;
+  const round            = boardState?.round ?? 1;
+  const combatSessionId  = boardState?.combatSessionId ?? null;
 
   if (error) return (
     <div className="min-h-screen bg-parchment flex items-center justify-center">
@@ -1020,8 +1031,6 @@ export default function CampaignBoardPage() {
 
         {/* Sidebar */}
         <div className="w-72 shrink-0 bg-warm-white border-l-2 border-sketch flex flex-col">
-
-          {/* Tab switcher */}
           <div className="flex border-b-2 border-sketch shrink-0">
             {(["party", "log"] as const).map((tab) => (
               <button key={tab} onClick={() => setSidebarTab(tab)}
@@ -1031,12 +1040,9 @@ export default function CampaignBoardPage() {
             ))}
           </div>
 
-          {/* Tab content */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
-
             {sidebarTab === "party" && (
               <>
-                {/* Combat initiative tracker */}
                 {combatActive && initiativeOrder.length > 0 && (
                   <InitiativeTracker
                     order={initiativeOrder}
@@ -1053,7 +1059,6 @@ export default function CampaignBoardPage() {
                   />
                 )}
 
-                {/* Party status */}
                 {!combatActive && (
                   <>
                     <div className="flex items-center justify-between">
@@ -1064,19 +1069,14 @@ export default function CampaignBoardPage() {
                       characters.length === 0 ? (
                         <div className="bg-parchment border-2 border-dashed border-sketch rounded-sketch p-4 text-center"><p className="text-xl mb-1">🧙</p><p className="font-sans text-xs text-ink-faded">No active characters.</p></div>
                       ) : characters.map((c) => (
-                        <Link key={c.id} href={`/characters/${c.id}`}>
-                          <div className="cursor-pointer hover:opacity-80 transition-opacity">
-                            <CharacterStatusCard character={c} isCurrentUser={c.user.id === currentUser?.id} />
-                          </div>
-                        </Link>
+                        <CharacterCardWithModal key={c.id} character={c} isCurrentUser={c.user.id === currentUser?.id} />
                       ))
                     }
                   </>
                 )}
 
-                {/* NPC list for DM */}
                 {isDM && npcs.length > 0 && !combatActive && (
-                  <div className="border-t border-sketch p-2">
+                  <div className="border-t border-sketch pt-2">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">NPCs</p>
                     <div className="space-y-1">
                       {npcs.map((n) => {
@@ -1094,9 +1094,8 @@ export default function CampaignBoardPage() {
                   </div>
                 )}
 
-                {/* DM Tools */}
                 {isDM && !combatActive && (
-                  <div className="border-t border-sketch p-2 space-y-2">
+                  <div className="border-t border-sketch pt-2 space-y-2">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">DM Tools</p>
                     <button onClick={() => setShowStartCombat(true)} className="w-full font-sans font-semibold text-sm text-white bg-blush border-2 border-blush rounded-sketch p-2 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch-accent flex items-center gap-2">⚔️ Start Combat</button>
                     <button onClick={refresh} className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch p-2 hover:bg-paper hover:border-blush/50 transition-all shadow-sketch flex items-center gap-2">↻ Refresh Board</button>
@@ -1104,13 +1103,11 @@ export default function CampaignBoardPage() {
                 )}
               </>
             )}
-
             {sidebarTab === "log" && <ActionLogTab campaignId={campaignId} />}
           </div>
         </div>
       </div>
 
-      {/* Start Combat Modal */}
       {showStartCombat && (
         <StartCombatModal
           characters={characters}
@@ -1124,7 +1121,135 @@ export default function CampaignBoardPage() {
   );
 }
 
-// ── Character Status Card (reused) ────────────────────────────────────────────
+
+// ── Character Sheet Modal ─────────────────────────────────────────────────────
+
+function CharacterSheetModal({ character, onClose }: { character: Character; onClose: () => void }) {
+  const primaryClass = character.classes?.[0];
+  const isDowned     = character.currentHp <= 0;
+  const hpPct        = Math.min(100, Math.round((character.currentHp / character.maxHp) * 100));
+  const hpColor      = hpPct > 60 ? "bg-sage" : hpPct > 30 ? "bg-gold" : "bg-blush";
+
+  return (
+    <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-md bg-warm-white border-2 border-sketch rounded-sketch shadow-[4px_4px_0_#C4B49A] max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-sketch">
+          <div className="flex items-center gap-3">
+            <Avatar src={character.avatarUrl} size={44} className={`border-2 ${isDowned ? "grayscale border-blush/40" : "border-sketch"}`} />
+            <div>
+              <h2 className="font-display text-2xl text-ink leading-tight">{character.name}</h2>
+              <p className="font-sans text-xs text-ink-faded">
+                {character.race?.name ?? "Unknown"}{primaryClass ? ` · ${primaryClass.class.name}` : ""} · Level {character.level}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-input border-2 border-sketch bg-parchment text-ink-faded hover:border-blush transition-all flex items-center justify-center text-sm shrink-0">✕</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* HP */}
+          <div>
+            <div className="flex justify-between mb-1">
+              <span className="font-sans text-xs font-bold uppercase tracking-widest text-ink-faded">Hit Points</span>
+              <span className="font-mono text-sm font-bold text-ink">
+                {character.currentHp}/{character.maxHp}
+                {character.temporaryHp > 0 && <span className="text-dusty-blue"> +{character.temporaryHp}</span>}
+              </span>
+            </div>
+            <div className="h-3 bg-parchment border border-sketch rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${hpColor}`} style={{ width: `${hpPct}%` }} />
+            </div>
+            {isDowned && <p className="font-sans text-xs text-blush mt-1 font-semibold">⚠️ Character is down</p>}
+          </div>
+
+          {/* Core stats */}
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { label: "AC",   value: character.armorClass },
+              { label: "Speed", value: `${character.speed}ft` },
+              { label: "Init",  value: `${character.initiative >= 0 ? "+" : ""}${character.initiative}` },
+              { label: "Level", value: character.level },
+            ].map((s) => (
+              <div key={s.label} className="bg-parchment border border-sketch rounded-sketch p-2 text-center">
+                <p className="font-mono text-base font-bold text-ink">{s.value}</p>
+                <p className="font-sans text-[0.55rem] text-ink-faded uppercase tracking-wider">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Classes */}
+          {character.classes.length > 0 && (
+            <div>
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">Classes</p>
+              <div className="flex flex-wrap gap-1.5">
+                {character.classes.map((cc, i) => (
+                  <span key={i} className="font-sans text-xs bg-parchment border border-sketch rounded p-1.5">
+                    {cc.class.name} {cc.level}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Conditions */}
+          {character.conditions.length > 0 && (
+            <div>
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">Conditions</p>
+              <div className="flex flex-wrap gap-1">
+                {character.conditions.map((c) => (
+                  <span key={c} className="font-sans text-xs font-bold uppercase text-blush border border-blush/30 bg-blush/5 rounded p-1">{c}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Features */}
+          {character.features.length > 0 && (
+            <div>
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">Features</p>
+              <div className="space-y-1">
+                {character.features.map((f, i) => (
+                  <div key={i} className="flex items-center justify-between bg-parchment border border-sketch rounded p-2">
+                    <span className="font-sans text-xs text-ink">✨ {f.feature.name}</span>
+                    {f.feature.actionType && (
+                      <span className="font-sans text-[0.55rem] text-ink-faded uppercase">{f.feature.actionType}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Spells */}
+          {character.spells.length > 0 && (
+            <div>
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">Spells</p>
+              <div className="space-y-1">
+                {character.spells.map((s) => (
+                  <div key={s.spell.id} className="flex items-center justify-between bg-dusty-blue/5 border border-dusty-blue/20 rounded p-2">
+                    <span className="font-sans text-xs text-dusty-blue">🔮 {s.spell.name}</span>
+                    <span className="font-sans text-[0.55rem] text-ink-faded">
+                      {s.spell.level === 0 ? "Cantrip" : `Level ${s.spell.level}`} · {s.spell.castingTime}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {character.inspiration && (
+            <div className="bg-gold/10 border border-gold/30 rounded-sketch p-3 text-center">
+              <p className="font-sans text-sm font-bold text-gold">✦ Inspired</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Character Status Card ─────────────────────────────────────────────────────
 
 function CharacterStatusCard({ character, isCurrentUser }: { character: Character; isCurrentUser: boolean }) {
   const primaryClass = character.classes?.[0];
@@ -1153,5 +1278,20 @@ function CharacterStatusCard({ character, isCurrentUser }: { character: Characte
         </div>
       </div>
     </div>
+  );
+}
+
+
+// ── Character Card With Modal ─────────────────────────────────────────────────
+
+function CharacterCardWithModal({ character, isCurrentUser }: { character: Character; isCurrentUser: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div onClick={() => setOpen(true)} className="cursor-pointer hover:opacity-80 transition-opacity">
+        <CharacterStatusCard character={character} isCurrentUser={isCurrentUser} />
+      </div>
+      {open && <CharacterSheetModal character={character} onClose={() => setOpen(false)} />}
+    </>
   );
 }

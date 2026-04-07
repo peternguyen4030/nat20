@@ -43,12 +43,15 @@ export async function GET(
         temporaryHp: true,
         armorClass: true,
         speed: true,
+        initiative: true,
         avatarUrl: true,
         conditions: true,
         inspiration: true,
         user: { select: { id: true, displayName: true, name: true } },
         race: { select: { name: true } },
-        classes: { select: { level: true, class: { select: { name: true } } } },
+        classes: { select: { level: true, class: { select: { name: true, spellcastingAbility: true } } } },
+        features: { select: { feature: { select: { name: true, actionType: true, combatUsable: true } } } },
+        spells:   { select: { spell: { select: { id: true, name: true, level: true, castingTime: true } } } },
       },
     });
 
@@ -74,15 +77,17 @@ export async function PATCH(
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // DM only
     const member = await prisma.campaignMember.findUnique({
       where: { campaignId_userId: { campaignId: params.campaignId, userId: session.user.id } },
     });
-    if (!member || member.role !== "DM") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { activeMapId, boardState, combatActive } = await req.json();
+
+    // Players can update boardState (token positions) but only DMs can change map/combat
+    if ((activeMapId !== undefined || combatActive !== undefined) && member.role !== "DM") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // When updating boardState tokens, merge with existing state rather than replace
     // This prevents token positions from being wiped when other fields update
