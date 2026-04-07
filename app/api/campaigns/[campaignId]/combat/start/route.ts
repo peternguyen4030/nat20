@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { pusherServer, campaignChannel, PUSHER_EVENTS } from "@/lib/pusher-server";
 
 // POST /api/campaigns/[campaignId]/combat/start
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ campaignId: string }> }
+  context: { params: Promise<{ campaignId: string }> },
 ) {
   try {
     const { campaignId } = await context.params;
@@ -21,18 +21,20 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { initiativeOrder } = await req.json();
+    const { initiativeOrder } = await req.json();
     // initiativeOrder: Array<{ key: string; name: string; initiative: number; type: "character"|"npc" }>
 
     if (!initiativeOrder?.length) {
       return NextResponse.json({ error: "Initiative order is required" }, { status: 400 });
     }
 
+    // End any existing active session first
     await prisma.combatSession.updateMany({
       where: { campaignId, active: true },
       data:  { active: false },
     });
 
+    // Create new combat session
     const combatSession = await prisma.combatSession.create({
       data: {
         campaignId,
@@ -42,14 +44,23 @@ export async function POST(
       },
     });
 
-    const sorted = [...initiativeOrder].sort((a: { initiative: number }, b: { initiative: number }) => b.initiative - a.initiative);
+    // Preserve existing token positions when starting combat
+    const existingBoard = await prisma.campaignBoard.findUnique({
+      where: { campaignId },
+      select: { boardState: true },
+    });
+    const existingTokens = (existingBoard?.boardState as unknown as { tokens?: Record<string, { col: number; row: number }> } | null)?.tokens ?? {};
+
+    const sorted = [...initiativeOrder].sort((a, b) => b.initiative - a.initiative);
     const newBoardState = {
+      tokens:           existingTokens,
       combatActive:     true,
       currentTurnIndex: 0,
       round:            1,
       combatSessionId:  combatSession.id,
-      initiativeOrder:  sorted.map((e: Record<string, unknown>) => ({
+      initiativeOrder:  sorted.map((e) => ({
         ...e,
+        rolled:          e.type === "npc", // NPCs are pre-rolled, players roll their own
         actionUsed:      false,
         bonusActionUsed: false,
         reactionUsed:    false,
@@ -58,26 +69,26 @@ export async function POST(
 
     await prisma.campaignBoard.upsert({
       where:  { campaignId },
-      create: {
-        campaignId,
-        combatActive: true,
-        boardState: newBoardState as unknown as Prisma.InputJsonValue,
-      },
-      update: {
-        combatActive: true,
-        boardState: newBoardState as unknown as Prisma.InputJsonValue,
-      },
+      create: { campaignId, combatActive: true, boardState: newBoardState },
+      update: { combatActive: true, boardState: newBoardState },
     });
 
+    // Log combat start
     await prisma.actionLog.create({
       data: {
         campaignId,
         sessionId:   combatSession.id,
         userId:      session.user.id,
         actionType:  "COMBAT_OTHER",
-        description: `Combat started. Initiative order: ${sorted.map((e: { name: string; initiative: number }) => `${e.name} (${e.initiative})`).join(", ")}`,
+        description: `Combat started. Initiative order: ${sorted.map((e) => `${e.name} (${e.initiative})`).join(", ")}`,
       },
     });
+
+    const ch = campaignChannel(campaignId);
+    await pusherServer.trigger(ch, PUSHER_EVENTS.BOARD_UPDATED, {
+      board: { boardState: newBoardState, combatActive: true },
+    });
+    await pusherServer.trigger(ch, PUSHER_EVENTS.COMBAT_STARTED, { boardState: newBoardState });
 
     return NextResponse.json({ combatSession, boardState: newBoardState });
   } catch (error) {

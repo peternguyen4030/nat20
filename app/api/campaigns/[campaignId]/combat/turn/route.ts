@@ -3,16 +3,27 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import {
-  type InitiativeOrderEntry,
-  parseCombatBoardState,
-} from "@/lib/combat-board-state";
+import { pusherServer, campaignChannel, PUSHER_EVENTS } from "@/lib/pusher-server";
+
+interface InitiativeEntry {
+  key: string; name: string; initiative: number; type: string;
+  rolled: boolean; actionUsed: boolean; bonusActionUsed: boolean; reactionUsed: boolean;
+}
+
+interface CombatBoardState {
+  tokens:           Record<string, { col: number; row: number }>;
+  combatActive?:    boolean;
+  currentTurnIndex?: number;
+  round?:           number;
+  combatSessionId?: string | null;
+  initiativeOrder?: InitiativeEntry[];
+}
 
 // POST /api/campaigns/[campaignId]/combat/turn
 // Advance turn (DM only) or end combat
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ campaignId: string }> }
+  context: { params: Promise<{ campaignId: string }> },
 ) {
   try {
     const { campaignId } = await context.params;
@@ -32,7 +43,7 @@ export async function POST(
     const board = await prisma.campaignBoard.findUnique({ where: { campaignId } });
     if (!board) return NextResponse.json({ error: "Board not found" }, { status: 404 });
 
-    const currentState = parseCombatBoardState(board.boardState);
+    const currentState = (board.boardState as unknown as CombatBoardState) ?? {} as CombatBoardState;
 
     if (action === "end_combat") {
       // End the active combat session
@@ -46,10 +57,10 @@ export async function POST(
         combatActive:     false,
         currentTurnIndex: 0,
         round:            1,
-        initiativeOrder:  [] as InitiativeOrderEntry[],
+        initiativeOrder:  [],
         combatSessionId:  null,
         // preserve token positions
-        tokens: (currentState.tokens ?? {}) as Record<string, unknown>,
+        tokens: currentState.tokens ?? {},
       };
 
       await prisma.campaignBoard.update({
@@ -66,22 +77,24 @@ export async function POST(
         },
       });
 
+      const chEnd = campaignChannel(campaignId);
+      await pusherServer.trigger(chEnd, PUSHER_EVENTS.BOARD_UPDATED, {
+        board: { boardState: newState, combatActive: false },
+      });
+      await pusherServer.trigger(chEnd, PUSHER_EVENTS.COMBAT_ENDED, { boardState: newState });
+
       return NextResponse.json({ boardState: newState });
     }
 
     if (action === "next_turn") {
-      const order: InitiativeOrderEntry[] = Array.isArray(currentState.initiativeOrder)
-        ? currentState.initiativeOrder
-        : [];
-      if (order.length === 0) {
-        return NextResponse.json({ error: "No initiative order" }, { status: 400 });
-      }
+      const order     = currentState.initiativeOrder ?? [];
+      if (order.length === 0) return NextResponse.json({ error: "No initiative order" }, { status: 400 });
       const nextIndex = ((currentState.currentTurnIndex ?? 0) + 1) % order.length;
       const isNewRound = nextIndex === 0;
-      const newRound   = isNewRound ? (currentState.round ?? 1) + 1 : (currentState.round ?? 1);
+      const newRound   = isNewRound ? ((currentState.round ?? 1) + 1) : (currentState.round ?? 1);
 
       // Reset action slots for next combatant
-      const updatedOrder: InitiativeOrderEntry[] = order.map((e, i) =>
+      const updatedOrder = order.map((e: InitiativeEntry, i: number) =>
         i === nextIndex
           ? { ...e, actionUsed: false, bonusActionUsed: false, reactionUsed: false }
           : e
@@ -89,7 +102,7 @@ export async function POST(
 
       const newState = {
         ...currentState,
-        tokens:           (currentState.tokens ?? {}) as Record<string, unknown>,
+        tokens:           currentState.tokens ?? {},
         currentTurnIndex: nextIndex,
         round:            newRound,
         initiativeOrder:  updatedOrder,
@@ -98,6 +111,11 @@ export async function POST(
       await prisma.campaignBoard.update({
         where: { campaignId },
         data:  { boardState: newState as unknown as Prisma.InputJsonValue },
+      });
+
+      const chTurn = campaignChannel(campaignId);
+      await pusherServer.trigger(chTurn, PUSHER_EVENTS.BOARD_UPDATED, {
+        board: { boardState: newState },
       });
 
       if (isNewRound) {
@@ -111,6 +129,8 @@ export async function POST(
           },
         });
       }
+
+      await pusherServer.trigger(chTurn, PUSHER_EVENTS.TURN_ADVANCED, { boardState: newState });
 
       return NextResponse.json({ boardState: newState });
     }

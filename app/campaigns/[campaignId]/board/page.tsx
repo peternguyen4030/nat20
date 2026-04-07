@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { getPusherClient } from "@/lib/pusher-client";
+import { PUSHER_EVENTS } from "@/lib/pusher-server";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -276,60 +278,42 @@ function MapPicker({ assets: initialAssets, activeMapId, campaignId, onChanged }
   );
 }
 
-//// ── Start Combat Modal ────────────────────────────────────────────────────────
+// ── Start Combat Modal ────────────────────────────────────────────────────────
 
 function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: {
   characters: Character[]; npcs: NPC[]; campaignId: string;
   onStarted: (boardState: BoardState) => void; onClose: () => void;
 }) {
-  type Entry = {
-    key: string; name: string; type: "character" | "npc";
-    modifier: number; initiative: number; excluded: boolean;
-  };
+  type Entry = { key: string; name: string; type: "character" | "npc"; modifier: number; initiative: number; rolled: boolean };
 
   const [entries, setEntries] = useState<Entry[]>(() => [
-    ...characters.map((c) => ({
-      key: `char_${c.id}`, name: c.name, type: "character" as const,
-      modifier: c.initiative, initiative: 0, excluded: false,
-    })),
-    ...npcs.map((n) => ({
-      key: `npc_${n.id}`, name: n.name, type: "npc" as const,
-      modifier: n.initiativeModifier, initiative: 0, excluded: false,
-    })),
+    ...characters.map((c) => ({ key: `char_${c.id}`, name: c.name, type: "character" as const, modifier: c.initiative, initiative: 0, rolled: false })),
+    ...npcs.map((n) => ({ key: `npc_${n.id}`, name: n.name, type: "npc" as const, modifier: n.initiativeModifier, initiative: 0, rolled: false })),
   ]);
   const [loading, setLoading] = useState(false);
 
   function rollAllNPCs() {
-    setEntries((prev) => prev.map((e) =>
-      e.type === "npc" && !e.excluded
-        ? { ...e, initiative: Math.floor(Math.random() * 20) + 1 + e.modifier }
-        : e
-    ));
+    setEntries((prev) => prev.map((e) => e.type === "npc" ? { ...e, initiative: Math.floor(Math.random() * 20) + 1 + e.modifier, rolled: true } : e));
+  }
+
+  function setInitiative(key: string, value: number) {
+    setEntries((prev) => prev.map((e) => e.key === key ? { ...e, initiative: value, rolled: true } : e));
   }
 
   function rollOne(key: string, modifier: number) {
     const roll = Math.floor(Math.random() * 20) + 1 + modifier;
-    setEntries((prev) => prev.map((e) => e.key === key ? { ...e, initiative: roll } : e));
+    setInitiative(key, roll);
   }
 
-  function toggleExcluded(key: string) {
-    setEntries((prev) => prev.map((e) => e.key === key ? { ...e, excluded: !e.excluded } : e));
-  }
-
-  const active  = entries.filter((e) => !e.excluded);
-  const sorted  = [...active].sort((a, b) => b.initiative - a.initiative);
-  const npcsDone = entries.filter((e) => e.type === "npc" && !e.excluded).every((e) => e.initiative > 0);
+  const sorted = [...entries].sort((a, b) => b.initiative - a.initiative);
+  const allRolled = entries.every((e) => e.rolled);
 
   async function handleStart() {
     setLoading(true);
     try {
       const res = await fetch(`/api/campaigns/${campaignId}/combat/start`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initiativeOrder: active.map((e) => ({
-            key: e.key, name: e.name, initiative: e.initiative, type: e.type,
-          })),
-        }),
+        body: JSON.stringify({ initiativeOrder: entries.map((e) => ({ key: e.key, name: e.name, initiative: e.initiative, type: e.type })) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -338,101 +322,57 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
   }
 
   return (
-    <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-lg bg-warm-white border-2 border-sketch rounded-sketch shadow-[4px_4px_0_#C4B49A] max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-sketch">
           <h2 className="font-display text-2xl text-ink">⚔️ Start Combat</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-input border-2 border-sketch bg-parchment text-ink-faded hover:border-blush transition-all flex items-center justify-center text-sm">✕</button>
         </div>
-
-        <div className="p-5 flex-1 overflow-y-auto space-y-2">
-          <div className="flex items-center justify-between mb-3">
-            <p className="font-sans text-xs text-ink-faded">Roll NPCs below. Players will roll their own initiative from the board.</p>
-            <button onClick={rollAllNPCs}
-              className="font-sans font-semibold text-xs text-white bg-ink border border-ink rounded p-1.5 hover:bg-ink/80 transition-all flex items-center gap-1 shrink-0">
+        <div className="p-5 flex-1 overflow-y-auto space-y-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="font-sans text-xs text-ink-faded">Roll initiative for all combatants. Players can roll their own from the board.</p>
+            <button onClick={rollAllNPCs} className="font-sans font-semibold text-xs text-white bg-ink border border-ink rounded p-1.5 hover:bg-ink/80 transition-all flex items-center gap-1">
               🎲 Roll all NPCs
             </button>
           </div>
 
           {entries.map((entry) => (
-            <div key={entry.key}
-              className={`flex items-center gap-3 p-3 rounded-sketch border-2 transition-all ${
-                entry.excluded
-                  ? "border-sketch/30 bg-parchment opacity-40"
-                  : entry.type === "npc"
-                    ? "border-blush/20 bg-blush/5"
-                    : "border-sketch bg-parchment"
-              }`}>
+            <div key={entry.key} className={`flex items-center gap-3 p-3 rounded-sketch border-2 ${entry.type === "npc" ? "border-blush/20 bg-blush/5" : "border-sketch bg-parchment"}`}>
               <span className="text-lg shrink-0">{entry.type === "npc" ? "👹" : "🧙"}</span>
               <div className="flex-1 min-w-0">
                 <p className="font-sans text-sm font-semibold text-ink truncate">{entry.name}</p>
-                <p className="font-sans text-xs text-ink-faded">
-                  {entry.type === "character" ? "Player — will roll own initiative" : `Mod: ${entry.modifier >= 0 ? "+" : ""}${entry.modifier}`}
-                </p>
+                <p className="font-sans text-xs text-ink-faded">Mod: {entry.modifier >= 0 ? "+" : ""}{entry.modifier} · {entry.type === "character" ? "Player" : "NPC"}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {entry.type === "npc" && !entry.excluded && (
-                  <>
-                    <button onClick={() => rollOne(entry.key, entry.modifier)}
-                      className="font-sans text-xs border border-sketch rounded p-1 hover:bg-parchment transition-colors">
-                      🎲
-                    </button>
-                    <span className={`font-mono text-sm font-bold w-8 text-center ${entry.initiative > 0 ? "text-ink" : "text-ink-faded"}`}>
-                      {entry.initiative > 0 ? entry.initiative : "—"}
-                    </span>
-                  </>
-                )}
-                {entry.type === "character" && !entry.excluded && (
-                  <span className="font-sans text-[0.6rem] text-ink-faded italic">pending</span>
-                )}
-                {/* Exclude toggle */}
-                <button
-                  onClick={() => toggleExcluded(entry.key)}
-                  title={entry.excluded ? "Include in combat" : "Exclude from combat"}
-                  className={`w-6 h-6 rounded border text-xs flex items-center justify-center transition-all ${
-                    entry.excluded
-                      ? "border-sage/40 text-sage hover:bg-sage/10"
-                      : "border-sketch text-ink-faded hover:border-blush/40 hover:text-blush"
-                  }`}>
-                  {entry.excluded ? "+" : "✕"}
-                </button>
+                <button onClick={() => rollOne(entry.key, entry.modifier)} className="font-sans text-xs border border-sketch rounded p-1 hover:bg-parchment transition-colors">🎲</button>
+                <input
+                  type="number" value={entry.rolled ? String(entry.initiative) : ""}
+                  placeholder="—"
+                  onChange={(e) => { const v = Number(e.target.value); if (!isNaN(v)) setInitiative(entry.key, v); }}
+                  className="w-14 font-mono text-sm text-center bg-warm-white border-2 border-sketch rounded p-1 outline-none focus:border-blush"
+                />
               </div>
             </div>
           ))}
 
-          {/* Preview order */}
-          {sorted.some((e) => e.initiative > 0) && (
-            <div className="border-t border-sketch p-3 mt-2">
-              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Initiative Order (NPCs only — players added on roll)</p>
+          {entries.some((e) => e.rolled) && (
+            <div className="border-t border-sketch p-3">
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Initiative Order (preview)</p>
               {sorted.map((e, i) => (
-                <div key={e.key} className="flex items-center gap-2 py-0.5">
+                <div key={e.key} className="flex items-center gap-2 py-1">
                   <span className="font-mono text-xs text-ink-faded w-4">{i + 1}.</span>
                   <span className="font-sans text-xs text-ink flex-1">{e.name}</span>
-                  <span className="font-mono text-xs font-bold text-ink">
-                    {e.type === "npc" && e.initiative > 0 ? e.initiative : "pending"}
-                  </span>
+                  <span className={`font-mono text-sm font-bold ${e.rolled ? "text-ink" : "text-ink-faded"}`}>{e.rolled ? e.initiative : "—"}</span>
                 </div>
               ))}
             </div>
           )}
         </div>
-
         <div className="p-5 border-t border-sketch flex gap-3 justify-end">
-          <button onClick={onClose}
-            className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper transition-all shadow-sketch">
-            Cancel
-          </button>
-          <button onClick={handleStart} disabled={loading || !npcsDone}
-            className={`font-sans font-bold text-sm text-white rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${
-              !loading && npcsDone
-                ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
-                : "bg-tan border-sketch opacity-60 cursor-not-allowed"
-            }`}>
-            {loading
-              ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Starting...</>
-              : "Begin Combat ⚔️"
-            }
+          <button onClick={onClose} className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper transition-all shadow-sketch">Cancel</button>
+          <button type="button" onClick={handleStart} disabled={loading || !allRolled}
+            className={`font-sans font-bold text-sm text-white rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${!loading && allRolled ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px" : "bg-tan border-sketch opacity-60 cursor-not-allowed"}`}>
+            {loading ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Starting...</> : "Begin Combat ⚔️"}
           </button>
         </div>
       </div>
@@ -650,7 +590,7 @@ function ActionLogTab({ campaignId }: { campaignId: string }) {
   const [logs, setLogs]     = useState<ActionLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
+  const fetchLogs = useCallback(async () => {
     const res = await fetch(`/api/campaigns/${campaignId}/action-log`);
     if (res.ok) setLogs(await res.json());
     else setLogs([]);
@@ -659,22 +599,22 @@ function ActionLogTab({ campaignId }: { campaignId: string }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      await load();
+      await fetchLogs();
     } finally {
       setLoading(false);
     }
-  }, [load]);
+  }, [fetchLogs]);
 
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       setLoading(true);
-      void load().finally(() => {
+      void fetchLogs().finally(() => {
         if (!cancelled) setLoading(false);
       });
     });
     return () => { cancelled = true; };
-  }, [load]);
+  }, [fetchLogs]);
 
   const ACTION_ICONS: Record<string, string> = {
     COMBAT_ATTACK: "⚔️", COMBAT_SPELL: "🔮", COMBAT_MOVE: "💨",
@@ -930,23 +870,53 @@ export default function CampaignBoardPage() {
     return () => { active = false; };
   }, [loadData]);
 
-  // Suppress polling for 5s after a local save to prevent revert
-  const suppressPollUntilRef = useRef(0);
 
-  // Polling for sync every 8 seconds
+  // ── Pusher realtime subscription ─────────────────────────────────────────────
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (Date.now() < suppressPollUntilRef.current) return;
+    const pusher  = getPusherClient();
+    const channel = pusher.subscribe(`campaign-${campaignId}`);
+
+    // Merge incoming boardState with existing to avoid wiping unrelated keys
+    function applyBoardState(incoming: BoardState) {
+      setBoard((prev) => {
+        if (!prev) return prev;
+        const merged = { ...(prev.boardState ?? {}), ...incoming };
+        return { ...prev, boardState: merged as BoardState };
+      });
+    }
+
+    channel.bind(PUSHER_EVENTS.BOARD_UPDATED,     (data: { board: Board }) => {
+      setBoard(data.board);
+    });
+    channel.bind(PUSHER_EVENTS.COMBAT_STARTED,    (data: { boardState: BoardState }) => {
+      applyBoardState(data.boardState);
+    });
+    channel.bind(PUSHER_EVENTS.COMBAT_ENDED,      (data: { boardState: BoardState }) => {
+      applyBoardState(data.boardState);
+    });
+    channel.bind(PUSHER_EVENTS.TURN_ADVANCED,     (data: { boardState: BoardState }) => {
+      applyBoardState(data.boardState);
+    });
+    channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState }) => {
+      applyBoardState(data.boardState);
+    });
+
+    // Refresh characters every 30s (HP/conditions can change outside of board events)
+    const charInterval = setInterval(async () => {
       try {
-        const [boardRes, npcsRes] = await Promise.all([
-          fetch(`/api/campaigns/${campaignId}/board`).then((r) => r.ok ? r.json() : null),
-          fetch(`/api/campaigns/${campaignId}/npcs`).then((r) => r.ok ? r.json() : null),
-        ]);
-        if (boardRes) { setBoard(boardRes.board); setCharacters(boardRes.characters); setAssets(boardRes.assets); }
-        if (npcsRes)  setNpcs(npcsRes);
+        const res = await fetch(`/api/campaigns/${campaignId}/board`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setCharacters(data.characters);
+        setNpcs(data.npcs ?? []);
       } catch { /* silent */ }
-    }, 8000);
-    return () => clearInterval(interval);
+    }, 30000);
+
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(`campaign-${campaignId}`);
+      clearInterval(charInterval);
+    };
   }, [campaignId]);
 
   const refresh = useCallback(() => {
@@ -954,7 +924,6 @@ export default function CampaignBoardPage() {
   }, [loadData]);
 
   function handleBoardUpdate(newState: BoardState) {
-    suppressPollUntilRef.current = Date.now() + 5000; // suppress poll for 5s after save
     setBoard((prev) => prev ? { ...prev, boardState: newState } : prev);
   }
 
