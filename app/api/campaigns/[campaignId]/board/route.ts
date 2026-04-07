@@ -6,35 +6,34 @@ import { pusherServer, campaignChannel, PUSHER_EVENTS } from "@/lib/pusher-serve
 
 export async function GET(
   _req: NextRequest,
-  context: { params: Promise<{ campaignId: string }> },
+  { params }: { params: { campaignId: string } }
 ) {
   try {
-    const { campaignId } = await context.params;
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // Verify membership
     const member = await prisma.campaignMember.findUnique({
-      where: { campaignId_userId: { campaignId, userId: session.user.id } },
+      where: { campaignId_userId: { campaignId: params.campaignId, userId: session.user.id } },
     });
     if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     // Fetch or create board
     let board = await prisma.campaignBoard.findUnique({
-      where: { campaignId },
+      where: { campaignId: params.campaignId },
       include: { activeMap: true },
     });
 
     if (!board) {
       board = await prisma.campaignBoard.create({
-        data: { campaignId },
+        data: { campaignId: params.campaignId },
         include: { activeMap: true },
       });
     }
 
     // Fetch active characters with full stats
     const characters = await prisma.character.findMany({
-      where: { campaignId, isActive: true },
+      where: { campaignId: params.campaignId, isActive: true },
       select: {
         id: true,
         name: true,
@@ -55,7 +54,7 @@ export async function GET(
 
     // Fetch campaign assets for map picker (DM only — safe to include, UI controls visibility)
     const assets = await prisma.campaignAsset.findMany({
-      where: { campaignId, type: "MAP" },
+      where: { campaignId: params.campaignId, type: "MAP" },
       select: { id: true, name: true, url: true },
       orderBy: { createdAt: "desc" },
     });
@@ -69,16 +68,15 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  context: { params: Promise<{ campaignId: string }> },
+  { params }: { params: { campaignId: string } }
 ) {
   try {
-    const { campaignId } = await context.params;
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // DM only
     const member = await prisma.campaignMember.findUnique({
-      where: { campaignId_userId: { campaignId, userId: session.user.id } },
+      where: { campaignId_userId: { campaignId: params.campaignId, userId: session.user.id } },
     });
     if (!member || member.role !== "DM") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -91,7 +89,7 @@ export async function PATCH(
     let mergedBoardState = boardState;
     if (boardState !== undefined) {
       const existing = await prisma.campaignBoard.findUnique({
-        where: { campaignId },
+        where: { campaignId: params.campaignId },
         select: { boardState: true },
       });
       const existingState = (existing?.boardState as Record<string, unknown> | null) ?? {};
@@ -99,8 +97,8 @@ export async function PATCH(
     }
 
     const board = await prisma.campaignBoard.upsert({
-      where: { campaignId },
-      create: { campaignId, activeMapId, boardState: mergedBoardState, combatActive },
+      where: { campaignId: params.campaignId },
+      create: { campaignId: params.campaignId, activeMapId, boardState: mergedBoardState, combatActive },
       update: {
         ...(activeMapId    !== undefined && { activeMapId }),
         ...(boardState     !== undefined && { boardState: mergedBoardState }),
@@ -109,13 +107,15 @@ export async function PATCH(
       include: { activeMap: true },
     });
 
+    // Broadcast the updated board with merged boardState to all clients
+    const broadcastBoard = { ...board, boardState: mergedBoardState };
     await pusherServer.trigger(
-      campaignChannel(campaignId),
+      campaignChannel(params.campaignId),
       PUSHER_EVENTS.BOARD_UPDATED,
-      { board },
+      { board: broadcastBoard }
     );
 
-    return NextResponse.json(board);
+    return NextResponse.json(broadcastBoard);
   } catch (error) {
     console.error("Board update error:", error);
     return NextResponse.json({ error: "Failed to update board" }, { status: 500 });
