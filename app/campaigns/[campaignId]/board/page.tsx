@@ -871,12 +871,25 @@ export default function CampaignBoardPage() {
   }, [loadData]);
 
 
-  // ── Pusher realtime subscription ─────────────────────────────────────────────
+  // ── Pusher realtime subscription (optional — polling if env missing) ───────
   useEffect(() => {
-    const pusher  = getPusherClient();
+    const charInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/campaigns/${campaignId}/board`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setCharacters(data.characters);
+        setNpcs(data.npcs ?? []);
+      } catch { /* silent */ }
+    }, 30000);
+
+    const pusher = getPusherClient();
+    if (!pusher) {
+      return () => { clearInterval(charInterval); };
+    }
+
     const channel = pusher.subscribe(`campaign-${campaignId}`);
 
-    // Merge incoming boardState with existing to avoid wiping unrelated keys
     function applyBoardState(incoming: BoardState) {
       setBoard((prev) => {
         if (!prev) return prev;
@@ -900,17 +913,6 @@ export default function CampaignBoardPage() {
     channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState }) => {
       applyBoardState(data.boardState);
     });
-
-    // Refresh characters every 30s (HP/conditions can change outside of board events)
-    const charInterval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/campaigns/${campaignId}/board`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setCharacters(data.characters);
-        setNpcs(data.npcs ?? []);
-      } catch { /* silent */ }
-    }, 30000);
 
     return () => {
       channel.unbind_all();
