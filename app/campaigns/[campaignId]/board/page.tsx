@@ -436,7 +436,7 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
           ))}
 
           {sorted.some((e) => e.type === "npc" && e.initiative > 0) && (
-            <div className="border-t border-sketch p-3 mt-2">
+            <div className="border-t border-sketch pt-3 mt-2">
               <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Order Preview (players added on roll)</p>
               {sorted.map((e, i) => (
                 <div key={e.key} className="flex items-center gap-2 py-0.5">
@@ -1213,6 +1213,8 @@ export default function CampaignBoardPage() {
   const [sidebarTab,      setSidebarTab]      = useState<"party" | "log">("party");
   const [showStartCombat, setShowStartCombat] = useState(false);
   const [showInitiativeModal, setShowInitiativeModal] = useState(false);
+  const isDMRef      = useRef(false);
+  const myCharRef    = useRef<Character | null>(null);
 
   const loadData = useCallback(async () => {
     const [sessionRes, boardRes, campaignRes, npcsRes] = await Promise.all([
@@ -1248,6 +1250,12 @@ export default function CampaignBoardPage() {
     return () => { active = false; };
   }, [loadData]);
 
+  // Keep refs in sync so Pusher callbacks always see current values
+  useEffect(() => { isDMRef.current = isDM; }, [isDM]);
+  useEffect(() => {
+    myCharRef.current = characters.find((c) => c.user.id === currentUser?.id) ?? null;
+  }, [characters, currentUser]);
+
   // ── Pusher realtime subscription ──────────────────────────────────────────
   useEffect(() => {
     // 30s background refresh for HP/conditions
@@ -1282,7 +1290,15 @@ export default function CampaignBoardPage() {
     channel.bind(PUSHER_EVENTS.COMBAT_ENDED,      (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
     channel.bind(PUSHER_EVENTS.TURN_ADVANCED,     (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
     channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
-    channel.bind(PUSHER_EVENTS.INITIATIVE_NOTIFY, () => { setShowInitiativeModal(true); });
+    channel.bind(PUSHER_EVENTS.INITIATIVE_NOTIFY, (data: { pendingKeys: string[] }) => {
+      // Don't show to DM, and only show if this player's character is in the pending list
+      if (isDMRef.current) return;
+      const myC = myCharRef.current;
+      if (!myC) return;
+      if (data.pendingKeys.includes(`char_${myC.id}`)) {
+        setShowInitiativeModal(true);
+      }
+    });
 
     return () => {
       channel.unbind_all();
@@ -1455,7 +1471,7 @@ export default function CampaignBoardPage() {
 
                 {/* NPC list (DM only, exploration mode) */}
                 {isDM && npcs.length > 0 && !combatActive && (
-                  <div className="border-t border-sketch p-2">
+                  <div className="border-t border-sketch pt-2">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">NPCs</p>
                     <div className="space-y-1">
                       {npcs.map((n) => {
@@ -1480,7 +1496,7 @@ export default function CampaignBoardPage() {
 
                 {/* DM Tools */}
                 {isDM && !combatActive && (
-                  <div className="border-t border-sketch p-2 space-y-2">
+                  <div className="border-t border-sketch pt-2 space-y-2">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">DM Tools</p>
                     <button onClick={() => setShowStartCombat(true)}
                       className="w-full font-sans font-semibold text-sm text-white bg-blush border-2 border-blush rounded-sketch p-2 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch-accent flex items-center gap-2">
