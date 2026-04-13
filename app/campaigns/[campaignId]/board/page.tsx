@@ -1094,13 +1094,14 @@ interface Token {
   isTarget?: boolean;
 }
 
-function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId, onBoardUpdate, combatActive, isMyTurn, onMovement, selectedTargetKey, onTokenClick, turnResetKey }: {
+function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId, onBoardUpdate, combatActive, isMyTurn, movementLeft, onMovementUsed, selectedTargetKey, onTokenClick, turnResetKey }: {
   board: Board; characters: Character[]; npcs: NPC[];
   currentUserId: string; isDM: boolean; campaignId: string;
   onBoardUpdate: (s: BoardState) => void;
   combatActive: boolean;
   isMyTurn: boolean;
-  onMovement: (ftMoved: number) => void;
+  movementLeft: number;
+  onMovementUsed: (ftUsed: number) => void;
   selectedTargetKey: string | null;
   onTokenClick: (key: string, name: string) => void;
   turnResetKey: number;
@@ -1174,6 +1175,28 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
     ctx.strokeStyle = "rgba(100,90,80,0.18)"; ctx.lineWidth = 0.5;
     for (let c = 0; c <= cols; c++) { ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, rows * CELL); ctx.stroke(); }
     for (let r = 0; r <= rows; r++) { ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(cols * CELL, r * CELL); ctx.stroke(); }
+    // Draw movement range highlight when it's the player's turn
+    if (combatActive && isMyTurn && originRef.current && movementLeft > 0) {
+      const maxCells = Math.floor(movementLeft / 5);
+      const { col: oc, row: or_ } = originRef.current;
+      ctx.fillStyle = "rgba(106, 193, 138, 0.15)"; // sage green, semi-transparent
+      ctx.strokeStyle = "rgba(106, 193, 138, 0.4)";
+      ctx.lineWidth = 0.5;
+      // Draw reachable cells using manhattan distance from origin
+      for (let dc = -maxCells; dc <= maxCells; dc++) {
+        for (let dr = -maxCells; dr <= maxCells; dr++) {
+          if (Math.abs(dc) + Math.abs(dr) <= maxCells) {
+            const cellCol = oc + dc;
+            const cellRow = or_ + dr;
+            if (cellCol >= 0 && cellRow >= 0) {
+              ctx.fillRect(cellCol * CELL + 1, cellRow * CELL + 1, CELL - 2, CELL - 2);
+              ctx.strokeRect(cellCol * CELL + 1, cellRow * CELL + 1, CELL - 2, CELL - 2);
+            }
+          }
+        }
+      }
+    }
+
     tokensRef.current.forEach((t) => {
       const isDragging = draggingRef.current?.key === t.key;
       const col = isDragging && dragPosRef.current ? dragPosRef.current.col : t.col;
@@ -1212,7 +1235,7 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
       ctx.fillText(t.label.length > 10 ? t.label.slice(0, 9) + "…" : t.label, cx, cy + r + 3);
     });
     ctx.restore();
-  }, []);
+  }, [combatActive, isMyTurn, movementLeft]);
 
   useEffect(() => { tokensRef.current = buildTokens(); draw(); }, [buildTokens, draw]);
 
@@ -1299,22 +1322,10 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
       const { col, row } = dragPosRef.current;
       const token = tokensRef.current.find((t) => t.key === key);
 
-      // Movement tracking for player tokens during combat on their turn
+      // Movement cost: manhattan distance from last position × 5ft per cell
       if (combatActive && isMyTurn && token?.isCurrentUser && lastPosRef.current) {
-        // Cost is manhattan distance from last position (each cell = 5ft)
-        const stepCost = (Math.abs(col - lastPosRef.current.col) + Math.abs(row - lastPosRef.current.row)) * 5;
-        // Refund if moving back toward origin
-        const oldDistFromOrigin = originRef.current
-          ? (Math.abs(lastPosRef.current.col - originRef.current.col) + Math.abs(lastPosRef.current.row - originRef.current.row)) * 5
-          : 0;
-        const newDistFromOrigin = originRef.current
-          ? (Math.abs(col - originRef.current.col) + Math.abs(row - originRef.current.row)) * 5
-          : 0;
-        // If moving closer to origin, refund the difference; otherwise charge step cost
-        const ftChange = newDistFromOrigin < oldDistFromOrigin
-          ? -(oldDistFromOrigin - newDistFromOrigin)  // refund
-          : stepCost;                                  // charge
-        onMovement(ftChange);
+        const ftUsed = (Math.abs(col - lastPosRef.current.col) + Math.abs(row - lastPosRef.current.row)) * 5;
+        if (ftUsed > 0) onMovementUsed(ftUsed);
         lastPosRef.current = { col, row };
       }
 
@@ -1667,13 +1678,25 @@ export default function CampaignBoardPage() {
   }
 
   async function handleEndTurn() {
-    // Player ends their own turn — advances automatically
     const res  = await fetch(`/api/campaigns/${campaignId}/combat/turn`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "next_turn" }),
     });
     const data = await res.json();
-    if (data.boardState) handleBoardUpdate(data.boardState);
+    if (data.boardState) {
+      // Use same deep merge as applyBoardState so currentTurnIndex updates locally
+      setBoard((prev) => {
+        if (!prev) return prev;
+        const prevState = prev.boardState ?? { tokens: {} };
+        const merged: BoardState = {
+          ...prevState,
+          ...data.boardState,
+          tokens: { ...(prevState.tokens ?? {}), ...(data.boardState.tokens ?? {}) },
+          initiativeOrder: data.boardState.initiativeOrder ?? prevState.initiativeOrder,
+        };
+        return { ...prev, boardState: merged };
+      });
+    }
     setMovementLeft(0);
     setSelectedTargetKey(null);
   }
@@ -1733,22 +1756,16 @@ export default function CampaignBoardPage() {
   useEffect(() => {
     if (currentTurnIndex !== prevTurnIndexRef.current) {
       prevTurnIndexRef.current = currentTurnIndex;
-      const timer = window.setTimeout(() => {
-        setMovementLeft(isMyTurn && myChar ? myChar.speed : 0);
-        setSelectedTargetKey(null);
-        setSelectedTargetName(null);
-        setTurnResetKey((k) => k + 1);
-      }, 0);
-      return () => window.clearTimeout(timer);
+      setMovementLeft(isMyTurn && myChar ? myChar.speed : 0);
+      setSelectedTargetKey(null);
+      setSelectedTargetName(null);
+      setTurnResetKey((k) => k + 1);
     }
   }, [currentTurnIndex, isMyTurn, myChar]);
 
   // Set movement on combat start
   useEffect(() => {
-    if (combatActive && isMyTurn && myChar) {
-      const timer = window.setTimeout(() => setMovementLeft(myChar.speed), 0);
-      return () => window.clearTimeout(timer);
-    }
+    if (combatActive && isMyTurn && myChar) setMovementLeft(myChar.speed);
   }, [combatActive, isMyTurn, myChar]);
 
   if (error) return (
@@ -1808,7 +1825,8 @@ export default function CampaignBoardPage() {
               currentUserId={currentUser?.id ?? ""} isDM={isDM}
               campaignId={campaignId} onBoardUpdate={handleBoardUpdate}
               combatActive={combatActive} isMyTurn={isMyTurn}
-              onMovement={(ftChange) => setMovementLeft((prev) => Math.max(0, prev - ftChange))}
+              movementLeft={movementLeft}
+              onMovementUsed={(ftUsed) => setMovementLeft((prev) => Math.max(0, prev - ftUsed))}
               selectedTargetKey={selectedTargetKey}
               onTokenClick={(key, name) => { setSelectedTargetKey(key); setSelectedTargetName(name); }}
               turnResetKey={turnResetKey}
