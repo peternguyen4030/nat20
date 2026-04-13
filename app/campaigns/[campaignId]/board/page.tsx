@@ -1161,7 +1161,6 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
   // Reset movement origin when turn changes — seed from current token position
   useEffect(() => {
     if (isMyTurn) {
-      // Find the player's token current position to set as origin immediately
       const myToken = tokens.find((t) => t.isCurrentUser);
       originRef.current  = myToken ? { col: myToken.col, row: myToken.row } : null;
       lastPosRef.current = originRef.current ? { ...originRef.current } : null;
@@ -1679,7 +1678,30 @@ export default function CampaignBoardPage() {
       });
     }
 
-    channel.bind(PUSHER_EVENTS.BOARD_UPDATED, (data: { board: Board }) => { setBoard(data.board); });
+    channel.bind(PUSHER_EVENTS.BOARD_UPDATED, (data: { board: Board }) => {
+      // Deep merge so local action slot state isn't wiped by HP-triggered board updates
+      setBoard((prev) => {
+        if (!prev) return data.board;
+        const prevState   = (prev.boardState ?? { tokens: {} }) as BoardState;
+        const incomingState = data.board.boardState as BoardState | null;
+        if (!incomingState) return { ...data.board, boardState: prevState };
+        // Preserve local initiativeOrder (has actionUsed flags) unless server has newer round
+        const keepLocalOrder =
+          prevState.initiativeOrder &&
+          prevState.currentTurnIndex === incomingState.currentTurnIndex;
+        return {
+          ...data.board,
+          boardState: {
+            ...prevState,
+            ...incomingState,
+            tokens:          { ...(prevState.tokens ?? {}), ...(incomingState.tokens ?? {}) },
+            initiativeOrder: keepLocalOrder
+              ? prevState.initiativeOrder
+              : incomingState.initiativeOrder ?? prevState.initiativeOrder,
+          },
+        };
+      });
+    });
     channel.bind(PUSHER_EVENTS.ACTION_TAKEN, () => {
       // Re-fetch characters and NPCs so HP bars update immediately
       Promise.all([
@@ -1696,7 +1718,23 @@ export default function CampaignBoardPage() {
       setNotifyPendingKeys([]);
     });
     channel.bind(PUSHER_EVENTS.COMBAT_ENDED,      (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
-    channel.bind(PUSHER_EVENTS.TURN_ADVANCED,     (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
+    channel.bind(PUSHER_EVENTS.TURN_ADVANCED, (data: { boardState: BoardState }) => {
+      // Server is authoritative on turn advance — replace initiativeOrder fully
+      setBoard((prev) => {
+        if (!prev) return prev;
+        const prevState = (prev.boardState ?? { tokens: {} }) as BoardState;
+        return {
+          ...prev,
+          boardState: {
+            ...prevState,
+            ...data.boardState,
+            tokens:          { ...(prevState.tokens ?? {}), ...(data.boardState.tokens ?? {}) },
+            initiativeOrder: data.boardState.initiativeOrder,
+            currentTurnIndex: data.boardState.currentTurnIndex,
+          },
+        };
+      });
+    });
     channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState; characterId?: string; total?: number }) => {
       applyBoardState(data.boardState);
       if (data.characterId && data.total !== undefined) {
@@ -1783,9 +1821,11 @@ export default function CampaignBoardPage() {
     if (data.boardState) handleBoardUpdate(data.boardState);
   }
 
-  function handleActionUsed(slot: "action" | "bonus" | "reaction", actionName?: string) {
+  async function handleActionUsed(slot: "action" | "bonus" | "reaction", actionName?: string) {
     if (!myChar) return;
     const key = `char_${myChar.id}`;
+
+    // Optimistic local update
     setBoard((prev) => {
       if (!prev?.boardState) return prev;
       const bs      = prev.boardState as BoardState;
@@ -1797,6 +1837,13 @@ export default function CampaignBoardPage() {
       } : e);
       return { ...prev, boardState: { ...bs, initiativeOrder: updated } };
     });
+
+    // Persist to DB and broadcast via Pusher so all clients stay in sync
+    await fetch(`/api/campaigns/${campaignId}/combat/slots`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ characterKey: key, slot }),
+    });
+
     // Dash adds movement equal to speed
     if (actionName === "Dash" && myChar) {
       setMovementLeft((prev) => prev + myChar.speed);
