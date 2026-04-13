@@ -448,14 +448,14 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
             </div>
           ))}
 
-          {sorted.some((e) => e.type === "npc" && e.initiative > 0) && (
+          {sorted.some((e) => e.initiative > 0) && (
             <div className="border-t border-sketch p-3 mt-2">
-              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Order Preview (players added on roll)</p>
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Order Preview</p>
               {sorted.map((e, i) => (
                 <div key={e.key} className="flex items-center gap-2 py-0.5">
                   <span className="font-mono text-xs text-ink-faded w-4">{i + 1}.</span>
                   <span className="font-sans text-xs text-ink flex-1">{e.name}</span>
-                  <span className="font-mono text-xs font-bold text-ink">{e.type === "npc" ? e.initiative : "pending"}</span>
+                  <span className={`font-mono text-xs font-bold ${e.initiative > 0 ? "text-ink" : "text-ink-faded"}`}>{e.initiative > 0 ? e.initiative : "pending"}</span>
                 </div>
               ))}
             </div>
@@ -522,10 +522,7 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
         )}
       </div>
 
-      {/* Roll prompt shown whenever player hasn't rolled yet */}
-      {myEntry && !myEntry.rolled && myChar && (
-        <InitiativeRollPrompt character={myChar} campaignId={campaignId} />
-      )}
+
 
       <div className="space-y-1">
         {order.map((entry, i) => {
@@ -1306,7 +1303,11 @@ export default function CampaignBoardPage() {
     }
 
     channel.bind(PUSHER_EVENTS.BOARD_UPDATED,     (data: { board: Board })          => { setBoard(data.board); });
-    channel.bind(PUSHER_EVENTS.COMBAT_STARTED,    (data: { board: Board })           => { setBoard(data.board); });
+    channel.bind(PUSHER_EVENTS.COMBAT_STARTED, (data: { board: Board }) => {
+      setBoard(data.board);
+      setShowInitiativeModal(false);
+      setNotifyPendingKeys([]);
+    });
     channel.bind(PUSHER_EVENTS.COMBAT_ENDED,      (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
     channel.bind(PUSHER_EVENTS.TURN_ADVANCED,     (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
     channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState; characterId?: string; total?: number }) => {
