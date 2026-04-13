@@ -522,8 +522,6 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
         )}
       </div>
 
-
-
       <div className="space-y-1">
         {order.map((entry, i) => {
           const isCurrent = i === currentIndex;
@@ -554,7 +552,6 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
     </div>
   );
 }
-
 
 // ── Initiative Roll Modal ─────────────────────────────────────────────────────
 
@@ -627,44 +624,6 @@ function InitiativeRollModal({ character, campaignId, onClose }: {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── Initiative Roll Prompt ────────────────────────────────────────────────────
-
-function InitiativeRollPrompt({ character, campaignId }: { character: Character; campaignId: string }) {
-  const [submitted, setSubmitted] = useState(false);
-  const [total,     setTotal]     = useState<number | null>(null);
-  const [error,     setError]     = useState<string | null>(null);
-
-  async function submit(t: number) {
-    setTotal(t);
-    try {
-      const res = await fetch(`/api/campaigns/${campaignId}/combat/initiative`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ characterId: character.id, total: t, modifier: character.initiative }),
-      });
-      if (!res.ok) throw new Error("Failed to submit");
-      setSubmitted(true);
-    } catch {
-      setError("Failed to submit. Try again.");
-    }
-  }
-
-  if (submitted) return (
-    <div className="bg-sage/10 border border-sage/30 rounded-sketch p-3 text-center">
-      <p className="font-sans text-xs text-sage font-semibold">✓ Initiative submitted: {total}</p>
-      <p className="font-sans text-xs text-ink-faded mt-0.5">Waiting for your turn...</p>
-    </div>
-  );
-
-  return (
-    <div className="bg-gold/10 border-2 border-gold/40 rounded-sketch p-3 space-y-2">
-      <p className="font-sans text-xs font-bold text-ink">🎲 Roll your initiative!</p>
-      <p className="font-sans text-xs text-ink-faded">Modifier: {character.initiative >= 0 ? "+" : ""}{character.initiative}</p>
-      {error && <p className="font-sans text-xs text-blush">{error}</p>}
-      <DiceRoller sides={20} modifier={character.initiative} label="Roll d20 + initiative mod" onRoll={(t) => submit(t)} />
     </div>
   );
 }
@@ -1275,12 +1234,15 @@ export default function CampaignBoardPage() {
 
   // ── Pusher realtime subscription ──────────────────────────────────────────
   useEffect(() => {
-    // 30s background refresh for HP/conditions
+    // 30s background refresh for HP/conditions and NPC state
     const charInterval = setInterval(() => {
-      fetch(`/api/campaigns/${campaignId}/board`)
-        .then((r) => r.ok ? r.json() : null)
-        .then((data) => { if (data) { setCharacters(data.characters); setNpcs(data.npcs ?? []); } })
-        .catch(() => { /* silent */ });
+      Promise.all([
+        fetch(`/api/campaigns/${campaignId}/board`).then((r) => r.ok ? r.json() : null),
+        fetch(`/api/campaigns/${campaignId}/npcs`).then((r) => r.ok ? r.json() : null),
+      ]).then(([boardData, npcsData]) => {
+        if (boardData) setCharacters(boardData.characters);
+        if (npcsData)  setNpcs(npcsData);
+      }).catch(() => { /* silent */ });
     }, 30000);
 
     const pusher = getPusherClient();
@@ -1380,8 +1342,7 @@ export default function CampaignBoardPage() {
   const round            = boardState?.round ?? 1;
   const combatSessionId  = boardState?.combatSessionId ?? null;
 
-  const myChar   = characters.find((c) => c.user.id === currentUser?.id);
-  const myCharKey = myChar ? `char_${myChar.id}` : null;
+  const myChar = characters.find((c) => c.user.id === currentUser?.id);
 
   if (error) return (
     <div className="min-h-screen bg-parchment flex items-center justify-center">
