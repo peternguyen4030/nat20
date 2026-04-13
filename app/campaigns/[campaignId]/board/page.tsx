@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { getPusherClient } from "@/lib/pusher-client";
-import { PUSHER_EVENTS } from "@/lib/pusher-server";
+import { PUSHER_EVENTS } from "@/lib/pusher-events";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -436,7 +436,7 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
           ))}
 
           {sorted.some((e) => e.type === "npc" && e.initiative > 0) && (
-            <div className="border-t border-sketch pt-3 mt-2">
+            <div className="border-t border-sketch p-3 mt-2">
               <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Order Preview (players added on roll)</p>
               {sorted.map((e, i) => (
                 <div key={e.key} className="flex items-center gap-2 py-0.5">
