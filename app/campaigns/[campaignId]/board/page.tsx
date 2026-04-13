@@ -308,9 +308,10 @@ function MapPicker({ assets: initialAssets, activeMapId, campaignId, onChanged }
 
 // ── Start Combat Modal ────────────────────────────────────────────────────────
 
-function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: {
+function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, externalRolls }: {
   characters: Character[]; npcs: NPC[]; campaignId: string;
   onStarted: (boardState: BoardState) => void; onClose: () => void;
+  externalRolls: Record<string, number>; // charKey -> initiative total from player rolls
 }) {
   type Entry = {
     key: string; name: string; type: "character" | "npc";
@@ -321,6 +322,16 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
     ...characters.map((c) => ({ key: `char_${c.id}`, name: c.name, type: "character" as const, modifier: c.initiative, initiative: 0, excluded: false })),
     ...npcs.map((n) => ({ key: `npc_${n.id}`, name: n.name, type: "npc" as const, modifier: n.initiativeModifier, initiative: 0, excluded: false })),
   ]);
+
+  // Merge player rolls received via Pusher into entries
+  useEffect(() => {
+    if (Object.keys(externalRolls).length === 0) return;
+    setEntries((prev) => prev.map((e) =>
+      e.type === "character" && externalRolls[e.key] !== undefined
+        ? { ...e, initiative: externalRolls[e.key] }
+        : e
+    ));
+  }, [externalRolls]);
   const [loading,   setLoading]   = useState(false);
   const [notified,  setNotified]  = useState(false);
   const [notifying, setNotifying] = useState(false);
@@ -420,9 +431,11 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
                   </>
                 )}
                 {entry.type === "character" && !entry.excluded && (
-                  <span className={`font-sans text-[0.6rem] italic ${notified ? "text-sage" : "text-ink-faded"}`}>
-                    {notified ? "notified" : "pending"}
-                  </span>
+                  entry.initiative > 0
+                    ? <span className="font-mono text-sm font-bold text-sage">{entry.initiative}</span>
+                    : <span className={`font-sans text-[0.6rem] italic ${notified ? "text-gold" : "text-ink-faded"}`}>
+                        {notified ? "rolling..." : "pending"}
+                      </span>
                 )}
                 <button onClick={() => toggleExcluded(entry.key)}
                   title={entry.excluded ? "Include in combat" : "Exclude from combat"}
@@ -1213,6 +1226,7 @@ export default function CampaignBoardPage() {
   const [sidebarTab,      setSidebarTab]      = useState<"party" | "log">("party");
   const [showStartCombat, setShowStartCombat] = useState(false);
   const [showInitiativeModal, setShowInitiativeModal] = useState(false);
+  const [externalRolls,      setExternalRolls]      = useState<Record<string, number>>({});
   const [notifyPendingKeys,   setNotifyPendingKeys]   = useState<string[]>([]);
   const isDMRef   = useRef(false);
 
@@ -1295,10 +1309,15 @@ export default function CampaignBoardPage() {
     channel.bind(PUSHER_EVENTS.COMBAT_STARTED,    (data: { board: Board })           => { setBoard(data.board); });
     channel.bind(PUSHER_EVENTS.COMBAT_ENDED,      (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
     channel.bind(PUSHER_EVENTS.TURN_ADVANCED,     (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
-    channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
+    channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState; characterId?: string; total?: number }) => {
+      applyBoardState(data.boardState);
+      // Update DM's modal with the player's roll
+      if (data.characterId && data.total !== undefined) {
+        setExternalRolls((prev) => ({ ...prev, [`char_${data.characterId}`]: data.total! }));
+      }
+    });
     channel.bind(PUSHER_EVENTS.INITIATIVE_NOTIFY, (data: { pendingKeys: string[] }) => {
       if (isDMRef.current) return;
-      // Store keys — the useEffect above will open the modal once characters are loaded
       setNotifyPendingKeys(data.pendingKeys);
     });
 
@@ -1529,13 +1548,16 @@ export default function CampaignBoardPage() {
       {showStartCombat && (
         <StartCombatModal
           characters={characters} npcs={npcs} campaignId={campaignId}
+          externalRolls={externalRolls}
           onStarted={(bs) => {
             setBoard((prev) => prev ? { ...prev, combatActive: true, boardState: bs } : prev);
             setShowStartCombat(false);
             setSidebarTab("party");
-            setShowInitiativeModal(false); setNotifyPendingKeys([]);
+            setShowInitiativeModal(false);
+            setNotifyPendingKeys([]);
+            setExternalRolls({});
           }}
-          onClose={() => setShowStartCombat(false)}
+          onClose={() => { setShowStartCombat(false); setExternalRolls({}); }}
         />
       )}
     </div>

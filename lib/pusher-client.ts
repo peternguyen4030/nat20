@@ -2,20 +2,21 @@ import PusherJS from "pusher-js";
 
 let pusherClient: PusherJS | null = null;
 
-function clientEnvOk(): boolean {
-  return !!(
-    process.env.NEXT_PUBLIC_PUSHER_KEY &&
-    process.env.NEXT_PUBLIC_PUSHER_CLUSTER
-  );
-}
-
-/** Returns `null` when public Pusher env is not set (board still works via polling / refresh). */
 export function getPusherClient(): PusherJS | null {
-  if (!clientEnvOk()) return null;
-  if (!pusherClient) {
-    pusherClient = new PusherJS(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-    });
+  if (typeof window === "undefined") return null; // server-side guard
+
+  const key     = process.env.NEXT_PUBLIC_PUSHER_KEY;
+  const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+
+  if (!key || !cluster) {
+    console.warn("[Pusher] Missing NEXT_PUBLIC_PUSHER_KEY or NEXT_PUBLIC_PUSHER_CLUSTER — realtime disabled");
+    return null;
   }
+
+  if (!pusherClient) {
+    console.log("[Pusher] Initializing client with key:", key, "cluster:", cluster);
+    pusherClient = new PusherJS(key, { cluster });
+  }
+
   return pusherClient;
 }
