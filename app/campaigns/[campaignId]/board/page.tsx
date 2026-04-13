@@ -289,11 +289,13 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
     modifier: number; initiative: number; excluded: boolean;
   };
 
-  const [entries, setEntries] = useState<Entry[]>(() => [
+  const [entries,   setEntries]   = useState<Entry[]>(() => [
     ...characters.map((c) => ({ key: `char_${c.id}`, name: c.name, type: "character" as const, modifier: c.initiative, initiative: 0, excluded: false })),
     ...npcs.map((n) => ({ key: `npc_${n.id}`, name: n.name, type: "npc" as const, modifier: n.initiativeModifier, initiative: 0, excluded: false })),
   ]);
-  const [loading, setLoading] = useState(false);
+  const [loading,   setLoading]   = useState(false);
+  const [notified,  setNotified]  = useState(false);
+  const [notifying, setNotifying] = useState(false);
 
   function rollAllNPCs() {
     setEntries((prev) => prev.map((e) =>
@@ -312,9 +314,24 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
     setEntries((prev) => prev.map((e) => e.key === key ? { ...e, excluded: !e.excluded } : e));
   }
 
-  const active   = entries.filter((e) => !e.excluded);
-  const sorted   = [...active].sort((a, b) => b.initiative - a.initiative);
-  const npcsDone = entries.filter((e) => e.type === "npc" && !e.excluded).every((e) => e.initiative > 0);
+  const active      = entries.filter((e) => !e.excluded);
+  const sorted      = [...active].sort((a, b) => b.initiative - a.initiative);
+  const npcsDone    = entries.filter((e) => e.type === "npc" && !e.excluded).every((e) => e.initiative > 0);
+  const playerKeys  = active.filter((e) => e.type === "character").map((e) => e.key);
+  const hasPlayers  = playerKeys.length > 0;
+
+  async function handleNotify() {
+    setNotifying(true);
+    try {
+      await fetch(`/api/campaigns/${campaignId}/combat/notify`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pendingKeys: playerKeys }),
+      });
+      setNotified(true);
+    } finally {
+      setNotifying(false);
+    }
+  }
 
   async function handleStart() {
     setLoading(true);
@@ -342,7 +359,7 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
 
         <div className="p-5 flex-1 overflow-y-auto space-y-2">
           <div className="flex items-center justify-between mb-3">
-            <p className="font-sans text-xs text-ink-faded">Roll NPCs below. Players roll their own initiative from the board. Use ✕ to exclude a combatant.</p>
+            <p className="font-sans text-xs text-ink-faded">Roll NPCs below. Use "Notify Players" to prompt players to roll. Use ✕ to exclude a combatant.</p>
             <button onClick={rollAllNPCs} className="font-sans font-semibold text-xs text-white bg-ink border border-ink rounded p-1.5 hover:bg-ink/80 transition-all flex items-center gap-1 shrink-0 ml-2">
               🎲 Roll all NPCs
             </button>
@@ -358,7 +375,7 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
                 <p className="font-sans text-sm font-semibold text-ink truncate">{entry.name}</p>
                 <p className="font-sans text-xs text-ink-faded">
                   {entry.type === "character"
-                    ? "Player — will roll own initiative"
+                    ? notified ? "🔔 Prompted to roll" : "Player — click Notify to prompt"
                     : `Mod: ${entry.modifier >= 0 ? "+" : ""}${entry.modifier}`}
                 </p>
               </div>
@@ -373,7 +390,9 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
                   </>
                 )}
                 {entry.type === "character" && !entry.excluded && (
-                  <span className="font-sans text-[0.6rem] text-ink-faded italic">pending</span>
+                  <span className={`font-sans text-[0.6rem] italic ${notified ? "text-sage" : "text-ink-faded"}`}>
+                    {notified ? "notified" : "pending"}
+                  </span>
                 )}
                 <button
                   onClick={() => toggleExcluded(entry.key)}
@@ -403,8 +422,19 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
           )}
         </div>
 
-        <div className="p-5 border-t border-sketch flex gap-3 justify-end">
+        <div className="p-5 border-t border-sketch flex items-center gap-3">
           <button onClick={onClose} className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper transition-all shadow-sketch">Cancel</button>
+          <div className="flex-1" />
+          <button type="button" onClick={handleNotify} disabled={notifying}
+            className={`font-sans font-semibold text-sm rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${
+              notified
+                ? "text-sage border-sage/40 bg-sage/10"
+                : "text-ink-soft bg-parchment border-sketch hover:bg-paper hover:border-blush/50 shadow-sketch"
+            }`}>
+            {notifying ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Notifying...</>
+              : notified ? "🔔 Players Notified"
+              : "🔔 Notify Players"}
+          </button>
           <button type="button" onClick={handleStart} disabled={loading || !npcsDone}
             className={`font-sans font-bold text-sm text-white rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${
               !loading && npcsDone ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px" : "bg-tan border-sketch opacity-60 cursor-not-allowed"
@@ -864,7 +894,8 @@ export default function CampaignBoardPage() {
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
   const [sidebarTab,   setSidebarTab]   = useState<"party" | "log">("party");
-  const [showStartCombat, setShowStartCombat] = useState(false);
+  const [showStartCombat,  setShowStartCombat]  = useState(false);
+  const [pendingRollKeys,  setPendingRollKeys]  = useState<string[]>([]);
 
   const loadData = useCallback(async () => {
     const [sessionRes, boardRes, campaignRes, npcsRes] = await Promise.all([
@@ -919,11 +950,14 @@ export default function CampaignBoardPage() {
       });
     }
 
-    channel.bind(PUSHER_EVENTS.BOARD_UPDATED,     (data: { board: Board })          => { setBoard(data.board); });
-    channel.bind(PUSHER_EVENTS.COMBAT_STARTED,    (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
+    // BOARD_UPDATED and COMBAT_STARTED send full board — replace entirely so combatActive updates
+    channel.bind(PUSHER_EVENTS.BOARD_UPDATED,  (data: { board: Board }) => { setBoard(data.board); });
+    channel.bind(PUSHER_EVENTS.COMBAT_STARTED, (data: { board: Board }) => { setBoard(data.board); });
+    // These send boardState only — deep merge to preserve tokens
     channel.bind(PUSHER_EVENTS.COMBAT_ENDED,      (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
     channel.bind(PUSHER_EVENTS.TURN_ADVANCED,     (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
-    channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
+    channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED,  (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
+    channel.bind(PUSHER_EVENTS.INITIATIVE_NOTIFY,  (data: { pendingKeys: string[] }) => { setPendingRollKeys(data.pendingKeys); });
 
     return () => {
       channel.unbind_all();
@@ -1043,6 +1077,14 @@ export default function CampaignBoardPage() {
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {sidebarTab === "party" && (
               <>
+                {/* Pre-combat initiative roll prompt — shown when DM has notified but combat not yet started */}
+                {!combatActive && pendingRollKeys.includes(`char_${characters.find((c) => c.user.id === currentUser?.id)?.id ?? ""}`) && (
+                  (() => {
+                    const myChar = characters.find((c) => c.user.id === currentUser?.id);
+                    return myChar ? <InitiativeRollPrompt character={myChar} campaignId={campaignId} /> : null;
+                  })()
+                )}
+
                 {combatActive && initiativeOrder.length > 0 && (
                   <InitiativeTracker
                     order={initiativeOrder}
@@ -1113,7 +1155,11 @@ export default function CampaignBoardPage() {
           characters={characters}
           npcs={npcs}
           campaignId={campaignId}
-          onStarted={(bs) => { handleBoardUpdate(bs); setShowStartCombat(false); setSidebarTab("party"); }}
+          onStarted={(bs) => {
+            setBoard((prev) => prev ? { ...prev, combatActive: true, boardState: bs } : prev);
+            setShowStartCombat(false);
+            setSidebarTab("party");
+          }}
           onClose={() => setShowStartCombat(false)}
         />
       )}
