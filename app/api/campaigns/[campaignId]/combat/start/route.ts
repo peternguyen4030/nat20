@@ -22,13 +22,11 @@ export async function POST(
     }
 
     const { initiativeOrder } = await req.json();
-    // initiativeOrder: Array<{ key: string; name: string; initiative: number; type: "character"|"npc" }>
-
     if (!initiativeOrder?.length) {
       return NextResponse.json({ error: "Initiative order is required" }, { status: 400 });
     }
 
-    // End any existing active session first
+    // End any existing active session
     await prisma.combatSession.updateMany({
       where: { campaignId, active: true },
       data:  { active: false },
@@ -36,20 +34,27 @@ export async function POST(
 
     // Create new combat session
     const combatSession = await prisma.combatSession.create({
-      data: {
-        campaignId,
-        active:     true,
-        round:      1,
-        currentTurnCharacterId: null,
-      },
+      data: { campaignId, active: true, round: 1, currentTurnCharacterId: null },
     });
 
-    // Preserve existing token positions when starting combat
+    // Preserve existing token positions and any player initiative rolls already submitted
     const existingBoard = await prisma.campaignBoard.findUnique({
       where: { campaignId },
       select: { boardState: true },
     });
-    const existingTokens = (existingBoard?.boardState as unknown as { tokens?: Record<string, { col: number; row: number }> } | null)?.tokens ?? {};
+
+    type ExistingState = {
+      tokens?: Record<string, { col: number; row: number }>;
+      initiativeOrder?: { key: string; initiative: number; rolled: boolean }[];
+    };
+    const existingState = existingBoard?.boardState as unknown as ExistingState | null;
+    const existingTokens = existingState?.tokens ?? {};
+
+    // Build a lookup of rolls already submitted by players via the initiative route
+    const existingRolls: Record<string, { initiative: number; rolled: boolean }> = {};
+    for (const entry of existingState?.initiativeOrder ?? []) {
+      if (entry.rolled) existingRolls[entry.key] = { initiative: entry.initiative, rolled: true };
+    }
 
     const sorted = [...initiativeOrder].sort((a, b) => b.initiative - a.initiative);
     const newBoardState = {
@@ -58,47 +63,46 @@ export async function POST(
       currentTurnIndex: 0,
       round:            1,
       combatSessionId:  combatSession.id,
-      initiativeOrder:  sorted.map((e) => ({
-        ...e,
-        rolled:          e.type === "npc", // NPCs are pre-rolled, players roll their own
-        actionUsed:      false,
-        bonusActionUsed: false,
-        reactionUsed:    false,
-      })),
+      initiativeOrder:  sorted.map((e) => {
+        // Use the player's pre-submitted roll if available, otherwise use what DM entered
+        const preRolled = existingRolls[e.key];
+        return {
+          ...e,
+          initiative:      preRolled ? preRolled.initiative : e.initiative,
+          rolled:          e.type === "npc" || !!preRolled,
+          actionUsed:      false,
+          bonusActionUsed: false,
+          reactionUsed:    false,
+        };
+      }),
     };
 
     await prisma.campaignBoard.upsert({
       where:  { campaignId },
-      create: { campaignId, combatActive: true, boardState: newBoardState },
-      update: { combatActive: true, boardState: newBoardState },
+      create: { campaignId, combatActive: true, boardState: newBoardState as unknown as object },
+      update: { combatActive: true, boardState: newBoardState as unknown as object },
     });
 
-    // Log combat start
     await prisma.actionLog.create({
       data: {
         campaignId,
         sessionId:   combatSession.id,
         userId:      session.user.id,
         actionType:  "COMBAT_OTHER",
-        description: `Combat started. Initiative order: ${sorted.map((e) => `${e.name} (${e.initiative})`).join(", ")}`,
+        description: `Combat started. Initiative: ${sorted.map((e) => `${e.name} (${e.initiative})`).join(", ")}`,
       },
     });
 
-    // Notify all clients that combat has started
-    await pusherServer.trigger(campaignChannel(campaignId), PUSHER_EVENTS.BOARD_UPDATED, {
-      board: { boardState: newBoardState, combatActive: true },
-    });
-
-    // Fetch the updated board to broadcast full record including combatActive=true
+    // Broadcast full board so all clients flip to combat mode and see the initiative prompt
     const updatedBoard = await prisma.campaignBoard.findUnique({
-      where: { campaignId },
+      where:   { campaignId },
       include: { activeMap: true },
     });
 
     await pusherServer.trigger(
       campaignChannel(campaignId),
       PUSHER_EVENTS.COMBAT_STARTED,
-      { board: { ...updatedBoard, boardState: newBoardState } }
+      { board: { ...updatedBoard, boardState: newBoardState } },
     );
 
     return NextResponse.json({ combatSession, boardState: newBoardState });
