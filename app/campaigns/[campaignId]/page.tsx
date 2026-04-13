@@ -425,18 +425,16 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose }: 
         <div className="p-5 border-t border-sketch flex items-center gap-3">
           <button onClick={onClose} className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper transition-all shadow-sketch">Cancel</button>
           <div className="flex-1" />
-          {hasPlayers && (
-            <button type="button" onClick={handleNotify} disabled={notifying}
-              className={`font-sans font-semibold text-sm rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${
-                notified
-                  ? "text-sage border-sage/40 bg-sage/10"
-                  : "text-ink-soft bg-parchment border-sketch hover:bg-paper hover:border-blush/50 shadow-sketch"
-              }`}>
-              {notifying ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Notifying...</>
-                : notified ? "🔔 Players Notified"
-                : "🔔 Notify Players"}
-            </button>
-          )}
+          <button type="button" onClick={handleNotify} disabled={notifying}
+            className={`font-sans font-semibold text-sm rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${
+              notified
+                ? "text-sage border-sage/40 bg-sage/10"
+                : "text-ink-soft bg-parchment border-sketch hover:bg-paper hover:border-blush/50 shadow-sketch"
+            }`}>
+            {notifying ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Notifying...</>
+              : notified ? "🔔 Players Notified"
+              : "🔔 Notify Players"}
+          </button>
           <button type="button" onClick={handleStart} disabled={loading || !npcsDone}
             className={`font-sans font-bold text-sm text-white rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${
               !loading && npcsDone ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px" : "bg-tan border-sketch opacity-60 cursor-not-allowed"
