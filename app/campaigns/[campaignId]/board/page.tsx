@@ -1213,8 +1213,8 @@ export default function CampaignBoardPage() {
   const [sidebarTab,      setSidebarTab]      = useState<"party" | "log">("party");
   const [showStartCombat, setShowStartCombat] = useState(false);
   const [showInitiativeModal, setShowInitiativeModal] = useState(false);
-  const isDMRef      = useRef(false);
-  const myCharRef    = useRef<Character | null>(null);
+  const [notifyPendingKeys,   setNotifyPendingKeys]   = useState<string[]>([]);
+  const isDMRef   = useRef(false);
 
   const loadData = useCallback(async () => {
     const [sessionRes, boardRes, campaignRes, npcsRes] = await Promise.all([
@@ -1250,11 +1250,17 @@ export default function CampaignBoardPage() {
     return () => { active = false; };
   }, [loadData]);
 
-  // Keep refs in sync so Pusher callbacks always see current values
+  // Keep isDMRef in sync so Pusher callbacks always see current value
   useEffect(() => { isDMRef.current = isDM; }, [isDM]);
+
+  // Derive modal visibility from notifyPendingKeys whenever characters/user loads
   useEffect(() => {
-    myCharRef.current = characters.find((c) => c.user.id === currentUser?.id) ?? null;
-  }, [characters, currentUser]);
+    if (isDM || notifyPendingKeys.length === 0) return;
+    const myC = characters.find((c) => c.user.id === currentUser?.id);
+    if (myC && notifyPendingKeys.includes(`char_${myC.id}`)) {
+      setShowInitiativeModal(true);
+    }
+  }, [notifyPendingKeys, characters, currentUser, isDM]);
 
   // ── Pusher realtime subscription ──────────────────────────────────────────
   useEffect(() => {
@@ -1291,13 +1297,9 @@ export default function CampaignBoardPage() {
     channel.bind(PUSHER_EVENTS.TURN_ADVANCED,     (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
     channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
     channel.bind(PUSHER_EVENTS.INITIATIVE_NOTIFY, (data: { pendingKeys: string[] }) => {
-      // Don't show to DM, and only show if this player's character is in the pending list
       if (isDMRef.current) return;
-      const myC = myCharRef.current;
-      if (!myC) return;
-      if (data.pendingKeys.includes(`char_${myC.id}`)) {
-        setShowInitiativeModal(true);
-      }
+      // Store keys — the useEffect above will open the modal once characters are loaded
+      setNotifyPendingKeys(data.pendingKeys);
     });
 
     return () => {
@@ -1471,7 +1473,7 @@ export default function CampaignBoardPage() {
 
                 {/* NPC list (DM only, exploration mode) */}
                 {isDM && npcs.length > 0 && !combatActive && (
-                  <div className="border-t border-sketch pt-2">
+                  <div className="border-t border-sketch p-2">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">NPCs</p>
                     <div className="space-y-1">
                       {npcs.map((n) => {
@@ -1496,7 +1498,7 @@ export default function CampaignBoardPage() {
 
                 {/* DM Tools */}
                 {isDM && !combatActive && (
-                  <div className="border-t border-sketch pt-2 space-y-2">
+                  <div className="border-t border-sketch p-2 space-y-2">
                     <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">DM Tools</p>
                     <button onClick={() => setShowStartCombat(true)}
                       className="w-full font-sans font-semibold text-sm text-white bg-blush border-2 border-blush rounded-sketch p-2 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch-accent flex items-center gap-2">
@@ -1520,7 +1522,7 @@ export default function CampaignBoardPage() {
         <InitiativeRollModal
           character={myChar}
           campaignId={campaignId}
-          onClose={() => setShowInitiativeModal(false)}
+          onClose={() => { setShowInitiativeModal(false); setNotifyPendingKeys([]); }}
         />
       )}
 
@@ -1531,7 +1533,7 @@ export default function CampaignBoardPage() {
             setBoard((prev) => prev ? { ...prev, combatActive: true, boardState: bs } : prev);
             setShowStartCombat(false);
             setSidebarTab("party");
-            setShowInitiativeModal(false);
+            setShowInitiativeModal(false); setNotifyPendingKeys([]);
           }}
           onClose={() => setShowStartCombat(false)}
         />
