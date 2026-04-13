@@ -398,7 +398,7 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
 
         <div className="p-5 flex-1 overflow-y-auto space-y-2">
           <div className="flex items-center justify-between mb-3">
-            <p className="font-sans text-xs text-ink-faded">Roll NPCs below. Use "Notify Players" to prompt players to roll. Use ✕ to exclude a combatant.</p>
+            <p className="font-sans text-xs text-ink-faded">Roll NPCs below. Use &quot;Notify Players&quot; to prompt players to roll. Use ✕ to exclude a combatant.</p>
             <button onClick={rollAllNPCs}
               className="font-sans font-semibold text-xs text-white bg-ink border border-ink rounded p-1.5 hover:bg-ink/80 transition-all flex items-center gap-1 shrink-0 ml-2">
               🎲 Roll all NPCs
@@ -740,6 +740,7 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
       body: JSON.stringify({
         sessionId:   combatSessionId,
         actorId:     character.id,
+        targetKey:   selectedTarget?.key ?? null,
         actionType:  action.type,
         actionSlot:  action.slot,
         description: desc,
@@ -1116,14 +1117,16 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
   const dragPosRef   = useRef<{ col: number; row: number } | null>(null);
   const panningRef   = useRef(false);
   const panStartRef  = useRef({ x: 0, y: 0 });
-  const originRef    = useRef<{ col: number; row: number } | null>(null);
-  const lastPosRef   = useRef<{ col: number; row: number } | null>(null);
+  const originRef       = useRef<{ col: number; row: number } | null>(null);
+  const lastPosRef      = useRef<{ col: number; row: number } | null>(null);
+  const movementLeftRef = useRef(movementLeft);
+  const isMyTurnRef     = useRef(isMyTurn);
+  const combatActiveRef = useRef(combatActive);
 
-  // Reset movement origin when turn changes
-  useEffect(() => {
-    originRef.current  = null;
-    lastPosRef.current = null;
-  }, [turnResetKey]);
+  // Keep refs in sync with props so draw() always sees current values
+  useEffect(() => { movementLeftRef.current = movementLeft; }, [movementLeft]);
+  useEffect(() => { isMyTurnRef.current = isMyTurn; }, [isMyTurn]);
+  useEffect(() => { combatActiveRef.current = combatActive; }, [combatActive]);
 
   const boardState = useMemo(
     (): BoardState => (board.boardState as BoardState | null) ?? { tokens: {} },
@@ -1153,7 +1156,20 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
     return tokens;
   }, [boardState, characters, npcs, currentUserId, isDM, currentTurnKey, combatActive, isMyTurn, selectedTargetKey]);
 
-  const tokensRef = useRef<Token[]>([]);
+  const tokens = useMemo(() => buildTokens(), [buildTokens]);
+
+  // Reset movement origin when turn changes — seed from current token position
+  useEffect(() => {
+    if (isMyTurn) {
+      // Find the player's token current position to set as origin immediately
+      const myToken = tokens.find((t) => t.isCurrentUser);
+      originRef.current  = myToken ? { col: myToken.col, row: myToken.row } : null;
+      lastPosRef.current = originRef.current ? { ...originRef.current } : null;
+    } else {
+      originRef.current  = null;
+      lastPosRef.current = null;
+    }
+  }, [turnResetKey, isMyTurn, tokens]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -1175,14 +1191,13 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
     ctx.strokeStyle = "rgba(100,90,80,0.18)"; ctx.lineWidth = 0.5;
     for (let c = 0; c <= cols; c++) { ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, rows * CELL); ctx.stroke(); }
     for (let r = 0; r <= rows; r++) { ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(cols * CELL, r * CELL); ctx.stroke(); }
-    // Draw movement range highlight when it's the player's turn
-    if (combatActive && isMyTurn && originRef.current && movementLeft > 0) {
-      const maxCells = Math.floor(movementLeft / 5);
+    // Draw movement range highlight — use refs so draw always has current values
+    if (combatActiveRef.current && isMyTurnRef.current && originRef.current && movementLeftRef.current > 0) {
+      const maxCells = Math.floor(movementLeftRef.current / 5);
       const { col: oc, row: or_ } = originRef.current;
-      ctx.fillStyle = "rgba(106, 193, 138, 0.15)"; // sage green, semi-transparent
-      ctx.strokeStyle = "rgba(106, 193, 138, 0.4)";
-      ctx.lineWidth = 0.5;
-      // Draw reachable cells using manhattan distance from origin
+      ctx.fillStyle   = "rgba(106, 193, 138, 0.18)";
+      ctx.strokeStyle = "rgba(106, 193, 138, 0.5)";
+      ctx.lineWidth   = 0.5;
       for (let dc = -maxCells; dc <= maxCells; dc++) {
         for (let dr = -maxCells; dr <= maxCells; dr++) {
           if (Math.abs(dc) + Math.abs(dr) <= maxCells) {
@@ -1197,7 +1212,7 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
       }
     }
 
-    tokensRef.current.forEach((t) => {
+    tokens.forEach((t) => {
       const isDragging = draggingRef.current?.key === t.key;
       const col = isDragging && dragPosRef.current ? dragPosRef.current.col : t.col;
       const row = isDragging && dragPosRef.current ? dragPosRef.current.row : t.row;
@@ -1235,9 +1250,11 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
       ctx.fillText(t.label.length > 10 ? t.label.slice(0, 9) + "…" : t.label, cx, cy + r + 3);
     });
     ctx.restore();
-  }, [combatActive, isMyTurn, movementLeft]);
+  }, [tokens]);
 
-  useEffect(() => { tokensRef.current = buildTokens(); draw(); }, [buildTokens, draw]);
+  useEffect(() => { draw(); }, [draw]);
+  // Redraw when movementLeft changes so highlight updates immediately
+  useEffect(() => { draw(); }, [movementLeft, draw]);
 
   useEffect(() => {
     if (!board.activeMap) { mapImgRef.current = null; mapLoadedRef.current = false; draw(); return; }
@@ -1267,8 +1284,8 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
   }
 
   function hitToken(wx: number, wy: number): Token | null {
-    for (let i = tokensRef.current.length - 1; i >= 0; i--) {
-      const t = tokensRef.current[i];
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      const t = tokens[i];
       const cx = t.col * CELL + CELL / 2; const cy = t.row * CELL + CELL / 2;
       if (Math.hypot(wx - cx, wy - cy) <= CELL * 0.38) return t;
     }
@@ -1285,9 +1302,9 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
     const token = hitToken(wx, wy);
     if (token) {
       if (token.canDrag) {
-        // Set origin on first drag of turn
+        // Set origin on first move of the turn
         if (!originRef.current) {
-          originRef.current = { col: token.col, row: token.row };
+          originRef.current  = { col: token.col, row: token.row };
           lastPosRef.current = { col: token.col, row: token.row };
         }
         draggingRef.current = { key: token.key, origCol: token.col, origRow: token.row };
@@ -1320,16 +1337,38 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
     if (draggingRef.current && dragPosRef.current) {
       const { key } = draggingRef.current;
       const { col, row } = dragPosRef.current;
-      const token = tokensRef.current.find((t) => t.key === key);
+      const token = tokens.find((t) => t.key === key);
 
-      // Movement cost: manhattan distance from last position × 5ft per cell
-      if (combatActive && isMyTurn && token?.isCurrentUser && lastPosRef.current) {
-        const ftUsed = (Math.abs(col - lastPosRef.current.col) + Math.abs(row - lastPosRef.current.row)) * 5;
-        if (ftUsed > 0) onMovementUsed(ftUsed);
+      // Enforce movement bounds — snap back if out of range
+      if (combatActive && isMyTurn && token?.isCurrentUser) {
+        if (originRef.current) {
+          const distFromOrigin = (Math.abs(col - originRef.current.col) + Math.abs(row - originRef.current.row)) * 5;
+          const maxRange = movementLeftRef.current + (lastPosRef.current
+            ? (Math.abs(lastPosRef.current.col - originRef.current.col) + Math.abs(lastPosRef.current.row - originRef.current.row)) * 5
+            : 0);
+          // If destination is farther from origin than movement allows, snap back
+          if (distFromOrigin > maxRange / 5 * 5) {
+            // Snap to last valid position
+            const snapPos = lastPosRef.current ?? originRef.current;
+            if (token) { token.col = snapPos.col; token.row = snapPos.row; }
+            draggingRef.current = null; dragPosRef.current = null; draw();
+            return;
+          }
+        }
+        if (lastPosRef.current) {
+          const stepCost = (Math.abs(col - lastPosRef.current.col) + Math.abs(row - lastPosRef.current.row)) * 5;
+          if (stepCost > movementLeftRef.current) {
+            // Out of movement — snap back
+            const snapPos = lastPosRef.current;
+            if (token) { token.col = snapPos.col; token.row = snapPos.row; }
+            draggingRef.current = null; dragPosRef.current = null; draw();
+            return;
+          }
+          if (stepCost > 0) onMovementUsed(stepCost);
+        }
         lastPosRef.current = { col, row };
       }
 
-      if (token) { token.col = col; token.row = row; }
       const newTokens = { ...(boardState.tokens ?? {}), [key]: { col, row } };
       const newState: BoardState = { ...boardState, tokens: newTokens };
       draggingRef.current = null; dragPosRef.current = null; draw();
@@ -1603,7 +1642,8 @@ export default function CampaignBoardPage() {
     if (isDM || notifyPendingKeys.length === 0) return;
     const myC = characters.find((c) => c.user.id === currentUser?.id);
     if (myC && notifyPendingKeys.includes(`char_${myC.id}`)) {
-      setShowInitiativeModal(true);
+      const timer = window.setTimeout(() => setShowInitiativeModal(true), 0);
+      return () => window.clearTimeout(timer);
     }
   }, [notifyPendingKeys, characters, currentUser, isDM]);
 
@@ -1639,7 +1679,17 @@ export default function CampaignBoardPage() {
       });
     }
 
-    channel.bind(PUSHER_EVENTS.BOARD_UPDATED,     (data: { board: Board })          => { setBoard(data.board); });
+    channel.bind(PUSHER_EVENTS.BOARD_UPDATED, (data: { board: Board }) => { setBoard(data.board); });
+    channel.bind(PUSHER_EVENTS.ACTION_TAKEN, () => {
+      // Re-fetch characters and NPCs so HP bars update immediately
+      Promise.all([
+        fetch(`/api/campaigns/${campaignId}/board`).then((r) => r.ok ? r.json() : null),
+        fetch(`/api/campaigns/${campaignId}/npcs`).then((r) => r.ok ? r.json() : null),
+      ]).then(([boardData, npcsData]) => {
+        if (boardData) setCharacters(boardData.characters);
+        if (npcsData)  setNpcs(npcsData);
+      }).catch(() => {});
+    });
     channel.bind(PUSHER_EVENTS.COMBAT_STARTED, (data: { board: Board }) => {
       setBoard(data.board);
       setShowInitiativeModal(false);
@@ -1649,10 +1699,19 @@ export default function CampaignBoardPage() {
     channel.bind(PUSHER_EVENTS.TURN_ADVANCED,     (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
     channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState; characterId?: string; total?: number }) => {
       applyBoardState(data.boardState);
-      // Update DM's modal with the player's roll
       if (data.characterId && data.total !== undefined) {
         setExternalRolls((prev) => ({ ...prev, [`char_${data.characterId}`]: data.total! }));
       }
+    });
+    channel.bind(PUSHER_EVENTS.ACTION_TAKEN, () => {
+      // Refresh characters and NPCs so HP bars update after damage
+      Promise.all([
+        fetch(`/api/campaigns/${campaignId}/board`).then((r) => r.ok ? r.json() : null),
+        fetch(`/api/campaigns/${campaignId}/npcs`).then((r) => r.ok ? r.json() : null),
+      ]).then(([boardData, npcsData]) => {
+        if (boardData) setCharacters(boardData.characters);
+        if (npcsData)  setNpcs(npcsData);
+      }).catch(() => {});
     });
     channel.bind(PUSHER_EVENTS.INITIATIVE_NOTIFY, (data: { pendingKeys: string[] }) => {
       if (isDMRef.current) return;
@@ -1678,27 +1737,31 @@ export default function CampaignBoardPage() {
   }
 
   async function handleEndTurn() {
+    setMovementLeft(0);
+    setSelectedTargetKey(null);
+    setTurnResetKey((k) => k + 1);
     const res  = await fetch(`/api/campaigns/${campaignId}/combat/turn`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "next_turn" }),
     });
+    if (!res.ok) return;
     const data = await res.json();
     if (data.boardState) {
-      // Use same deep merge as applyBoardState so currentTurnIndex updates locally
       setBoard((prev) => {
         if (!prev) return prev;
-        const prevState = prev.boardState ?? { tokens: {} };
-        const merged: BoardState = {
-          ...prevState,
-          ...data.boardState,
-          tokens: { ...(prevState.tokens ?? {}), ...(data.boardState.tokens ?? {}) },
-          initiativeOrder: data.boardState.initiativeOrder ?? prevState.initiativeOrder,
+        const prevState = (prev.boardState ?? { tokens: {} }) as BoardState;
+        return {
+          ...prev,
+          boardState: {
+            ...prevState,
+            ...data.boardState,
+            tokens:           { ...(prevState.tokens ?? {}), ...(data.boardState.tokens ?? {}) },
+            initiativeOrder:  data.boardState.initiativeOrder ?? prevState.initiativeOrder,
+            currentTurnIndex: data.boardState.currentTurnIndex,
+          },
         };
-        return { ...prev, boardState: merged };
       });
     }
-    setMovementLeft(0);
-    setSelectedTargetKey(null);
   }
 
   async function handleNextTurn() {
@@ -1756,16 +1819,22 @@ export default function CampaignBoardPage() {
   useEffect(() => {
     if (currentTurnIndex !== prevTurnIndexRef.current) {
       prevTurnIndexRef.current = currentTurnIndex;
-      setMovementLeft(isMyTurn && myChar ? myChar.speed : 0);
-      setSelectedTargetKey(null);
-      setSelectedTargetName(null);
-      setTurnResetKey((k) => k + 1);
+      const timer = window.setTimeout(() => {
+        setMovementLeft(isMyTurn && myChar ? myChar.speed : 0);
+        setSelectedTargetKey(null);
+        setSelectedTargetName(null);
+        setTurnResetKey((k) => k + 1);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [currentTurnIndex, isMyTurn, myChar]);
 
   // Set movement on combat start
   useEffect(() => {
-    if (combatActive && isMyTurn && myChar) setMovementLeft(myChar.speed);
+    if (combatActive && isMyTurn && myChar) {
+      const timer = window.setTimeout(() => setMovementLeft(myChar.speed), 0);
+      return () => window.clearTimeout(timer);
+    }
   }, [combatActive, isMyTurn, myChar]);
 
   if (error) return (

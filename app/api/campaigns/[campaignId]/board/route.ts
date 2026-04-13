@@ -6,7 +6,7 @@ import { pusherServer, campaignChannel, PUSHER_EVENTS } from "@/lib/pusher-serve
 
 export async function GET(
   _req: NextRequest,
-  context: { params: Promise<{ campaignId: string }> },
+  context: { params: Promise<{ campaignId: string }> }
 ) {
   try {
     const { campaignId } = await context.params;
@@ -15,26 +15,26 @@ export async function GET(
 
     // Verify membership
     const member = await prisma.campaignMember.findUnique({
-      where: { campaignId_userId: { campaignId, userId: session.user.id } },
+      where: { campaignId_userId: { campaignId: campaignId, userId: session.user.id } },
     });
     if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     // Fetch or create board
     let board = await prisma.campaignBoard.findUnique({
-      where: { campaignId },
+      where: { campaignId: campaignId },
       include: { activeMap: true },
     });
 
     if (!board) {
       board = await prisma.campaignBoard.create({
-        data: { campaignId },
+        data: { campaignId: campaignId },
         include: { activeMap: true },
       });
     }
 
     // Fetch active characters with full stats
     const characters = await prisma.character.findMany({
-      where: { campaignId, isActive: true },
+      where: { campaignId: campaignId, isActive: true },
       select: {
         id: true,
         name: true,
@@ -58,7 +58,7 @@ export async function GET(
 
     // Fetch campaign assets for map picker (DM only — safe to include, UI controls visibility)
     const assets = await prisma.campaignAsset.findMany({
-      where: { campaignId, type: "MAP" },
+      where: { campaignId: campaignId, type: "MAP" },
       select: { id: true, name: true, url: true },
       orderBy: { createdAt: "desc" },
     });
@@ -72,7 +72,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  context: { params: Promise<{ campaignId: string }> },
+  context: { params: Promise<{ campaignId: string }> }
 ) {
   try {
     const { campaignId } = await context.params;
@@ -80,7 +80,7 @@ export async function PATCH(
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const member = await prisma.campaignMember.findUnique({
-      where: { campaignId_userId: { campaignId, userId: session.user.id } },
+      where: { campaignId_userId: { campaignId: campaignId, userId: session.user.id } },
     });
     if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -96,7 +96,7 @@ export async function PATCH(
     let mergedBoardState = boardState;
     if (boardState !== undefined) {
       const existing = await prisma.campaignBoard.findUnique({
-        where: { campaignId },
+        where: { campaignId: campaignId },
         select: { boardState: true },
       });
       const existingState = (existing?.boardState as Record<string, unknown> | null) ?? {};
@@ -104,8 +104,8 @@ export async function PATCH(
     }
 
     const board = await prisma.campaignBoard.upsert({
-      where: { campaignId },
-      create: { campaignId, activeMapId, boardState: mergedBoardState, combatActive },
+      where: { campaignId: campaignId },
+      create: { campaignId: campaignId, activeMapId, boardState: mergedBoardState, combatActive },
       update: {
         ...(activeMapId    !== undefined && { activeMapId }),
         ...(boardState     !== undefined && { boardState: mergedBoardState }),

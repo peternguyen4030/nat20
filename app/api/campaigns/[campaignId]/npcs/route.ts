@@ -14,12 +14,12 @@ export async function GET(
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const member = await prisma.campaignMember.findUnique({
-      where: { campaignId_userId: { campaignId, userId: session.user.id } },
+      where: { campaignId_userId: { campaignId: campaignId, userId: session.user.id } },
     });
     if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const npcs = await prisma.nPC.findMany({
-      where: { campaignId },
+      where: { campaignId: campaignId },
       orderBy: { createdAt: "asc" },
     });
 
@@ -41,7 +41,7 @@ export async function POST(
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const member = await prisma.campaignMember.findUnique({
-      where: { campaignId_userId: { campaignId, userId: session.user.id } },
+      where: { campaignId_userId: { campaignId: campaignId, userId: session.user.id } },
     });
     if (!member || member.role !== "DM") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -54,7 +54,7 @@ export async function POST(
 
     const npc = await prisma.nPC.create({
       data: {
-        campaignId,
+        campaignId:        campaignId,
         name:              name.trim(),
         maxHp:             Number(maxHp),
         currentHp:         Number(maxHp),
