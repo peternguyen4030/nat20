@@ -545,6 +545,82 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
   );
 }
 
+
+// ── Initiative Roll Modal ─────────────────────────────────────────────────────
+
+function InitiativeRollModal({ character, campaignId, onClose }: {
+  character: Character; campaignId: string; onClose: () => void;
+}) {
+  const [submitted, setSubmitted] = useState(false);
+  const [total,     setTotal]     = useState<number | null>(null);
+  const [error,     setError]     = useState<string | null>(null);
+
+  async function submit(t: number) {
+    setTotal(t);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/combat/initiative`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ characterId: character.id, total: t, modifier: character.initiative }),
+      });
+      if (!res.ok) throw new Error("Failed to submit");
+      setSubmitted(true);
+    } catch {
+      setError("Failed to submit. Try again.");
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-warm-white border-2 border-gold rounded-sketch shadow-[4px_4px_0_#C1A86A]">
+        <div className="p-5 border-b border-sketch flex items-center justify-between">
+          <h2 className="font-display text-2xl text-ink">🎲 Roll Initiative!</h2>
+          {submitted && (
+            <button onClick={onClose} className="w-8 h-8 rounded-input border-2 border-sketch bg-parchment text-ink-faded hover:border-blush transition-all flex items-center justify-center text-sm">✕</button>
+          )}
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <Avatar src={character.avatarUrl} size={44} className="border-2 border-sketch" />
+            <div>
+              <p className="font-display text-lg text-ink">{character.name}</p>
+              <p className="font-sans text-xs text-ink-faded">
+                Initiative modifier: {character.initiative >= 0 ? "+" : ""}{character.initiative}
+              </p>
+            </div>
+          </div>
+
+          {submitted ? (
+            <div className="bg-sage/10 border border-sage/30 rounded-sketch p-4 text-center space-y-1">
+              <p className="font-display text-3xl text-sage">{total}</p>
+              <p className="font-sans text-sm font-semibold text-sage">Initiative submitted!</p>
+              <p className="font-sans text-xs text-ink-faded">Waiting for the DM to begin combat...</p>
+              <button onClick={onClose} className="mt-2 font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper transition-all shadow-sketch">
+                Dismiss
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="font-sans text-sm text-ink-faded">
+                The Dungeon Master has called for initiative. Roll your d20 and your result will be added to the initiative order.
+              </p>
+              {error && <p className="font-sans text-xs text-blush">✗ {error}</p>}
+              <div className="bg-gold/10 border border-gold/30 rounded-sketch p-4">
+                <DiceRoller
+                  sides={20}
+                  modifier={character.initiative}
+                  label="Roll d20 + initiative modifier"
+                  onRoll={(t) => submit(t)}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Initiative Roll Prompt ────────────────────────────────────────────────────
 
 function InitiativeRollPrompt({ character, campaignId }: { character: Character; campaignId: string }) {
@@ -1136,7 +1212,7 @@ export default function CampaignBoardPage() {
   const [error,           setError]           = useState<string | null>(null);
   const [sidebarTab,      setSidebarTab]      = useState<"party" | "log">("party");
   const [showStartCombat, setShowStartCombat] = useState(false);
-  const [pendingRollKeys, setPendingRollKeys] = useState<string[]>([]);
+  const [showInitiativeModal, setShowInitiativeModal] = useState(false);
 
   const loadData = useCallback(async () => {
     const [sessionRes, boardRes, campaignRes, npcsRes] = await Promise.all([
@@ -1206,7 +1282,7 @@ export default function CampaignBoardPage() {
     channel.bind(PUSHER_EVENTS.COMBAT_ENDED,      (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
     channel.bind(PUSHER_EVENTS.TURN_ADVANCED,     (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
     channel.bind(PUSHER_EVENTS.INITIATIVE_ROLLED, (data: { boardState: BoardState }) => { applyBoardState(data.boardState); });
-    channel.bind(PUSHER_EVENTS.INITIATIVE_NOTIFY, (data: { pendingKeys: string[] })  => { setPendingRollKeys(data.pendingKeys); });
+    channel.bind(PUSHER_EVENTS.INITIATIVE_NOTIFY, () => { setShowInitiativeModal(true); });
 
     return () => {
       channel.unbind_all();
@@ -1342,11 +1418,6 @@ export default function CampaignBoardPage() {
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {sidebarTab === "party" && (
               <>
-                {/* Pre-combat initiative prompt (DM sent notify, combat not started yet) */}
-                {!combatActive && myCharKey && pendingRollKeys.includes(myCharKey) && myChar && (
-                  <InitiativeRollPrompt character={myChar} campaignId={campaignId} />
-                )}
-
                 {/* Combat tracker */}
                 {combatActive && initiativeOrder.length > 0 && (
                   <InitiativeTracker
@@ -1429,6 +1500,14 @@ export default function CampaignBoardPage() {
         </div>
       </div>
 
+      {showInitiativeModal && myChar && (
+        <InitiativeRollModal
+          character={myChar}
+          campaignId={campaignId}
+          onClose={() => setShowInitiativeModal(false)}
+        />
+      )}
+
       {showStartCombat && (
         <StartCombatModal
           characters={characters} npcs={npcs} campaignId={campaignId}
@@ -1436,7 +1515,7 @@ export default function CampaignBoardPage() {
             setBoard((prev) => prev ? { ...prev, combatActive: true, boardState: bs } : prev);
             setShowStartCombat(false);
             setSidebarTab("party");
-            setPendingRollKeys([]);
+            setShowInitiativeModal(false);
           }}
           onClose={() => setShowStartCombat(false)}
         />
