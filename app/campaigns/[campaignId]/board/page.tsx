@@ -398,7 +398,7 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
 
         <div className="p-5 flex-1 overflow-y-auto space-y-2">
           <div className="flex items-center justify-between mb-3">
-            <p className="font-sans text-xs text-ink-faded">Roll NPCs below. Use &quot;Notify Players&quot; to prompt players to roll. Use ✕ to exclude a combatant.</p>
+            <p className="font-sans text-xs text-ink-faded">Roll NPCs below. Use "Notify Players" to prompt players to roll. Use ✕ to exclude a combatant.</p>
             <button onClick={rollAllNPCs}
               className="font-sans font-semibold text-xs text-white bg-ink border border-ink rounded p-1.5 hover:bg-ink/80 transition-all flex items-center gap-1 shrink-0 ml-2">
               🎲 Roll all NPCs
@@ -496,9 +496,9 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
 
 // ── Initiative Tracker ────────────────────────────────────────────────────────
 
-function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, characters, campaignId, combatSessionId, onNextTurn, onEndCombat, onActionUsed, movementLeft, selectedTargetKey, selectedTargetName, onEndTurn }: {
+function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, characters, npcs, campaignId, combatSessionId, onNextTurn, onEndCombat, onActionUsed, movementLeft, selectedTargetKey, selectedTargetName, onEndTurn }: {
   order: InitiativeEntry[]; currentIndex: number; round: number; isDM: boolean;
-  currentUserId: string; characters: Character[]; campaignId: string; combatSessionId: string | null;
+  currentUserId: string; characters: Character[]; npcs: NPC[]; campaignId: string; combatSessionId: string | null;
   onNextTurn: () => void; onEndCombat: () => void;
   onActionUsed: (slot: "action" | "bonus" | "reaction", actionName?: string) => void;
   movementLeft: number;
@@ -529,15 +529,31 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
       <div className="space-y-1">
         {order.map((entry, i) => {
           const isCurrent = i === currentIndex;
+          const char = characters.find((c) => `char_${c.id}` === entry.key);
+          const npc  = npcs.find((n) => `npc_${n.id}` === entry.key);
+          const currentHp = char?.currentHp ?? npc?.currentHp ?? null;
+          const maxHp     = char?.maxHp     ?? npc?.maxHp     ?? null;
+          const hpPct     = currentHp !== null && maxHp ? Math.min(100, Math.round((currentHp / maxHp) * 100)) : null;
+          const hpColor   = hpPct === null ? "bg-sketch" : hpPct > 60 ? "bg-sage" : hpPct > 30 ? "bg-gold" : "bg-blush";
           return (
-            <div key={entry.key} className={`flex items-center gap-2 p-2 rounded-sketch border transition-all ${isCurrent ? "border-gold bg-gold/10" : "border-sketch bg-parchment"}`}>
-              <span className="font-mono text-xs text-ink-faded w-4">{i + 1}.</span>
-              <span className="font-sans text-xs font-semibold text-ink flex-1 truncate">{entry.name}</span>
-              <span className={`font-mono text-xs font-bold ${entry.rolled ? "text-ink" : "text-ink-faded"}`}>
-                {entry.rolled ? entry.initiative : "?"}
-              </span>
-              {isCurrent && <span className="font-sans text-[0.5rem] font-bold uppercase text-gold border border-gold/40 rounded p-0.5">Turn</span>}
-              {!entry.rolled && <span className="font-sans text-[0.5rem] text-ink-faded italic">rolling</span>}
+            <div key={entry.key} className={`p-2 rounded-sketch border transition-all ${isCurrent ? "border-gold bg-gold/10" : "border-sketch bg-parchment"}`}>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-ink-faded w-4">{i + 1}.</span>
+                <span className="font-sans text-xs font-semibold text-ink flex-1 truncate">{entry.name}</span>
+                <span className={`font-mono text-xs font-bold ${entry.rolled ? "text-ink" : "text-ink-faded"}`}>
+                  {entry.rolled ? entry.initiative : "?"}
+                </span>
+                {isCurrent && <span className="font-sans text-[0.5rem] font-bold uppercase text-gold border border-gold/40 rounded p-0.5">Turn</span>}
+                {!entry.rolled && <span className="font-sans text-[0.5rem] text-ink-faded italic">rolling</span>}
+              </div>
+              {hpPct !== null && (
+                <div className="mt-1 flex items-center gap-1.5">
+                  <div className="flex-1 h-1 bg-warm-white border border-sketch/50 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${hpColor}`} style={{ width: `${hpPct}%` }} />
+                  </div>
+                  <span className="font-mono text-[0.5rem] text-ink-faded">{currentHp}/{maxHp}</span>
+                </div>
+              )}
             </div>
           );
         })}
@@ -549,11 +565,11 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
           character={myChar}
           entry={currentEntry}
           order={order}
+          characters={characters}
+          npcs={npcs}
           campaignId={campaignId}
           combatSessionId={combatSessionId}
           movementLeft={movementLeft}
-          selectedTargetKey={selectedTargetKey}
-          selectedTargetName={selectedTargetName}
           onActionUsed={(slot, actionName) => onActionUsed(slot, actionName)}
           onEndTurn={onEndTurn}
         />
@@ -645,94 +661,78 @@ function InitiativeRollModal({ character, campaignId, onClose }: {
   );
 }
 
-// ── Target Picker ────────────────────────────────────────────────────────────
-
-function TargetPicker({ order, currentKey, onSelect, selected }: {
-  order: InitiativeEntry[];
-  currentKey: string;
-  onSelect: (key: string, name: string) => void;
-  selected: string | null;
-}) {
-  const targets = order.filter((e) => e.key !== currentKey);
-  return (
-    <div>
-      <label className="block font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Target</label>
-      <select
-        value={selected ?? ""}
-        onChange={(e) => {
-          const entry = targets.find((t) => t.key === e.target.value);
-          if (entry) onSelect(entry.key, entry.name);
-        }}
-        className="w-full font-sans text-xs bg-parchment text-ink border-2 border-sketch rounded p-1.5 outline-none focus:border-blush transition-colors"
-      >
-        <option value="">— Select target —</option>
-        {targets.map((t) => (
-          <option key={t.key} value={t.key}>{t.name} (init: {t.initiative})</option>
-        ))}
-      </select>
-      {selected && <p className="font-sans text-[0.6rem] text-blush mt-0.5">🎯 {targets.find(t => t.key === selected)?.name}</p>}
-    </div>
-  );
-}
-
-// ── Action Roll Modal ─────────────────────────────────────────────────────────
+// ── Action Def ───────────────────────────────────────────────────────────────
 
 interface ActionDef {
-  name: string;
-  slot: "ACTION" | "BONUS_ACTION" | "REACTION";
-  type: string;
-  damageDice?: string;
-  damageType?: string;
-  toHit?: number;
+  name:           string;
+  slot:           "ACTION" | "BONUS_ACTION" | "REACTION";
+  type:           string;
+  damageDice?:    string;
+  damageType?:    string;
+  toHit?:         number;
   requiresTarget: boolean;
-  isSpell?: boolean;
-  spellLevel?: number;
+  isSpell?:       boolean;
+  spellLevel?:    number;
 }
 
-function ActionRollModal({ action, character, entry, order, campaignId, combatSessionId, onDone, onClose, selectedTargetKey, selectedTargetName }: {
+// ── Action Roll Panel (inline, no modal) ────────────────────────────────────────────────────────
+
+function ActionRollPanel({ action, character, order, characters, npcs, campaignId, combatSessionId, onDone, onClose }: {
   action: ActionDef;
   character: Character;
-  entry: InitiativeEntry;
   order: InitiativeEntry[];
+  characters: Character[];
+  npcs: NPC[];
   campaignId: string;
   combatSessionId: string;
   onDone: (slot: "action" | "bonus" | "reaction") => void;
   onClose: () => void;
-  selectedTargetKey?: string | null;
-  selectedTargetName?: string | null;
 }) {
-  const [target,     setTarget]     = useState<{ key: string; name: string } | null>(
-    // Pre-fill from canvas token click if available
-    action.requiresTarget && selectedTargetKey && selectedTargetName
-      ? { key: selectedTargetKey, name: selectedTargetName }
-      : null
-  );
+  const [targetKey,  setTargetKey]  = useState<string | null>(null);
   const [attackRoll, setAttackRoll] = useState<number | null>(null);
   const [damageRoll, setDamageRoll] = useState<number | null>(null);
   const [submitted,  setSubmitted]  = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [hitResult,  setHitResult]  = useState<"hit" | "miss" | null>(null);
 
-  const needsAttack = action.type === "ATTACK" || (action.toHit !== undefined);
+  const needsAttack = action.type === "ATTACK";
   const needsDamage = !!action.damageDice;
   const needsTarget = action.requiresTarget;
 
-  // Parse damage dice e.g. "2d6+3" -> sides=6, count=2, mod=3
+  // Build combined target list from initiative order, resolving names to AC
+  const targetOptions = order
+    .filter((e) => e.key !== `char_${character.id}`)
+    .map((e) => {
+      const char = characters.find((c) => `char_${c.id}` === e.key);
+      const npc  = npcs.find((n) => `npc_${n.id}` === e.key);
+      return { key: e.key, name: e.name, ac: char?.armorClass ?? npc?.armorClass ?? null };
+    });
+
+  const selectedTarget = targetOptions.find((t) => t.key === targetKey) ?? null;
+
   function parseDice(dice: string): { count: number; sides: number; mod: number } {
     const m = dice.match(/(\d+)d(\d+)([+-]\d+)?/);
     if (!m) return { count: 1, sides: 6, mod: 0 };
     return { count: parseInt(m[1]), sides: parseInt(m[2]), mod: parseInt(m[3] ?? "0") };
   }
 
-  const canSubmit = (!needsTarget || target) &&
+  function handleAttackRoll(total: number) {
+    setAttackRoll(total);
+    if (selectedTarget?.ac !== null && selectedTarget?.ac !== undefined) {
+      setHitResult(total >= selectedTarget.ac ? "hit" : "miss");
+    }
+  }
+
+  const canSubmit = (!needsTarget || targetKey) &&
                     (!needsAttack || attackRoll !== null) &&
-                    (!needsDamage || damageRoll !== null);
+                    (!needsDamage || damageRoll !== null || hitResult === "miss");
 
   const slotKey = action.slot === "ACTION" ? "action" : action.slot === "BONUS_ACTION" ? "bonus" : "reaction";
 
   async function handleSubmit() {
     setSubmitting(true);
-    const desc = target
-      ? `${character.name} used ${action.name} on ${target.name}`
+    const desc = selectedTarget
+      ? `${character.name} used ${action.name} on ${selectedTarget.name}${hitResult ? ` — ${hitResult}!` : ""}`
       : `${character.name} used ${action.name}`;
 
     await fetch(`/api/campaigns/${campaignId}/combat/action`, {
@@ -744,8 +744,8 @@ function ActionRollModal({ action, character, entry, order, campaignId, combatSe
         actionSlot:  action.slot,
         description: desc,
         attackRoll,
-        damageDealt: damageRoll,
-        notes:       target ? `Target: ${target.name}` : undefined,
+        damageDealt: hitResult === "miss" ? 0 : damageRoll,
+        notes:       selectedTarget ? `Target: ${selectedTarget.name} (AC ${selectedTarget.ac})` : undefined,
       }),
     });
     setSubmitted(true);
@@ -753,95 +753,82 @@ function ActionRollModal({ action, character, entry, order, campaignId, combatSe
     onDone(slotKey as "action" | "bonus" | "reaction");
   }
 
+  if (submitted) return (
+    <div className="bg-sage/10 border border-sage/30 rounded-sketch p-3 space-y-1">
+      <p className="font-sans text-xs font-bold text-sage">✓ {action.name} used!</p>
+      {hitResult && <p className="font-sans text-xs text-ink">Result: <span className={`font-bold ${hitResult === "hit" ? "text-sage" : "text-blush"}`}>{hitResult === "hit" ? "🎯 Hit!" : "💨 Miss"}</span></p>}
+      {damageRoll !== null && hitResult !== "miss" && <p className="font-sans text-xs text-ink">Damage: <span className="font-mono font-bold">{damageRoll}</span></p>}
+      <button onClick={onClose} className="font-sans text-xs text-ink-faded underline">Dismiss</button>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 bg-ink/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-sm bg-warm-white border-2 border-gold rounded-sketch shadow-[4px_4px_0_#C1A86A]">
-        <div className="flex items-center justify-between p-4 border-b border-sketch">
-          <div>
-            <h2 className="font-display text-xl text-ink">
-              {action.isSpell ? "🔮" : "⚔️"} {action.name}
-            </h2>
-            <p className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">
-              {action.slot.replace("_", " ")} · {action.isSpell ? `Level ${action.spellLevel ?? 0} Spell` : "Action"}
-            </p>
-          </div>
-          <button onClick={onClose} className="w-7 h-7 rounded border border-sketch text-ink-faded hover:border-blush transition-all flex items-center justify-center text-xs">✕</button>
+    <div className="bg-gold/5 border border-gold/40 rounded-sketch p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="font-sans text-xs font-bold text-ink">{action.isSpell ? "🔮" : "⚔️"} {action.name}</p>
+        <button onClick={onClose} className="font-sans text-xs text-ink-faded hover:text-blush">✕</button>
+      </div>
+
+      {/* Target selector */}
+      {needsTarget && (
+        <div>
+          <label className="block font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Target</label>
+          <select value={targetKey ?? ""} onChange={(e) => { setTargetKey(e.target.value || null); setAttackRoll(null); setHitResult(null); }}
+            className="w-full font-sans text-xs bg-parchment text-ink border-2 border-sketch rounded p-1.5 outline-none focus:border-blush">
+            <option value="">— Select target —</option>
+            {targetOptions.map((t) => (
+              <option key={t.key} value={t.key}>{t.name}{t.ac !== null ? ` (AC ${t.ac})` : ""}</option>
+            ))}
+          </select>
+          {selectedTarget && <p className="font-sans text-[0.55rem] text-ink-faded mt-0.5">🎯 {selectedTarget.name} · AC {selectedTarget.ac ?? "?"}</p>}
         </div>
+      )}
 
-        {submitted ? (
-          <div className="p-5 text-center space-y-2">
-            <p className="font-display text-2xl text-sage">✓ Action used!</p>
-            {attackRoll !== null && <p className="font-sans text-sm text-ink">Attack roll: <span className="font-mono font-bold">{attackRoll}</span></p>}
-            {damageRoll !== null && <p className="font-sans text-sm text-ink">Damage: <span className="font-mono font-bold">{damageRoll} {action.damageType}</span></p>}
-            {target && <p className="font-sans text-sm text-ink">Target: <span className="font-semibold">{target.name}</span></p>}
-            <button onClick={onClose} className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper transition-all mt-2">Close</button>
-          </div>
-        ) : (
-          <div className="p-4 space-y-4">
-            {/* Target */}
-            {needsTarget && (
-              <TargetPicker
-                order={order}
-                currentKey={`char_${character.id}`}
-                selected={target?.key ?? null}
-                onSelect={(key, name) => setTarget({ key, name })}
-              />
-            )}
+      {/* Attack roll */}
+      {needsAttack && (
+        <div>
+          <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded mb-1">
+            Attack Roll {action.toHit !== undefined ? `(+${action.toHit})` : ""}
+            {selectedTarget?.ac !== null && <span className="normal-case font-normal ml-1">· needs {selectedTarget?.ac ?? "?"} to hit</span>}
+          </p>
+          <DiceRoller sides={20} modifier={action.toHit ?? 0} label="Roll to hit" onRoll={(t) => handleAttackRoll(t)} />
+          {hitResult && (
+            <p className={`font-sans text-xs font-bold mt-1 ${hitResult === "hit" ? "text-sage" : "text-blush"}`}>
+              {hitResult === "hit" ? "🎯 Hit!" : "💨 Miss — no damage"}
+            </p>
+          )}
+        </div>
+      )}
 
-            {/* Attack roll */}
-            {needsAttack && (
-              <div>
-                <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">
-                  Attack Roll {action.toHit !== undefined ? `(+${action.toHit} to hit)` : ""}
-                </p>
-                <DiceRoller
-                  sides={20}
-                  modifier={action.toHit ?? 0}
-                  label="Roll to hit"
-                  onRoll={(t) => setAttackRoll(t)}
-                />
-              </div>
-            )}
+      {/* Damage roll — only if hit or no attack needed */}
+      {needsDamage && action.damageDice && hitResult !== "miss" && (
+        <div>
+          <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded mb-1">
+            Damage ({action.damageDice} {action.damageType ?? ""})
+          </p>
+          {(() => {
+            const { count, sides, mod } = parseDice(action.damageDice);
+            return (
+              <DiceRoller sides={sides} modifier={mod}
+                label={`Roll ${count}d${sides}${mod !== 0 ? (mod > 0 ? `+${mod}` : mod) : ""}`}
+                onRoll={(t) => setDamageRoll(t * count)} />
+            );
+          })()}
+        </div>
+      )}
 
-            {/* Damage roll */}
-            {needsDamage && action.damageDice && (
-              <div>
-                <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded mb-1.5">
-                  Damage ({action.damageDice} {action.damageType ?? ""})
-                </p>
-                {(() => {
-                  const { count, sides, mod } = parseDice(action.damageDice);
-                  return (
-                    <DiceRoller
-                      sides={sides}
-                      modifier={mod}
-                      label={`Roll ${count}d${sides}${mod !== 0 ? (mod > 0 ? `+${mod}` : mod) : ""}`}
-                      onRoll={(t) => setDamageRoll(t * count)}
-                    />
-                  );
-                })()}
-              </div>
-            )}
+      {!needsAttack && !needsDamage && !needsTarget && (
+        <p className="font-sans text-xs text-ink-faded italic">No rolls required.</p>
+      )}
 
-            {/* No rolls needed */}
-            {!needsAttack && !needsDamage && !needsTarget && (
-              <p className="font-sans text-sm text-ink-faded text-center py-2">No rolls required for this action.</p>
-            )}
-
-            <div className="flex gap-2 p-1 border-t border-sketch">
-              <button onClick={onClose} className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper transition-all flex-1 shadow-sketch">Cancel</button>
-              <button onClick={handleSubmit} disabled={!canSubmit || submitting}
-                className={`font-sans font-bold text-sm text-white rounded-sketch p-2 border-2 transition-all flex-1 flex items-center justify-center gap-1 ${
-                  canSubmit && !submitting
-                    ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
-                    : "bg-tan border-sketch opacity-50 cursor-not-allowed"
-                }`}>
-                {submitting ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Using...</> : "Use Action ✦"}
-              </button>
-            </div>
-          </div>
-        )}
+      <div className="flex gap-2">
+        <button onClick={onClose} className="font-sans text-xs text-ink-faded border border-sketch rounded p-1.5 hover:bg-parchment flex-1">Cancel</button>
+        <button onClick={handleSubmit} disabled={!canSubmit || submitting}
+          className={`font-sans font-bold text-xs text-white rounded p-1.5 border transition-all flex-1 flex items-center justify-center gap-1 ${
+            canSubmit && !submitting ? "bg-blush border-blush hover:-translate-x-px hover:-translate-y-px" : "bg-tan border-sketch opacity-50 cursor-not-allowed"
+          }`}>
+          {submitting ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> ...</> : "Confirm ✦"}
+        </button>
       </div>
     </div>
   );
@@ -849,28 +836,27 @@ function ActionRollModal({ action, character, entry, order, campaignId, combatSe
 
 // ── Player Action Panel ───────────────────────────────────────────────────────
 
-function PlayerActionPanel({ character, entry, order, campaignId, combatSessionId, movementLeft, onActionUsed, onEndTurn, selectedTargetKey, selectedTargetName }: {
+function PlayerActionPanel({ character, entry, order, characters, npcs, campaignId, combatSessionId, movementLeft, onActionUsed, onEndTurn }: {
   character: Character;
   entry: InitiativeEntry;
   order: InitiativeEntry[];
+  characters: Character[];
+  npcs: NPC[];
   campaignId: string;
   combatSessionId: string;
   movementLeft: number;
   onActionUsed: (slot: "action" | "bonus" | "reaction", actionName?: string) => void;
   onEndTurn: () => void;
-  selectedTargetKey?: string | null;
-  selectedTargetName?: string | null;
 }) {
   const [activeAction, setActiveAction] = useState<ActionDef | null>(null);
 
-  // Build action definitions
   const standardActions: ActionDef[] = [
-    { name: "Attack",      slot: "ACTION", type: "ATTACK",  requiresTarget: true,  damageDice: "1d6", damageType: "bludgeoning", toHit: 0 },
-    { name: "Dash",        slot: "ACTION", type: "DASH",    requiresTarget: false },
-    { name: "Dodge",       slot: "ACTION", type: "DODGE",   requiresTarget: false },
-    { name: "Help",        slot: "ACTION", type: "HELP",    requiresTarget: true },
-    { name: "Disengage",   slot: "ACTION", type: "OTHER",   requiresTarget: false },
-    { name: "Hide",        slot: "ACTION", type: "OTHER",   requiresTarget: false },
+    { name: "Attack",    slot: "ACTION", type: "ATTACK", requiresTarget: true,  damageDice: "1d6", damageType: "bludgeoning", toHit: 0 },
+    { name: "Dash",      slot: "ACTION", type: "DASH",   requiresTarget: false },
+    { name: "Dodge",     slot: "ACTION", type: "DODGE",  requiresTarget: false },
+    { name: "Help",      slot: "ACTION", type: "HELP",   requiresTarget: true },
+    { name: "Disengage", slot: "ACTION", type: "OTHER",  requiresTarget: false },
+    { name: "Hide",      slot: "ACTION", type: "OTHER",  requiresTarget: false },
   ];
 
   const featureActions: ActionDef[] = character.features
@@ -882,19 +868,17 @@ function PlayerActionPanel({ character, entry, order, campaignId, combatSessionI
       requiresTarget: false,
     }));
 
-  const spellActions: ActionDef[] = character.spells.map((s) => ({
-    name:           s.spell.name,
-    slot:           s.spell.castingTime?.toLowerCase().includes("bonus") ? "BONUS_ACTION" : "ACTION",
-    type:           "CAST",
-    requiresTarget: true,
-    isSpell:        true,
-    spellLevel:     s.spell.level,
+  // Separate cantrips from leveled spells
+  const cantrips:      ActionDef[] = character.spells.filter((s) => s.spell.level === 0).map((s) => ({
+    name: s.spell.name, slot: s.spell.castingTime?.toLowerCase().includes("bonus") ? "BONUS_ACTION" : "ACTION",
+    type: "CAST", requiresTarget: true, isSpell: true, spellLevel: 0,
+  }));
+  const leveledSpells: ActionDef[] = character.spells.filter((s) => s.spell.level > 0).map((s) => ({
+    name: s.spell.name, slot: s.spell.castingTime?.toLowerCase().includes("bonus") ? "BONUS_ACTION" : "ACTION",
+    type: "CAST", requiresTarget: true, isSpell: true, spellLevel: s.spell.level,
   }));
 
-  const bonusStandard: ActionDef[] = [
-    { name: "Off-hand Attack", slot: "BONUS_ACTION", type: "ATTACK", requiresTarget: true, damageDice: "1d6", damageType: "bludgeoning", toHit: 0 },
-  ];
-
+  const bonusStandard:    ActionDef[] = [{ name: "Off-hand Attack", slot: "BONUS_ACTION", type: "ATTACK", requiresTarget: true, damageDice: "1d6", damageType: "bludgeoning", toHit: 0 }];
   const reactionStandard: ActionDef[] = [
     { name: "Opportunity Attack", slot: "REACTION", type: "ATTACK", requiresTarget: true, damageDice: "1d6", damageType: "bludgeoning", toHit: 0 },
     { name: "Dodge (Reaction)",   slot: "REACTION", type: "DODGE",  requiresTarget: false },
@@ -902,112 +886,136 @@ function PlayerActionPanel({ character, entry, order, campaignId, combatSessionI
 
   const SLOT_CONFIG = [
     {
-      key:      "action" as const,
-      apiSlot:  "ACTION" as const,
-      label:    "Action",
-      used:     entry.actionUsed,
-      actions:  [...standardActions, ...featureActions.filter(f => f.slot === "ACTION"), ...spellActions.filter(s => s.slot === "ACTION")],
+      key: "action" as const, label: "Action", used: entry.actionUsed,
+      actions: [...standardActions, ...featureActions.filter(f => f.slot === "ACTION")],
+      cantrips: cantrips.filter(s => s.slot === "ACTION"),
+      spells:   leveledSpells.filter(s => s.slot === "ACTION"),
     },
     {
-      key:      "bonus" as const,
-      apiSlot:  "BONUS_ACTION" as const,
-      label:    "Bonus Action",
-      used:     entry.bonusActionUsed,
-      actions:  [...bonusStandard, ...featureActions.filter(f => f.slot === "BONUS_ACTION"), ...spellActions.filter(s => s.slot === "BONUS_ACTION")],
+      key: "bonus" as const, label: "Bonus Action", used: entry.bonusActionUsed,
+      actions: [...bonusStandard, ...featureActions.filter(f => f.slot === "BONUS_ACTION")],
+      cantrips: cantrips.filter(s => s.slot === "BONUS_ACTION"),
+      spells:   leveledSpells.filter(s => s.slot === "BONUS_ACTION"),
     },
     {
-      key:      "reaction" as const,
-      apiSlot:  "REACTION" as const,
-      label:    "Reaction",
-      used:     entry.reactionUsed,
-      actions:  [...reactionStandard, ...featureActions.filter(f => f.slot === "REACTION")],
+      key: "reaction" as const, label: "Reaction", used: entry.reactionUsed,
+      actions: [...reactionStandard, ...featureActions.filter(f => f.slot === "REACTION")],
+      cantrips: [], spells: [],
     },
   ];
 
   const ftColor = movementLeft > 20 ? "text-sage" : movementLeft > 0 ? "text-gold" : "text-blush";
+  const hpPct   = Math.min(100, Math.round((character.currentHp / character.maxHp) * 100));
+  const hpColor = hpPct > 60 ? "bg-sage" : hpPct > 30 ? "bg-gold" : "bg-blush";
+
+  function ActionButton({ a }: { a: ActionDef }) {
+    const icon = a.isSpell ? "🔮" : a.type === "ATTACK" ? "⚔️" : a.type === "DASH" ? "💨" : a.type === "DODGE" ? "🛡️" : "✨";
+    const isActive = activeAction?.name === a.name;
+    return (
+      <div className="relative group">
+        <button onClick={() => setActiveAction(isActive ? null : a)}
+          className={`w-full font-sans text-xs rounded p-1.5 border transition-all text-left truncate ${
+            isActive
+              ? a.isSpell ? "bg-dusty-blue/20 border-dusty-blue text-dusty-blue"
+                          : "bg-blush/10 border-blush text-blush"
+              : a.isSpell ? "text-dusty-blue bg-dusty-blue/5 border border-dusty-blue/30 hover:bg-dusty-blue/10"
+                          : "text-ink bg-parchment border border-sketch hover:bg-paper hover:border-blush/40"
+          }`}>
+          {icon} {a.name}
+        </button>
+        {/* Tooltip for overflow */}
+        <div className="absolute bottom-full left-0 mb-1 z-50 hidden group-hover:block pointer-events-none">
+          <div className="bg-ink text-warm-white font-sans text-[0.6rem] rounded p-1.5 whitespace-nowrap shadow-lg">
+            {icon} {a.name}{a.spellLevel !== undefined ? ` (${a.spellLevel === 0 ? "Cantrip" : `Lv ${a.spellLevel}`})` : ""}
+            {a.requiresTarget && " · Requires target"}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <div className="bg-gold/5 border-2 border-gold/40 rounded-sketch p-3 space-y-3">
-        <div className="flex items-center justify-between">
+    <div className="bg-gold/5 border-2 border-gold/40 rounded-sketch p-3 space-y-3">
+      {/* Header with HP and end turn */}
+      <div className="flex items-center justify-between">
+        <div>
           <p className="font-sans text-xs font-bold text-ink">Your Turn — {character.name}</p>
-          <button onClick={onEndTurn}
-            className="font-sans font-bold text-xs text-white bg-sage border border-sage rounded p-1.5 hover:bg-sage/80 transition-all">
-            End Turn →
-          </button>
-        </div>
-
-        {/* Movement counter */}
-        <div className="bg-parchment border border-sketch rounded p-2 flex items-center justify-between">
-          <div>
-            <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded">Movement</p>
-            <p className={`font-mono text-lg font-bold ${ftColor}`}>{movementLeft}ft</p>
-          </div>
-          <div className="text-right">
-            <p className="font-sans text-[0.55rem] text-ink-faded">of {character.speed}ft</p>
-            <p className="font-sans text-[0.55rem] text-ink-faded">5ft per cell</p>
-          </div>
-          <div className="h-8 w-8 rounded-full border-2 border-sketch flex items-center justify-center shrink-0">
-            <span className="text-lg">🦶</span>
-          </div>
-        </div>
-
-        {/* Action slots */}
-        {SLOT_CONFIG.map((slot) => (
-          <div key={slot.key}>
-            <div className="flex items-center gap-2 mb-1.5">
-              <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded flex-1">{slot.label}</p>
-              {slot.used && <span className="font-sans text-[0.55rem] font-bold text-blush border border-blush/30 rounded p-0.5">✓ Used</span>}
+          <div className="flex items-center gap-2 mt-0.5">
+            <div className="w-20 h-1.5 bg-parchment border border-sketch rounded-full overflow-hidden">
+              <div className={`h-full rounded-full ${hpColor}`} style={{ width: `${hpPct}%` }} />
             </div>
-            {slot.used ? (
-              <p className="font-sans text-xs text-ink-faded italic">Slot used this turn.</p>
-            ) : (
-              <div className="space-y-1">
-                {/* Standard / features */}
-                <div className="grid grid-cols-2 gap-1">
-                  {slot.actions.filter(a => !a.isSpell).map((a) => (
-                    <button key={a.name} onClick={() => setActiveAction(a)}
-                      className="font-sans text-xs text-ink bg-parchment border border-sketch rounded p-1.5 hover:bg-paper hover:border-blush/40 transition-all text-left truncate">
-                      {a.type === "ATTACK" ? "⚔️" : a.type === "DASH" ? "💨" : a.type === "DODGE" ? "🛡️" : "✨"} {a.name}
-                    </button>
-                  ))}
-                </div>
-                {/* Spells separately */}
-                {slot.actions.some(a => a.isSpell) && (
-                  <>
-                    <p className="font-sans text-[0.55rem] font-bold uppercase tracking-widest text-dusty-blue mt-1.5">Spells</p>
-                    <div className="grid grid-cols-2 gap-1">
-                      {slot.actions.filter(a => a.isSpell).map((a) => (
-                        <button key={a.name} onClick={() => setActiveAction(a)}
-                          className="font-sans text-xs text-dusty-blue bg-dusty-blue/5 border border-dusty-blue/30 rounded p-1.5 hover:bg-dusty-blue/10 transition-all text-left truncate">
-                          🔮 {a.name}
-                          {a.spellLevel === 0 && <span className="text-[0.5rem] ml-1 opacity-60">cantrip</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+            <span className="font-mono text-[0.6rem] text-ink-faded">{character.currentHp}/{character.maxHp} HP</span>
           </div>
-        ))}
+        </div>
+        <button onClick={onEndTurn}
+          className="font-sans font-bold text-xs text-white bg-sage border border-sage rounded p-1.5 hover:bg-sage/80 transition-all shrink-0">
+          End Turn →
+        </button>
       </div>
 
+      {/* Movement counter */}
+      <div className="bg-parchment border border-sketch rounded p-2 flex items-center justify-between">
+        <div>
+          <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded">Movement</p>
+          <p className={`font-mono text-lg font-bold leading-none ${ftColor}`}>{movementLeft}ft</p>
+        </div>
+        <div className="text-right">
+          <p className="font-sans text-[0.55rem] text-ink-faded">of {character.speed}ft</p>
+          <p className="font-sans text-[0.55rem] text-ink-faded">5ft per cell</p>
+        </div>
+        <span className="text-xl">🦶</span>
+      </div>
+
+      {/* Active action inline panel */}
       {activeAction && (
-        <ActionRollModal
+        <ActionRollPanel
           action={activeAction}
           character={character}
-          entry={entry}
           order={order}
+          characters={characters}
+          npcs={npcs}
           campaignId={campaignId}
           combatSessionId={combatSessionId}
-          selectedTargetKey={selectedTargetKey}
-          selectedTargetName={selectedTargetName}
           onDone={(slot) => { onActionUsed(slot, activeAction.name); setActiveAction(null); }}
           onClose={() => setActiveAction(null)}
         />
       )}
-    </>
+
+      {/* Action slots */}
+      {!activeAction && SLOT_CONFIG.map((slot) => (
+        <div key={slot.key}>
+          <div className="flex items-center gap-2 mb-1.5">
+            <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded flex-1">{slot.label}</p>
+            {slot.used && <span className="font-sans text-[0.55rem] font-bold text-blush border border-blush/30 rounded p-0.5">✓ Used</span>}
+          </div>
+          {slot.used ? (
+            <p className="font-sans text-xs text-ink-faded italic">Slot used this turn.</p>
+          ) : (
+            <div className="space-y-1">
+              <div className="grid grid-cols-2 gap-1">
+                {slot.actions.map((a) => <ActionButton key={a.name} a={a} />)}
+              </div>
+              {slot.cantrips.length > 0 && (
+                <>
+                  <p className="font-sans text-[0.55rem] font-bold uppercase tracking-widest text-dusty-blue/70 mt-1">Cantrips</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {slot.cantrips.map((a) => <ActionButton key={a.name} a={a} />)}
+                  </div>
+                </>
+              )}
+              {slot.spells.length > 0 && (
+                <>
+                  <p className="font-sans text-[0.55rem] font-bold uppercase tracking-widest text-dusty-blue mt-1">Spells</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {slot.spells.map((a) => <ActionButton key={a.name} a={a} />)}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1086,16 +1094,16 @@ interface Token {
   isTarget?: boolean;
 }
 
-function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId, onBoardUpdate, combatActive, isMyTurn, mySpeed, onMovement, selectedTargetKey, onTokenClick }: {
+function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId, onBoardUpdate, combatActive, isMyTurn, onMovement, selectedTargetKey, onTokenClick, turnResetKey }: {
   board: Board; characters: Character[]; npcs: NPC[];
   currentUserId: string; isDM: boolean; campaignId: string;
   onBoardUpdate: (s: BoardState) => void;
   combatActive: boolean;
   isMyTurn: boolean;
-  mySpeed: number;
   onMovement: (ftMoved: number) => void;
   selectedTargetKey: string | null;
   onTokenClick: (key: string, name: string) => void;
+  turnResetKey: number;
 }) {
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1107,8 +1115,14 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
   const dragPosRef   = useRef<{ col: number; row: number } | null>(null);
   const panningRef   = useRef(false);
   const panStartRef  = useRef({ x: 0, y: 0 });
-  const originRef    = useRef<{ col: number; row: number } | null>(null); // position at turn start
-  const lastPosRef   = useRef<{ col: number; row: number } | null>(null); // last known position
+  const originRef    = useRef<{ col: number; row: number } | null>(null);
+  const lastPosRef   = useRef<{ col: number; row: number } | null>(null);
+
+  // Reset movement origin when turn changes
+  useEffect(() => {
+    originRef.current  = null;
+    lastPosRef.current = null;
+  }, [turnResetKey]);
 
   const boardState = useMemo(
     (): BoardState => (board.boardState as BoardState | null) ?? { tokens: {} },
@@ -1287,15 +1301,19 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
 
       // Movement tracking for player tokens during combat on their turn
       if (combatActive && isMyTurn && token?.isCurrentUser && lastPosRef.current) {
-        const dist = (Math.abs(col - lastPosRef.current.col) + Math.abs(row - lastPosRef.current.row)) * 5;
-        // Check if moving further from origin or backtracking
+        // Cost is manhattan distance from last position (each cell = 5ft)
+        const stepCost = (Math.abs(col - lastPosRef.current.col) + Math.abs(row - lastPosRef.current.row)) * 5;
+        // Refund if moving back toward origin
         const oldDistFromOrigin = originRef.current
           ? (Math.abs(lastPosRef.current.col - originRef.current.col) + Math.abs(lastPosRef.current.row - originRef.current.row)) * 5
           : 0;
         const newDistFromOrigin = originRef.current
           ? (Math.abs(col - originRef.current.col) + Math.abs(row - originRef.current.row)) * 5
           : 0;
-        const ftChange = newDistFromOrigin - oldDistFromOrigin;
+        // If moving closer to origin, refund the difference; otherwise charge step cost
+        const ftChange = newDistFromOrigin < oldDistFromOrigin
+          ? -(oldDistFromOrigin - newDistFromOrigin)  // refund
+          : stepCost;                                  // charge
         onMovement(ftChange);
         lastPosRef.current = { col, row };
       }
@@ -1525,6 +1543,7 @@ export default function CampaignBoardPage() {
   const [showStartCombat, setShowStartCombat] = useState(false);
   const [showInitiativeModal, setShowInitiativeModal] = useState(false);
   const [movementLeft,       setMovementLeft]       = useState(0);
+  const [turnResetKey,       setTurnResetKey]       = useState(0);
   const [selectedTargetKey,  setSelectedTargetKey]  = useState<string | null>(null);
   const [selectedTargetName, setSelectedTargetName] = useState<string | null>(null);
   const [externalRolls,      setExternalRolls]      = useState<Record<string, number>>({});
@@ -1573,8 +1592,7 @@ export default function CampaignBoardPage() {
     if (isDM || notifyPendingKeys.length === 0) return;
     const myC = characters.find((c) => c.user.id === currentUser?.id);
     if (myC && notifyPendingKeys.includes(`char_${myC.id}`)) {
-      const timer = window.setTimeout(() => setShowInitiativeModal(true), 0);
-      return () => window.clearTimeout(timer);
+      setShowInitiativeModal(true);
     }
   }, [notifyPendingKeys, characters, currentUser, isDM]);
 
@@ -1710,15 +1728,16 @@ export default function CampaignBoardPage() {
   const myEntry  = myChar ? initiativeOrder.find((e) => e.key === `char_${myChar.id}`) : null;
   const isMyTurn = !isDM && !!myEntry && initiativeOrder[currentTurnIndex]?.key === `char_${myChar?.id}`;
 
-  // Reset movement and origin ref when turn changes
+  // Reset movement, origin, and target when turn changes
   const prevTurnIndexRef = useRef(currentTurnIndex);
   useEffect(() => {
     if (currentTurnIndex !== prevTurnIndexRef.current) {
       prevTurnIndexRef.current = currentTurnIndex;
       const timer = window.setTimeout(() => {
-        if (isMyTurn && myChar) setMovementLeft(myChar.speed);
+        setMovementLeft(isMyTurn && myChar ? myChar.speed : 0);
         setSelectedTargetKey(null);
         setSelectedTargetName(null);
+        setTurnResetKey((k) => k + 1);
       }, 0);
       return () => window.clearTimeout(timer);
     }
@@ -1780,7 +1799,7 @@ export default function CampaignBoardPage() {
       </nav>
 
       {/* Body */}
-      <div className="flex-1 flex overflow-hidden" style={{ height: "calc(100vh - 57px)" }}>
+      <div className="flex-1 flex overflow-hidden min-h-0" style={{ height: "calc(100vh - 57px)" }}>
 
         {/* Canvas */}
         <div className="flex-1 overflow-hidden relative">
@@ -1789,10 +1808,10 @@ export default function CampaignBoardPage() {
               currentUserId={currentUser?.id ?? ""} isDM={isDM}
               campaignId={campaignId} onBoardUpdate={handleBoardUpdate}
               combatActive={combatActive} isMyTurn={isMyTurn}
-              mySpeed={myChar?.speed ?? 30}
               onMovement={(ftChange) => setMovementLeft((prev) => Math.max(0, prev - ftChange))}
               selectedTargetKey={selectedTargetKey}
               onTokenClick={(key, name) => { setSelectedTargetKey(key); setSelectedTargetName(name); }}
+              turnResetKey={turnResetKey}
             />
           ) : null}
         </div>
@@ -1808,7 +1827,7 @@ export default function CampaignBoardPage() {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
             {sidebarTab === "party" && (
               <>
                 {/* Combat tracker */}
@@ -1817,7 +1836,7 @@ export default function CampaignBoardPage() {
                     order={initiativeOrder} currentIndex={currentTurnIndex}
                     round={round} isDM={isDM}
                     currentUserId={currentUser?.id ?? ""}
-                    characters={characters} campaignId={campaignId}
+                    characters={characters} npcs={npcs} campaignId={campaignId}
                     combatSessionId={combatSessionId}
                     onNextTurn={handleNextTurn} onEndCombat={handleEndCombat}
                     onActionUsed={handleActionUsed}
