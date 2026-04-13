@@ -45,4 +45,5 @@ export const PUSHER_EVENTS = {
   TURN_ADVANCED:     "turn-advanced",
   INITIATIVE_ROLLED: "initiative-rolled",
   ACTION_TAKEN:      "action-taken",
+  INITIATIVE_NOTIFY: "initiative-notify",
 } as const;
