@@ -31,7 +31,7 @@ export async function POST(
     const member = await prisma.campaignMember.findUnique({
       where: { campaignId_userId: { campaignId, userId: session.user.id } },
     });
-    if (!member || member.role !== "DM") {
+    if (!member) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -43,6 +43,9 @@ export async function POST(
     const currentState = (board.boardState as unknown as CombatBoardState) ?? {} as CombatBoardState;
 
     if (action === "end_combat") {
+      if (member.role !== "DM") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       await prisma.combatSession.updateMany({
         where: { campaignId, active: true },
         data:  { active: false },
@@ -85,6 +88,28 @@ export async function POST(
       const order = currentState.initiativeOrder ?? [];
       if (order.length === 0) {
         return NextResponse.json({ error: "No initiative order" }, { status: 400 });
+      }
+
+      if (member.role !== "DM") {
+        const turnIdx = currentState.currentTurnIndex ?? 0;
+        const currentEntry = order[turnIdx];
+        if (!currentEntry || currentEntry.type !== "character") {
+          return NextResponse.json(
+            { error: "Only the DM can advance the turn right now" },
+            { status: 403 },
+          );
+        }
+        const m = /^char_(.+)$/.exec(currentEntry.key);
+        if (!m) {
+          return NextResponse.json({ error: "Invalid initiative entry" }, { status: 400 });
+        }
+        const actingChar = await prisma.character.findFirst({
+          where: { id: m[1], campaignId, userId: session.user.id },
+          select: { id: true },
+        });
+        if (!actingChar) {
+          return NextResponse.json({ error: "Not your turn" }, { status: 403 });
+        }
       }
 
       const nextIndex  = ((currentState.currentTurnIndex ?? 0) + 1) % order.length;

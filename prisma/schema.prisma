@@ -10,6 +10,11 @@ generator client {
 // USER & CAMPAIGN
 /////////////////////////////////////////////////
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 model User {
   id            String   @id @default(uuid())
   name          String?
@@ -20,6 +25,7 @@ model User {
   displayName   String?
   avatarUrl     String?
   bio           String?
+  role          UserRole @default(USER)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -130,7 +136,7 @@ enum CampaignMemberRole {
 model ActionLog {
   id          String        @id @default(uuid())
   campaignId  String
-  sessionId   String?       // null for campaign-level actions
+  sessionId   String? // null for campaign-level actions
   userId      String
   characterId String?
   actionType  LogActionType
@@ -195,7 +201,7 @@ model Character {
   savingThrowBonuses Json?
   skillBonuses       Json?
 
-  languages  String[]  @default([])
+  languages  String[]    @default([])
   conditions Condition[]
 
   createdAt DateTime @default(now())
@@ -551,7 +557,7 @@ model CombatSession {
   bonusActionUsed        Boolean @default(false)
   reactionUsed           Boolean @default(false)
 
-  campaign   Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign   Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   actions    CombatAction[]
   actionLogs ActionLog[]
 
@@ -611,13 +617,13 @@ enum CombatActionType {
 /////////////////////////////////////////////////
 
 model CampaignBoard {
-  id              String   @id @default(uuid())
-  campaignId      String   @unique
-  activeMapId     String?
-  boardState      Json?    // positions, tokens, annotations
-  combatActive    Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id           String   @id @default(uuid())
+  campaignId   String   @unique
+  activeMapId  String?
+  boardState   Json? // positions, tokens, annotations
+  combatActive Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   campaign  Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   activeMap CampaignAsset? @relation(fields: [activeMapId], references: [id])
@@ -630,14 +636,14 @@ model CampaignBoard {
 /////////////////////////////////////////////////
 
 model CampaignAsset {
-  id         String          @id @default(uuid())
+  id         String            @id @default(uuid())
   campaignId String
   name       String
-  url        String          // uploaded via Uploadthing
+  url        String // uploaded via Uploadthing
   type       CampaignAssetType
-  createdAt  DateTime        @default(now())
+  createdAt  DateTime          @default(now())
 
-  campaign Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   boards   CampaignBoard[]
 
   @@index([campaignId])
@@ -653,35 +659,35 @@ enum CampaignAssetType {
 /////////////////////////////////////////////////
 
 model NPC {
-  id                String   @id @default(uuid())
-  campaignId        String
-  name              String
-  maxHp             Int
-  currentHp         Int
-  armorClass        Int      @default(10)
-  speed             Int      @default(30)
+  id                 String  @id @default(uuid())
+  campaignId         String
+  name               String
+  maxHp              Int
+  currentHp          Int
+  armorClass         Int     @default(10)
+  speed              Int     @default(30)
   initiativeModifier Int     @default(0)
-  avatarUrl         String?  // token image
+  avatarUrl          String? // token image
 
   // Ability scores
-  strength          Int      @default(10)
-  dexterity         Int      @default(10)
-  constitution      Int      @default(10)
-  intelligence      Int      @default(10)
-  wisdom            Int      @default(10)
-  charisma          Int      @default(10)
+  strength     Int @default(10)
+  dexterity    Int @default(10)
+  constitution Int @default(10)
+  intelligence Int @default(10)
+  wisdom       Int @default(10)
+  charisma     Int @default(10)
 
   // Attacks — JSON array for flexibility
   // e.g. [{ name: "Shortsword", toHit: 4, damageDice: "1d6", damageType: "piercing" }]
-  attacks           Json?
+  attacks Json?
 
-  conditions        Condition[]
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  conditions Condition[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
-  campaign          Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  actionsAsActor    CombatAction[] @relation("NPCActor")
-  actionsAsTarget   CombatAction[] @relation("NPCTarget")
+  campaign        Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  actionsAsActor  CombatAction[] @relation("NPCActor")
+  actionsAsTarget CombatAction[] @relation("NPCTarget")
 
   @@index([campaignId])
 }

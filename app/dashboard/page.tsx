@@ -45,6 +45,7 @@ interface SessionUser {
   image?: string | null;
   displayName?: string | null;
   avatarUrl?: string | null;
+  role?: "USER" | "ADMIN" | null;
 }
 
 function Skeleton({ className = "" }: { className?: string }) {
@@ -428,6 +429,8 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const isAdmin = user?.role === "ADMIN";
+
   const allCampaigns = [
     ...(data?.ownedCampaigns ?? []),
     ...(data?.joinedCampaigns ?? []),
@@ -448,6 +451,16 @@ export default function DashboardPage() {
             <span className="font-display text-2xl text-ink">Nat20</span>
           </div>
           <div className="flex items-center gap-3">
+            {isAdmin && (
+              <Link href="/admin">
+                <button
+                  type="button"
+                  className="font-sans font-semibold text-xs text-blush border border-blush/30 bg-blush/5 rounded p-1.5 hover:bg-blush/10 transition-all flex items-center gap-1"
+                >
+                  ⚙️ Admin
+                </button>
+              </Link>
+            )}
             {!isEmpty && (
               <button onClick={() => setShowNewCampaign(true)}
                 className="font-sans font-bold text-sm text-white bg-blush border-2 border-blush rounded-sketch shadow-sketch-accent px-4 py-1.5 hover:-translate-x-px hover:-translate-y-px transition-all duration-150"
@@ -495,6 +508,9 @@ export default function DashboardPage() {
                       <p className="font-sans text-l font-semibold text-ink truncate">
                         {user?.displayName ?? user?.name ?? "Adventurer"}
                       </p>
+                      {isAdmin && (
+                        <p className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-blush">Admin</p>
+                      )}
                     </div>
                     <span className="text-ink-faded text-xs group-hover:text-blush transition-colors shrink-0">→</span>
                   </>
@@ -503,29 +519,41 @@ export default function DashboardPage() {
             </Link>
 
             {/* Quick actions */}
-            <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4 space-y-2">
-              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-3">
+            <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4 flex flex-col gap-3">
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">
                 Quick Actions
               </p>
-              <button onClick={() => setShowNewCampaign(true)}
-                className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2"
-              >
-                <span>🏰</span> New Campaign
-              </button>
-              <button onClick={() => setShowJoinCampaign(true)}
-                className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2"
-              >
-                <span>🔑</span> Join Campaign
-              </button>
-              <Link href="/profile">
-                <button className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2">
-                  <span>👤</span> My Profile
+              <div className="flex flex-col gap-2.5">
+                <button onClick={() => setShowNewCampaign(true)}
+                  className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2"
+                >
+                  <span>🏰</span> New Campaign
                 </button>
-              </Link>
+                <button onClick={() => setShowJoinCampaign(true)}
+                  className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2"
+                >
+                  <span>🔑</span> Join Campaign
+                </button>
+                <Link href="/profile" className="block">
+                  <button className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch px-3 py-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2">
+                    <span>👤</span> My Profile
+                  </button>
+                </Link>
+                {isAdmin && (
+                  <Link href="/admin" className="block">
+                    <button
+                      type="button"
+                      className="w-full font-sans font-semibold text-sm text-blush bg-blush/5 border-2 border-blush/30 rounded-sketch px-3 py-2 hover:bg-blush/10 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2"
+                    >
+                      <span>⚙️</span> Admin Panel
+                    </button>
+                  </Link>
+                )}
+              </div>
 
               {/* Compact stats */}
               {!loading && (
-                <div className="pt-2 mt-1 border-t border-sketch grid grid-cols-2 gap-2 text-center">
+                <div className="border-t border-sketch pt-3 grid grid-cols-2 gap-2 text-center">
                   <div>
                     <p className="font-mono text-lg font-bold text-ink">{allCampaigns.length}</p>
                     <p className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">Campaigns</p>

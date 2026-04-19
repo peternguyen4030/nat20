@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { useUploadThing } from "@/lib/uploadthing";
 import { getPusherClient } from "@/lib/pusher-client";
 import { PUSHER_EVENTS } from "@/lib/pusher-events";
 
@@ -151,6 +152,12 @@ function UploadMapModal({ campaignId, onUploaded, onClose }: {
   const [error,   setError]   = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const { startUpload, isUploading } = useUploadThing("dmAsset", {
+    onUploadError: (err) => {
+      setError(err.message);
+    },
+  });
+
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -165,21 +172,23 @@ function UploadMapModal({ campaignId, onUploaded, onClose }: {
     if (!file || !name.trim()) return setError("Name and file are required");
     setLoading(true); setError(null);
     try {
-      const formData = new FormData();
-      formData.append("files", file);
-      const utRes = await fetch("/api/uploadthing", { method: "POST", body: formData });
-      if (!utRes.ok) throw new Error("Upload failed");
-      const utData = await utRes.json();
-      const url = utData?.[0]?.ufsUrl ?? utData?.[0]?.url ?? utData?.[0]?.fileUrl;
-      if (!url) throw new Error("No URL returned");
+      const uploaded = await startUpload([file]);
+      const first = uploaded?.[0] as { url?: string; ufsUrl?: string } | undefined;
+      const url = first?.url ?? first?.ufsUrl;
+      if (!url) throw new Error("No URL returned from upload");
+
       const res = await fetch(`/api/campaigns/${campaignId}/assets`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), url, type: "MAP" }),
       });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(d.error ?? "Failed to save asset");
+      }
       onUploaded(await res.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
       setLoading(false);
     }
   }
@@ -211,11 +220,11 @@ function UploadMapModal({ campaignId, onUploaded, onClose }: {
         </div>
         <div className="p-5 flex gap-3 justify-end border-t border-sketch">
           <button onClick={onClose} className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-parchment hover:bg-paper transition-all shadow-sketch">Cancel</button>
-          <button onClick={handleUpload} disabled={!file || !name.trim() || loading}
+          <button onClick={handleUpload} disabled={!file || !name.trim() || loading || isUploading}
             className={`font-sans font-bold text-sm text-white rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${
-              file && name.trim() && !loading ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px" : "bg-tan border-sketch opacity-50 cursor-not-allowed"
+              file && name.trim() && !loading && !isUploading ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px" : "bg-tan border-sketch opacity-50 cursor-not-allowed"
             }`}>
-            {loading ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Uploading...</> : "Upload Map ✦"}
+            {loading || isUploading ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Uploading...</> : "Upload Map ✦"}
           </button>
         </div>
       </div>
@@ -236,10 +245,11 @@ function MapPicker({ assets: initialAssets, activeMapId, campaignId, onChanged }
   useEffect(() => { setAssets(initialAssets); }, [initialAssets]);
 
   async function selectMap(mapId: string | null) {
-    await fetch(`/api/campaigns/${campaignId}/board`, {
+    const res = await fetch(`/api/campaigns/${campaignId}/board`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ activeMapId: mapId }),
     });
+    if (!res.ok) return;
     setOpen(false);
     onChanged();
   }
@@ -1087,6 +1097,11 @@ function ActionLogTab({ campaignId }: { campaignId: string }) {
 // ── Canvas Board ──────────────────────────────────────────────────────────────
 
 const CELL = 50;
+/** Logical board size in cells — map is drawn to exactly this rectangle; grid and tokens align to it. */
+const BOARD_COLS = 28;
+const BOARD_ROWS = 22;
+const BOARD_W = BOARD_COLS * CELL;
+const BOARD_H = BOARD_ROWS * CELL;
 
 interface Token {
   key: string; label: string; initials: string; color: string;
@@ -1117,11 +1132,14 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
   const dragPosRef   = useRef<{ col: number; row: number } | null>(null);
   const panningRef   = useRef(false);
   const panStartRef  = useRef({ x: 0, y: 0 });
-  const originRef       = useRef<{ col: number; row: number } | null>(null);
   const lastPosRef      = useRef<{ col: number; row: number } | null>(null);
   const movementLeftRef = useRef(movementLeft);
   const isMyTurnRef     = useRef(isMyTurn);
   const combatActiveRef = useRef(combatActive);
+  /** Latest draw — avoids stale closures and lets fit/resize effects stay stable when tokens change. */
+  const drawRef = useRef<() => void>(() => {});
+  const tokenAvatarCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const tokenAvatarFailedRef = useRef<Set<string>>(new Set());
 
   // Keep refs in sync with props so draw() always sees current values
   useEffect(() => { movementLeftRef.current = movementLeft; }, [movementLeft]);
@@ -1158,17 +1176,42 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
 
   const tokens = useMemo(() => buildTokens(), [buildTokens]);
 
-  // Reset movement origin when turn changes — seed from current token position
+  // Preload token portrait images (characters + NPCs); redraw when each loads
   useEffect(() => {
-    if (isMyTurn) {
-      const myToken = tokens.find((t) => t.isCurrentUser);
-      originRef.current  = myToken ? { col: myToken.col, row: myToken.row } : null;
-      lastPosRef.current = originRef.current ? { ...originRef.current } : null;
-    } else {
-      originRef.current  = null;
-      lastPosRef.current = null;
+    const urls = new Set<string>();
+    for (const t of tokens) {
+      if (t.avatarUrl) urls.add(t.avatarUrl);
     }
-  }, [turnResetKey, isMyTurn, tokens]);
+    for (const url of urls) {
+      if (tokenAvatarCacheRef.current.has(url) || tokenAvatarFailedRef.current.has(url)) continue;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        tokenAvatarCacheRef.current.set(url, img);
+        drawRef.current();
+      };
+      img.onerror = () => {
+        tokenAvatarFailedRef.current.add(url);
+        drawRef.current();
+      };
+      img.src = url;
+    }
+  }, [tokens]);
+
+  // Seed movement anchor when our turn starts / resets — not when board tokens update from Pusher
+  useEffect(() => {
+    if (!isMyTurn) {
+      lastPosRef.current = null;
+      return;
+    }
+    const myToken = tokens.find((t) => t.isCurrentUser);
+    if (!myToken) {
+      lastPosRef.current = null;
+      return;
+    }
+    lastPosRef.current = { col: myToken.col, row: myToken.row };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally not `tokens`: remote board patches must not reset movement anchors mid-turn
+  }, [turnResetKey, isMyTurn]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -1181,28 +1224,32 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
     ctx.translate(offsetRef.current.x, offsetRef.current.y);
     ctx.scale(scaleRef.current, scaleRef.current);
     ctx.fillStyle = "#F5F0E8";
-    ctx.fillRect(0, 0, W / scaleRef.current + 200, H / scaleRef.current + 200);
+    ctx.fillRect(0, 0, BOARD_W, BOARD_H);
     if (mapImgRef.current && mapLoadedRef.current) {
-      ctx.drawImage(mapImgRef.current, 0, 0, W / scaleRef.current, H / scaleRef.current);
+      ctx.drawImage(mapImgRef.current, 0, 0, BOARD_W, BOARD_H);
     }
-    const cols = Math.ceil(W / (CELL * scaleRef.current)) + 4;
-    const rows = Math.ceil(H / (CELL * scaleRef.current)) + 4;
-    ctx.strokeStyle = "rgba(100,90,80,0.18)"; ctx.lineWidth = 0.5;
-    for (let c = 0; c <= cols; c++) { ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, rows * CELL); ctx.stroke(); }
-    for (let r = 0; r <= rows; r++) { ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(cols * CELL, r * CELL); ctx.stroke(); }
-    // Draw movement range highlight — use refs so draw always has current values
-    if (combatActiveRef.current && isMyTurnRef.current && originRef.current && movementLeftRef.current > 0) {
+    // Grid on top of map — visible on light parchment and dark battle art
+    ctx.strokeStyle = "rgba(42, 36, 28, 0.62)";
+    ctx.lineWidth = 1;
+    for (let c = 0; c <= BOARD_COLS; c++) {
+      ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, BOARD_H); ctx.stroke();
+    }
+    for (let r = 0; r <= BOARD_ROWS; r++) {
+      ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(BOARD_W, r * CELL); ctx.stroke();
+    }
+    // Remaining movement from current position (lastPosRef) — Manhattan / 5ft per cell
+    if (combatActiveRef.current && isMyTurnRef.current && lastPosRef.current && movementLeftRef.current > 0) {
       const maxCells = Math.floor(movementLeftRef.current / 5);
-      const { col: oc, row: or_ } = originRef.current;
-      ctx.fillStyle   = "rgba(106, 193, 138, 0.18)";
-      ctx.strokeStyle = "rgba(106, 193, 138, 0.5)";
-      ctx.lineWidth   = 0.5;
+      const { col: lpCol, row: lpRow } = lastPosRef.current;
+      ctx.fillStyle   = "rgba(106, 193, 138, 0.2)";
+      ctx.strokeStyle = "rgba(106, 193, 138, 0.55)";
+      ctx.lineWidth   = 0.75;
       for (let dc = -maxCells; dc <= maxCells; dc++) {
         for (let dr = -maxCells; dr <= maxCells; dr++) {
           if (Math.abs(dc) + Math.abs(dr) <= maxCells) {
-            const cellCol = oc + dc;
-            const cellRow = or_ + dr;
-            if (cellCol >= 0 && cellRow >= 0) {
+            const cellCol = lpCol + dc;
+            const cellRow = lpRow + dr;
+            if (cellCol >= 0 && cellRow >= 0 && cellCol < BOARD_COLS && cellRow < BOARD_ROWS) {
               ctx.fillRect(cellCol * CELL + 1, cellRow * CELL + 1, CELL - 2, CELL - 2);
               ctx.strokeRect(cellCol * CELL + 1, cellRow * CELL + 1, CELL - 2, CELL - 2);
             }
@@ -1229,16 +1276,44 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
         ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
         ctx.restore();
       }
+      const url = t.avatarUrl ?? "";
+      const avImg =
+        url && !tokenAvatarFailedRef.current.has(url) ? tokenAvatarCacheRef.current.get(url) : undefined;
+      const showPortrait = avImg && avImg.complete && avImg.naturalWidth > 0;
+
       ctx.save();
       ctx.shadowColor = "rgba(0,0,0,0.25)"; ctx.shadowBlur = isDragging ? 12 : 4; ctx.shadowOffsetY = isDragging ? 4 : 2;
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fillStyle = t.isDowned ? "#888" : t.color; ctx.fill();
-      ctx.strokeStyle = t.isCurrentUser ? "#fff" : "rgba(255,255,255,0.6)";
-      ctx.lineWidth = t.isCurrentUser ? 2.5 : 1.5; ctx.stroke();
-      ctx.restore();
-      ctx.fillStyle = "#fff"; ctx.font = `bold ${Math.round(CELL * 0.28)}px sans-serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(t.initials, cx, cy);
+      if (showPortrait && avImg) {
+        ctx.clip();
+        if (t.isDowned) ctx.filter = "grayscale(1)";
+        const iw = avImg.naturalWidth;
+        const ih = avImg.naturalHeight;
+        const scale = Math.max((r * 2) / iw, (r * 2) / ih);
+        const dw = iw * scale;
+        const dh = ih * scale;
+        ctx.drawImage(avImg, cx - dw / 2, cy - dh / 2, dw, dh);
+        ctx.filter = "none";
+        ctx.restore();
+        ctx.save();
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = t.isCurrentUser ? "#fff" : "rgba(255,255,255,0.6)";
+        ctx.lineWidth = t.isCurrentUser ? 2.5 : 1.5;
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.fillStyle = t.isDowned ? "#888" : t.color;
+        ctx.fill();
+        ctx.strokeStyle = t.isCurrentUser ? "#fff" : "rgba(255,255,255,0.6)";
+        ctx.lineWidth = t.isCurrentUser ? 2.5 : 1.5;
+        ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle = "#fff";
+        ctx.font = `bold ${Math.round(CELL * 0.28)}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(t.initials, cx, cy);
+      }
       if (t.isDowned) {
         ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(cx - r * 0.4, cy - r * 0.4); ctx.lineTo(cx + r * 0.4, cy + r * 0.4); ctx.stroke();
@@ -1251,28 +1326,95 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
     ctx.restore();
   }, [tokens]);
 
+  useLayoutEffect(() => {
+    drawRef.current = draw;
+  }, [draw]);
+
+  const fitBoardToView = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const W = canvas.width;
+    const H = canvas.height;
+    if (W === 0 || H === 0) return;
+    const margin = 0.96;
+    const s = Math.min(W / BOARD_W, H / BOARD_H) * margin;
+    scaleRef.current = s;
+    offsetRef.current = {
+      x: (W - BOARD_W * s) / 2,
+      y: (H - BOARD_H * s) / 2,
+    };
+    drawRef.current();
+  }, []);
+
+  function clampCell(col: number, row: number) {
+    return {
+      col: Math.max(0, Math.min(BOARD_COLS - 1, col)),
+      row: Math.max(0, Math.min(BOARD_ROWS - 1, row)),
+    };
+  }
+
+  /** Pull destination toward `from` until Manhattan distance ≤ maxCells (5ft per cell). */
+  function clampMoveManhattan(from: { col: number; row: number }, toCol: number, toRow: number, maxCells: number) {
+    let c = clampCell(toCol, toRow);
+    for (let guard = 0; guard < BOARD_COLS + BOARD_ROWS + 4; guard++) {
+      const man = Math.abs(c.col - from.col) + Math.abs(c.row - from.row);
+      if (man <= maxCells) return c;
+      const dc = Math.sign(from.col - c.col);
+      const dr = Math.sign(from.row - c.row);
+      if (dc !== 0) c = { ...c, col: c.col + dc };
+      else if (dr !== 0) c = { ...c, row: c.row + dr };
+      else break;
+    }
+    return c;
+  }
+
   useEffect(() => { draw(); }, [draw]);
   // Redraw when movementLeft changes so highlight updates immediately
   useEffect(() => { draw(); }, [movementLeft, draw]);
 
-  useEffect(() => {
-    if (!board.activeMap) { mapImgRef.current = null; mapLoadedRef.current = false; draw(); return; }
-    const img = new Image(); img.crossOrigin = "anonymous";
-    img.onload = () => { mapImgRef.current = img; mapLoadedRef.current = true; draw(); };
-    img.src = board.activeMap.url;
-  }, [board.activeMap, draw]);
-
+  // Size canvas to container before map load/fit (mount order matters).
   useEffect(() => {
     function resize() {
-      const canvas = canvasRef.current; const container = containerRef.current;
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
       if (!canvas || !container) return;
-      canvas.width = container.clientWidth; canvas.height = container.clientHeight;
-      draw();
+      const prevW = canvas.width;
+      const prevH = canvas.height;
+      const newW = container.clientWidth;
+      const newH = container.clientHeight;
+      canvas.width = newW;
+      canvas.height = newH;
+      if (prevW === 0 || prevH === 0) {
+        fitBoardToView();
+      } else {
+        offsetRef.current.x *= newW / prevW;
+        offsetRef.current.y *= newH / prevH;
+        drawRef.current();
+      }
     }
     resize();
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, [draw]);
+  }, [fitBoardToView]);
+
+  // Only when the active map identity changes — do not depend on draw/tokens or Pusher board updates will reset zoom.
+  useEffect(() => {
+    if (!board.activeMap) {
+      mapImgRef.current = null;
+      mapLoadedRef.current = false;
+      fitBoardToView();
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      mapImgRef.current = img;
+      mapLoadedRef.current = true;
+      fitBoardToView();
+    };
+    img.src = board.activeMap.url;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only map identity; `board.activeMap` ref changes on every board patch
+  }, [board.activeMap?.id, board.activeMap?.url, fitBoardToView]);
 
   function canvasToWorld(e: React.MouseEvent<HTMLCanvasElement>) {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -1301,9 +1443,7 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
     const token = hitToken(wx, wy);
     if (token) {
       if (token.canDrag) {
-        // Set origin on first move of the turn
-        if (!originRef.current) {
-          originRef.current  = { col: token.col, row: token.row };
+        if (combatActive && isMyTurn && token.isCurrentUser && !lastPosRef.current) {
           lastPosRef.current = { col: token.col, row: token.row };
         }
         draggingRef.current = { key: token.key, origCol: token.col, origRow: token.row };
@@ -1326,7 +1466,15 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
     }
     if (draggingRef.current) {
       const { wx, wy } = canvasToWorld(e);
-      dragPosRef.current = { col: Math.floor(wx / CELL), row: Math.floor(wy / CELL) };
+      let nc = clampCell(Math.floor(wx / CELL), Math.floor(wy / CELL));
+      if (combatActiveRef.current && isMyTurnRef.current && movementLeftRef.current >= 0) {
+        const t = tokens.find((x) => x.key === draggingRef.current!.key);
+        if (t?.isCurrentUser && lastPosRef.current) {
+          const maxCells = Math.floor(movementLeftRef.current / 5);
+          nc = clampMoveManhattan(lastPosRef.current, nc.col, nc.row, maxCells);
+        }
+      }
+      dragPosRef.current = nc;
       draw();
     }
   }
@@ -1335,36 +1483,25 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
     if (panningRef.current) { panningRef.current = false; return; }
     if (draggingRef.current && dragPosRef.current) {
       const { key } = draggingRef.current;
-      const { col, row } = dragPosRef.current;
+      const { col, row } = clampCell(dragPosRef.current.col, dragPosRef.current.row);
       const token = tokens.find((t) => t.key === key);
 
-      // Enforce movement bounds — snap back if out of range
       if (combatActive && isMyTurn && token?.isCurrentUser) {
-        if (originRef.current) {
-          const distFromOrigin = (Math.abs(col - originRef.current.col) + Math.abs(row - originRef.current.row)) * 5;
-          const maxRange = movementLeftRef.current + (lastPosRef.current
-            ? (Math.abs(lastPosRef.current.col - originRef.current.col) + Math.abs(lastPosRef.current.row - originRef.current.row)) * 5
-            : 0);
-          // If destination is farther from origin than movement allows, snap back
-          if (distFromOrigin > maxRange / 5 * 5) {
-            // Snap to last valid position
-            const snapPos = lastPosRef.current ?? originRef.current;
-            if (token) { token.col = snapPos.col; token.row = snapPos.row; }
-            draggingRef.current = null; dragPosRef.current = null; draw();
-            return;
-          }
+        const from = lastPosRef.current ?? { col: token.col, row: token.row };
+        const stepCost = (Math.abs(col - from.col) + Math.abs(row - from.row)) * 5;
+        if (stepCost === 0) {
+          draggingRef.current = null;
+          dragPosRef.current = null;
+          draw();
+          return;
         }
-        if (lastPosRef.current) {
-          const stepCost = (Math.abs(col - lastPosRef.current.col) + Math.abs(row - lastPosRef.current.row)) * 5;
-          if (stepCost > movementLeftRef.current) {
-            // Out of movement — snap back
-            const snapPos = lastPosRef.current;
-            if (token) { token.col = snapPos.col; token.row = snapPos.row; }
-            draggingRef.current = null; dragPosRef.current = null; draw();
-            return;
-          }
-          if (stepCost > 0) onMovementUsed(stepCost);
+        if (stepCost > movementLeftRef.current) {
+          draggingRef.current = null;
+          dragPosRef.current = null;
+          draw();
+          return;
         }
+        onMovementUsed(stepCost);
         lastPosRef.current = { col, row };
       }
 
@@ -1381,19 +1518,28 @@ function CanvasBoard({ board, characters, npcs, currentUserId, isDM, campaignId,
 
   function onWheel(e: React.WheelEvent<HTMLCanvasElement>) {
     e.preventDefault();
-    const delta    = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(4, Math.max(0.25, scaleRef.current * delta));
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const W = canvas.width;
+    const H = canvas.height;
+    const fitScale = Math.min(W / BOARD_W, H / BOARD_H);
+    const minScale = Math.max(0.02, fitScale * 0.12);
+    const maxScale = fitScale * 10;
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    const newScale = Math.min(maxScale, Math.max(minScale, scaleRef.current * delta));
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
     offsetRef.current = {
       x: mx - (mx - offsetRef.current.x) * (newScale / scaleRef.current),
       y: my - (my - offsetRef.current.y) * (newScale / scaleRef.current),
     };
-    scaleRef.current = newScale; draw();
+    scaleRef.current = newScale;
+    draw();
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full relative" style={{ minHeight: "520px" }}>
+    <div ref={containerRef} className="relative h-full min-h-0 w-full">
       <canvas ref={canvasRef} className="w-full h-full cursor-grab active:cursor-grabbing"
         style={{ display: "block", touchAction: "none" }}
         onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
@@ -1861,28 +2007,38 @@ export default function CampaignBoardPage() {
   const myEntry  = myChar ? initiativeOrder.find((e) => e.key === `char_${myChar.id}`) : null;
   const isMyTurn = !isDM && !!myEntry && initiativeOrder[currentTurnIndex]?.key === `char_${myChar?.id}`;
 
-  // Reset movement, origin, and target when turn changes
-  const prevTurnIndexRef = useRef(currentTurnIndex);
+  /** One pool per combat session + initiative index + character — avoids resetting movement when `characters` refetches. */
+  const movementPoolKey = `${combatSessionId ?? ""}|${currentTurnIndex}|${myChar?.id ?? ""}`;
+  const lastMovementPoolKeyRef = useRef("");
+
   useEffect(() => {
-    if (currentTurnIndex !== prevTurnIndexRef.current) {
-      prevTurnIndexRef.current = currentTurnIndex;
-      const timer = window.setTimeout(() => {
-        setMovementLeft(isMyTurn && myChar ? myChar.speed : 0);
+    const char     = myChar;
+    const poolKey  = movementPoolKey;
+    const inCombat = combatActive;
+    const myTurn   = isMyTurn;
+    const spd      = char?.speed ?? 30;
+    queueMicrotask(() => {
+      if (!inCombat) {
+        lastMovementPoolKeyRef.current = "";
+        setMovementLeft(0);
+        return;
+      }
+      if (!myTurn || !char) {
+        lastMovementPoolKeyRef.current = "";
+        setMovementLeft(0);
+        return;
+      }
+      if (lastMovementPoolKeyRef.current !== poolKey) {
+        lastMovementPoolKeyRef.current = poolKey;
+        setMovementLeft(spd);
         setSelectedTargetKey(null);
         setSelectedTargetName(null);
         setTurnResetKey((k) => k + 1);
-      }, 0);
-      return () => window.clearTimeout(timer);
-    }
-  }, [currentTurnIndex, isMyTurn, myChar]);
-
-  // Set movement on combat start
-  useEffect(() => {
-    if (combatActive && isMyTurn && myChar) {
-      const timer = window.setTimeout(() => setMovementLeft(myChar.speed), 0);
-      return () => window.clearTimeout(timer);
-    }
-  }, [combatActive, isMyTurn, myChar]);
+      }
+    });
+     
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- use id/speed, not `myChar` reference (refetch)
+  }, [combatActive, isMyTurn, movementPoolKey, myChar?.id, myChar?.speed]);
 
   if (error) return (
     <div className="min-h-screen bg-parchment flex items-center justify-center">
@@ -1894,10 +2050,10 @@ export default function CampaignBoardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-parchment bg-paper-texture font-sans antialiased flex flex-col">
+    <div className="h-dvh max-h-dvh bg-parchment bg-paper-texture font-sans antialiased flex flex-col overflow-hidden">
 
       {/* Nav */}
-      <nav className="bg-warm-white border-b-2 border-sketch p-3 sticky top-0 z-40">
+      <nav className="bg-warm-white border-b-2 border-sketch p-3 shrink-0 z-40">
         <div className="max-w-full mx-auto flex items-center gap-3 flex-wrap">
           <Link href={`/campaigns/${campaignId}`} className="font-sans text-sm text-ink-faded hover:text-ink transition-colors">← Campaign</Link>
           <span className="text-sketch">/</span>
@@ -1931,11 +2087,11 @@ export default function CampaignBoardPage() {
         </div>
       </nav>
 
-      {/* Body */}
-      <div className="flex-1 flex overflow-hidden min-h-0" style={{ height: "calc(100vh - 57px)" }}>
+      {/* Body — min-h-0 so children can shrink; sidebar scroll stays inside column */}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
 
         {/* Canvas */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           {loading ? <Skeleton className="w-full h-full" /> : board ? (
             <CanvasBoard board={board} characters={characters} npcs={npcs}
               currentUserId={currentUser?.id ?? ""} isDM={isDM}
@@ -1951,8 +2107,8 @@ export default function CampaignBoardPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-72 shrink-0 bg-warm-white border-l-2 border-sketch flex flex-col">
-          <div className="flex border-b-2 border-sketch shrink-0">
+        <div className="flex w-72 min-h-0 shrink-0 flex-col border-l-2 border-sketch bg-warm-white">
+          <div className="flex shrink-0 border-b-2 border-sketch">
             {(["party", "log"] as const).map((tab) => (
               <button key={tab} onClick={() => setSidebarTab(tab)}
                 className={`flex-1 font-sans font-semibold text-xs uppercase tracking-wider p-3 transition-colors ${sidebarTab === tab ? "bg-parchment text-ink border-b-2 border-blush" : "text-ink-faded hover:text-ink"}`}>
@@ -1961,7 +2117,7 @@ export default function CampaignBoardPage() {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden p-3">
             {sidebarTab === "party" && (
               <>
                 {/* Combat tracker */}
