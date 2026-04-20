@@ -458,6 +458,10 @@ model Spell {
   duration     String
   description  String
   higherLevels String?
+  damageDice   String?
+  damageType   String?
+  healingDice  String?
+  scalingDice  String?
   category     SpellCategory @default(UTILITY)
 
   characters    CharacterSpell[]

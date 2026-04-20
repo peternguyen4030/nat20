@@ -19,12 +19,49 @@ export async function POST(
     });
     if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const { sessionId, actorId, targetKey, actionType, actionSlot, description, attackRoll, damageDealt, notes } = await req.json();
+    const {
+      sessionId,
+      actorId,
+      targetKey,
+      actionType,
+      actionSlot,
+      spellLevel,
+      description,
+      attackRoll,
+      damageDealt,
+      notes,
+    } = await req.json();
 
     const combatSession = await prisma.combatSession.findFirst({
       where: { id: sessionId, campaignId, active: true },
     });
     if (!combatSession) return NextResponse.json({ error: "No active combat session" }, { status: 400 });
+
+    // Consume spell slot for leveled spell casts
+    if (actionType === "CAST" && typeof spellLevel === "number" && spellLevel > 0) {
+      const actor = await prisma.character.findUnique({
+        where: { id: actorId },
+        select: { id: true, spellSlots: true },
+      });
+      if (!actor) return NextResponse.json({ error: "Actor not found" }, { status: 404 });
+
+      const slots = (actor.spellSlots as Record<string, { max: number; used: number }> | null) ?? {};
+      const levelKey = String(spellLevel);
+      const entry = slots[levelKey];
+      if (!entry || entry.max <= 0 || entry.used >= entry.max) {
+        return NextResponse.json({ error: `No level ${spellLevel} spell slots remaining` }, { status: 400 });
+      }
+
+      const updatedSlots: Record<string, { max: number; used: number }> = {
+        ...slots,
+        [levelKey]: { ...entry, used: entry.used + 1 },
+      };
+
+      await prisma.character.update({
+        where: { id: actorId },
+        data: { spellSlots: updatedSlots },
+      });
+    }
 
     // Apply damage to target if provided
     if (damageDealt && damageDealt > 0 && targetKey) {
@@ -76,14 +113,12 @@ export async function POST(
       },
     });
 
-    // Broadcast board update so HP bars refresh in real time
-    if (damageDealt && damageDealt > 0 && targetKey) {
-      await pusherServer.trigger(
-        campaignChannel(campaignId),
-        PUSHER_EVENTS.ACTION_TAKEN,
-        { targetKey, damageDealt },
-      );
-    }
+    // Broadcast so clients refresh HP and spell slots immediately
+    await pusherServer.trigger(
+      campaignChannel(campaignId),
+      PUSHER_EVENTS.ACTION_TAKEN,
+      { targetKey: targetKey ?? null, damageDealt: damageDealt ?? null },
+    );
 
     // Also trigger a BOARD_UPDATED so all clients re-fetch character HP
     const updatedBoard = await prisma.campaignBoard.findUnique({

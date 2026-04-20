@@ -42,6 +42,17 @@ export async function GET(
         currentHp: true,
         maxHp: true,
         temporaryHp: true,
+        spellSlots: true,
+        abilityScores: {
+          select: {
+            strength: true,
+            dexterity: true,
+            constitution: true,
+            intelligence: true,
+            wisdom: true,
+            charisma: true,
+          },
+        },
         armorClass: true,
         speed: true,
         initiative: true,
@@ -52,7 +63,22 @@ export async function GET(
         race: { select: { name: true } },
         classes: { select: { level: true, class: { select: { name: true, spellcastingAbility: true } } } },
         features: { select: { feature: { select: { name: true, actionType: true, combatUsable: true } } } },
-        spells:   { select: { spell: { select: { id: true, name: true, level: true, castingTime: true } } } },
+        spells:   {
+          select: {
+            spell: {
+              select: {
+                id: true,
+                name: true,
+                level: true,
+                castingTime: true,
+                damageDice: true,
+                damageType: true,
+                healingDice: true,
+                scalingDice: true,
+              },
+            },
+          },
+        },
       },
     });
 

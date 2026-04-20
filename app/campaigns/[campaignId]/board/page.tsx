@@ -41,12 +41,32 @@ interface Board {
 interface Character {
   id: string; name: string; level: number; currentHp: number; maxHp: number;
   temporaryHp: number; armorClass: number; speed: number; initiative: number;
+  spellSlots: Record<string, { max: number; used: number }> | null;
+  abilityScores: {
+    strength: number;
+    dexterity: number;
+    constitution: number;
+    intelligence: number;
+    wisdom: number;
+    charisma: number;
+  } | null;
   avatarUrl: string | null; conditions: string[]; inspiration: boolean;
   user: { id: string; displayName: string | null; name: string | null };
   race: { name: string } | null;
-  classes: { level: number; class: { name: string } }[];
+  classes: { level: number; class: { name: string; spellcastingAbility?: string | null } }[];
   features: { feature: { name: string; actionType: string | null; combatUsable: boolean } }[];
-  spells:   { spell: { id: string; name: string; level: number; castingTime: string } }[];
+  spells:   {
+    spell: {
+      id: string;
+      name: string;
+      level: number;
+      castingTime: string;
+      damageDice?: string | null;
+      damageType?: string | null;
+      healingDice?: string | null;
+      scalingDice?: string | null;
+    };
+  }[];
 }
 
 interface NPC {
@@ -103,8 +123,12 @@ function timeAgo(dateStr: string) {
 
 // ── Dice Roller ───────────────────────────────────────────────────────────────
 
-function DiceRoller({ sides, modifier = 0, label, onRoll }: {
-  sides: number; modifier?: number; label: string; onRoll: (total: number, roll: number) => void;
+function DiceRoller({ sides, modifier = 0, label, onRoll, lockAfterRoll = false }: {
+  sides: number;
+  modifier?: number;
+  label: string;
+  onRoll: (total: number, roll: number) => void;
+  lockAfterRoll?: boolean;
 }) {
   const [result,  setResult]  = useState<{ roll: number; total: number } | null>(null);
   const [rolling, setRolling] = useState(false);
@@ -124,7 +148,7 @@ function DiceRoller({ sides, modifier = 0, label, onRoll }: {
 
   return (
     <div className="flex items-center gap-2">
-      <button onClick={roll} disabled={rolling}
+      <button onClick={roll} disabled={rolling || (lockAfterRoll && result !== null)}
         className="font-sans font-bold text-xs text-white bg-ink border border-ink rounded p-1.5 hover:bg-ink/80 transition-all flex items-center gap-1 disabled:opacity-50">
         🎲 {rolling ? "..." : `d${sides}${modStr}`}
       </button>
@@ -679,6 +703,8 @@ interface ActionDef {
   type:           string;
   damageDice?:    string;
   damageType?:    string;
+  healingDice?:   string;
+  scalingDice?:   string;
   toHit?:         number;
   requiresTarget: boolean;
   isSpell?:       boolean;
@@ -704,9 +730,10 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
   const [submitted,  setSubmitted]  = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [hitResult,  setHitResult]  = useState<"hit" | "miss" | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const needsAttack = action.type === "ATTACK";
-  const needsDamage = !!action.damageDice;
+  const needsAttack = action.type === "ATTACK" || (action.isSpell && action.toHit !== undefined && !!action.damageDice);
+  const needsDamage = !!action.damageDice || !!action.healingDice;
   const needsTarget = action.requiresTarget;
 
   // Build combined target list from initiative order, resolving names to AC
@@ -727,6 +754,7 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
   }
 
   function handleAttackRoll(total: number) {
+    if (attackRoll !== null) return;
     setAttackRoll(total);
     if (selectedTarget?.ac !== null && selectedTarget?.ac !== undefined) {
       setHitResult(total >= selectedTarget.ac ? "hit" : "miss");
@@ -736,16 +764,18 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
   const canSubmit = (!needsTarget || targetKey) &&
                     (!needsAttack || attackRoll !== null) &&
                     (!needsDamage || damageRoll !== null || hitResult === "miss");
+  const hasCommittedRoll = attackRoll !== null || damageRoll !== null;
 
   const slotKey = action.slot === "ACTION" ? "action" : action.slot === "BONUS_ACTION" ? "bonus" : "reaction";
 
   async function handleSubmit() {
+    setSubmitError(null);
     setSubmitting(true);
     const desc = selectedTarget
       ? `${character.name} used ${action.name} on ${selectedTarget.name}${hitResult ? ` — ${hitResult}!` : ""}`
       : `${character.name} used ${action.name}`;
 
-    await fetch(`/api/campaigns/${campaignId}/combat/action`, {
+    const res = await fetch(`/api/campaigns/${campaignId}/combat/action`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sessionId:   combatSessionId,
@@ -753,12 +783,19 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
         targetKey:   selectedTarget?.key ?? null,
         actionType:  action.type,
         actionSlot:  action.slot,
+        spellLevel:  action.isSpell ? action.spellLevel : undefined,
         description: desc,
         attackRoll,
         damageDealt: hitResult === "miss" ? 0 : damageRoll,
         notes:       selectedTarget ? `Target: ${selectedTarget.name} (AC ${selectedTarget.ac})` : undefined,
       }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setSubmitError(data?.error ?? "Failed to record action");
+      setSubmitting(false);
+      return;
+    }
     setSubmitted(true);
     setSubmitting(false);
     onDone(slotKey as "action" | "bonus" | "reaction");
@@ -777,14 +814,28 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
     <div className="bg-gold/5 border border-gold/40 rounded-sketch p-3 space-y-3">
       <div className="flex items-center justify-between">
         <p className="font-sans text-xs font-bold text-ink">{action.isSpell ? "🔮" : "⚔️"} {action.name}</p>
-        <button onClick={onClose} className="font-sans text-xs text-ink-faded hover:text-blush">✕</button>
+        <button
+          onClick={() => { if (!hasCommittedRoll) onClose(); }}
+          disabled={hasCommittedRoll}
+          className="font-sans text-xs text-ink-faded hover:text-blush disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          ✕
+        </button>
       </div>
 
       {/* Target selector */}
       {needsTarget && (
         <div>
           <label className="block font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Target</label>
-          <select value={targetKey ?? ""} onChange={(e) => { setTargetKey(e.target.value || null); setAttackRoll(null); setHitResult(null); }}
+          <select
+            value={targetKey ?? ""}
+            disabled={needsAttack && attackRoll !== null}
+            onChange={(e) => {
+              setTargetKey(e.target.value || null);
+              if (attackRoll === null) {
+                setHitResult(null);
+              }
+            }}
             className="w-full font-sans text-xs bg-parchment text-ink border-2 border-sketch rounded p-1.5 outline-none focus:border-blush">
             <option value="">— Select target —</option>
             {targetOptions.map((t) => (
@@ -802,7 +853,13 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
             Attack Roll {action.toHit !== undefined ? `(+${action.toHit})` : ""}
             {selectedTarget?.ac !== null && <span className="normal-case font-normal ml-1">· needs {selectedTarget?.ac ?? "?"} to hit</span>}
           </p>
-          <DiceRoller sides={20} modifier={action.toHit ?? 0} label="Roll to hit" onRoll={(t) => handleAttackRoll(t)} />
+          <DiceRoller
+            sides={20}
+            modifier={action.toHit ?? 0}
+            label="Roll to hit"
+            lockAfterRoll
+            onRoll={(t) => handleAttackRoll(t)}
+          />
           {hitResult && (
             <p className={`font-sans text-xs font-bold mt-1 ${hitResult === "hit" ? "text-sage" : "text-blush"}`}>
               {hitResult === "hit" ? "🎯 Hit!" : "💨 Miss — no damage"}
@@ -812,13 +869,16 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
       )}
 
       {/* Damage roll — only if hit or no attack needed */}
-      {needsDamage && action.damageDice && hitResult !== "miss" && (
+      {needsDamage && (action.damageDice || action.healingDice) && hitResult !== "miss" && (
         <div>
           <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded mb-1">
-            Damage ({action.damageDice} {action.damageType ?? ""})
+            {action.healingDice
+              ? `Healing (${action.healingDice})`
+              : `Damage (${action.damageDice} ${action.damageType ?? ""})`}
           </p>
           {(() => {
-            const { count, sides, mod } = parseDice(action.damageDice);
+            const diceExpr = action.healingDice ?? action.damageDice!;
+            const { count, sides, mod } = parseDice(diceExpr);
             return (
               <DiceRoller sides={sides} modifier={mod}
                 label={`Roll ${count}d${sides}${mod !== 0 ? (mod > 0 ? `+${mod}` : mod) : ""}`}
@@ -833,7 +893,13 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
       )}
 
       <div className="flex gap-2">
-        <button onClick={onClose} className="font-sans text-xs text-ink-faded border border-sketch rounded p-1.5 hover:bg-parchment flex-1">Cancel</button>
+        <button
+          onClick={() => { if (!hasCommittedRoll) onClose(); }}
+          disabled={hasCommittedRoll}
+          className="font-sans text-xs text-ink-faded border border-sketch rounded p-1.5 hover:bg-parchment flex-1 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Cancel
+        </button>
         <button onClick={handleSubmit} disabled={!canSubmit || submitting}
           className={`font-sans font-bold text-xs text-white rounded p-1.5 border transition-all flex-1 flex items-center justify-center gap-1 ${
             canSubmit && !submitting ? "bg-blush border-blush hover:-translate-x-px hover:-translate-y-px" : "bg-tan border-sketch opacity-50 cursor-not-allowed"
@@ -841,6 +907,14 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
           {submitting ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> ...</> : "Confirm ✦"}
         </button>
       </div>
+      {submitError && (
+        <p className="font-sans text-[0.62rem] text-blush">{submitError}</p>
+      )}
+      {hasCommittedRoll && (
+        <p className="font-sans text-[0.6rem] text-ink-faded">
+          Action is locked after rolling. Confirm to continue.
+        </p>
+      )}
     </div>
   );
 }
@@ -860,6 +934,29 @@ function PlayerActionPanel({ character, entry, order, characters, npcs, campaign
   onEndTurn: () => void;
 }) {
   const [activeAction, setActiveAction] = useState<ActionDef | null>(null);
+  type SpellcastingStat = "strength" | "dexterity" | "constitution" | "intelligence" | "wisdom" | "charisma";
+  const spellcastingAbility = (character.classes
+    .map((c) => c.class.spellcastingAbility?.toLowerCase())
+    .find((ability): ability is SpellcastingStat =>
+      ability === "strength" ||
+      ability === "dexterity" ||
+      ability === "constitution" ||
+      ability === "intelligence" ||
+      ability === "wisdom" ||
+      ability === "charisma"
+    )) ?? null;
+  const proficiencyBonus = 2 + Math.floor(Math.max(character.level - 1, 0) / 4);
+  const spellAttackBonus = spellcastingAbility
+    ? Math.floor((((character.abilityScores?.[spellcastingAbility]) ?? 10) - 10) / 2) + proficiencyBonus
+    : undefined;
+  const slotState = character.spellSlots ?? {};
+  const sortedSlotEntries = Object.entries(slotState).sort(([a], [b]) => Number(a) - Number(b));
+  const hasSpellSlots = sortedSlotEntries.length > 0;
+  const hasAvailableSlot = (level: number | undefined) => {
+    if (!level || level <= 0) return true;
+    const entry = slotState[String(level)];
+    return !!entry && entry.used < entry.max;
+  };
 
   const standardActions: ActionDef[] = [
     { name: "Attack",    slot: "ACTION", type: "ATTACK", requiresTarget: true,  damageDice: "1d6", damageType: "bludgeoning", toHit: 0 },
@@ -882,11 +979,27 @@ function PlayerActionPanel({ character, entry, order, characters, npcs, campaign
   // Separate cantrips from leveled spells
   const cantrips:      ActionDef[] = character.spells.filter((s) => s.spell.level === 0).map((s) => ({
     name: s.spell.name, slot: s.spell.castingTime?.toLowerCase().includes("bonus") ? "BONUS_ACTION" : "ACTION",
-    type: "CAST", requiresTarget: true, isSpell: true, spellLevel: 0,
+    type: "CAST",
+    requiresTarget: !!s.spell.damageDice,
+    isSpell: true,
+    spellLevel: 0,
+    damageDice: s.spell.damageDice ?? undefined,
+    damageType: s.spell.damageType ?? undefined,
+    healingDice: s.spell.healingDice ?? undefined,
+    scalingDice: s.spell.scalingDice ?? undefined,
+    toHit: s.spell.damageDice ? spellAttackBonus : undefined,
   }));
   const leveledSpells: ActionDef[] = character.spells.filter((s) => s.spell.level > 0).map((s) => ({
     name: s.spell.name, slot: s.spell.castingTime?.toLowerCase().includes("bonus") ? "BONUS_ACTION" : "ACTION",
-    type: "CAST", requiresTarget: true, isSpell: true, spellLevel: s.spell.level,
+    type: "CAST",
+    requiresTarget: !!s.spell.damageDice,
+    isSpell: true,
+    spellLevel: s.spell.level,
+    damageDice: s.spell.damageDice ?? undefined,
+    damageType: s.spell.damageType ?? undefined,
+    healingDice: s.spell.healingDice ?? undefined,
+    scalingDice: s.spell.scalingDice ?? undefined,
+    toHit: s.spell.damageDice ? spellAttackBonus : undefined,
   }));
 
   const bonusStandard:    ActionDef[] = [{ name: "Off-hand Attack", slot: "BONUS_ACTION", type: "ATTACK", requiresTarget: true, damageDice: "1d6", damageType: "bludgeoning", toHit: 0 }];
@@ -922,11 +1035,16 @@ function PlayerActionPanel({ character, entry, order, characters, npcs, campaign
   function ActionButton({ a }: { a: ActionDef }) {
     const icon = a.isSpell ? "🔮" : a.type === "ATTACK" ? "⚔️" : a.type === "DASH" ? "💨" : a.type === "DODGE" ? "🛡️" : "✨";
     const isActive = activeAction?.name === a.name;
+    const noSlotsLeft = a.isSpell && (a.spellLevel ?? 0) > 0 && !hasAvailableSlot(a.spellLevel);
     return (
       <div className="relative group">
-        <button onClick={() => setActiveAction(isActive ? null : a)}
+        <button
+          onClick={() => { if (!noSlotsLeft) setActiveAction(isActive ? null : a); }}
+          disabled={noSlotsLeft}
           className={`w-full font-sans text-xs rounded p-1.5 border transition-all text-left truncate ${
-            isActive
+            noSlotsLeft
+              ? "text-ink-faded bg-parchment border-sketch/50 opacity-50 cursor-not-allowed"
+              : isActive
               ? a.isSpell ? "bg-dusty-blue/20 border-dusty-blue text-dusty-blue"
                           : "bg-blush/10 border-blush text-blush"
               : a.isSpell ? "text-dusty-blue bg-dusty-blue/5 border border-dusty-blue/30 hover:bg-dusty-blue/10"
@@ -939,6 +1057,7 @@ function PlayerActionPanel({ character, entry, order, characters, npcs, campaign
           <div className="bg-ink text-warm-white font-sans text-[0.6rem] rounded p-1.5 whitespace-nowrap shadow-lg">
             {icon} {a.name}{a.spellLevel !== undefined ? ` (${a.spellLevel === 0 ? "Cantrip" : `Lv ${a.spellLevel}`})` : ""}
             {a.requiresTarget && " · Requires target"}
+            {noSlotsLeft && " · No slots left"}
           </div>
         </div>
       </div>
@@ -976,6 +1095,30 @@ function PlayerActionPanel({ character, entry, order, characters, npcs, campaign
         </div>
         <span className="text-xl">🦶</span>
       </div>
+
+      {hasSpellSlots && (
+        <div className="bg-dusty-blue/5 border border-dusty-blue/30 rounded p-2">
+          <p className="font-sans text-[0.6rem] font-bold uppercase tracking-widest text-dusty-blue/80 mb-1">
+            Spell Slots
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {sortedSlotEntries.map(([level, values]) => {
+              const remaining = Math.max(0, values.max - values.used);
+              return (
+                <span
+                  key={level}
+                  className="font-sans text-[0.62rem] rounded border border-dusty-blue/40 bg-warm-white px-1.5 py-0.5 text-dusty-blue"
+                >
+                  L{level}: <span className="font-mono">{remaining}/{values.max}</span>
+                </span>
+              );
+            })}
+          </div>
+          <p className="mt-1 font-sans text-[0.55rem] text-ink-faded">
+            Slots are tracked automatically when you confirm a leveled spell.
+          </p>
+        </div>
+      )}
 
       {/* Active action inline panel */}
       {activeAction && (

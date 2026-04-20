@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed:backgrounds": "tsx prisma/backgrounds-seed.ts",
+    "seed:spell-dice": "tsx prisma/spell-dice-seed.ts",
     "seed:categorize": "tsx prisma/categorize-seed.ts",
     "seed:categorize:v2": "tsx prisma/categorize-seed-v2.ts"
   },
