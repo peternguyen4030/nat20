@@ -71,6 +71,7 @@ export async function GET(
                 name: true,
                 level: true,
                 castingTime: true,
+                range: true,
                 damageDice: true,
                 damageType: true,
                 healingDice: true,

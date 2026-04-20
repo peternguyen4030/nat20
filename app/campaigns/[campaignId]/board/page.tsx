@@ -61,6 +61,7 @@ interface Character {
       name: string;
       level: number;
       castingTime: string;
+      range: string;
       damageDice?: string | null;
       damageType?: string | null;
       healingDice?: string | null;
@@ -123,12 +124,13 @@ function timeAgo(dateStr: string) {
 
 // ── Dice Roller ───────────────────────────────────────────────────────────────
 
-function DiceRoller({ sides, modifier = 0, label, onRoll, lockAfterRoll = false }: {
+function DiceRoller({ sides, modifier = 0, label, onRoll, lockAfterRoll = false, disabled = false }: {
   sides: number;
   modifier?: number;
   label: string;
   onRoll: (total: number, roll: number) => void;
   lockAfterRoll?: boolean;
+  disabled?: boolean;
 }) {
   const [result,  setResult]  = useState<{ roll: number; total: number } | null>(null);
   const [rolling, setRolling] = useState(false);
@@ -148,7 +150,7 @@ function DiceRoller({ sides, modifier = 0, label, onRoll, lockAfterRoll = false 
 
   return (
     <div className="flex items-center gap-2">
-      <button onClick={roll} disabled={rolling || (lockAfterRoll && result !== null)}
+      <button onClick={roll} disabled={disabled || rolling || (lockAfterRoll && result !== null)}
         className="font-sans font-bold text-xs text-white bg-ink border border-ink rounded p-1.5 hover:bg-ink/80 transition-all flex items-center gap-1 disabled:opacity-50">
         🎲 {rolling ? "..." : `d${sides}${modStr}`}
       </button>
@@ -530,9 +532,9 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
 
 // ── Initiative Tracker ────────────────────────────────────────────────────────
 
-function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, characters, npcs, campaignId, combatSessionId, onNextTurn, onEndCombat, onActionUsed, movementLeft, selectedTargetKey, selectedTargetName, onEndTurn }: {
+function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, characters, npcs, tokenPositions, campaignId, combatSessionId, onNextTurn, onEndCombat, onActionUsed, movementLeft, selectedTargetKey, selectedTargetName, onEndTurn }: {
   order: InitiativeEntry[]; currentIndex: number; round: number; isDM: boolean;
-  currentUserId: string; characters: Character[]; npcs: NPC[]; campaignId: string; combatSessionId: string | null;
+  currentUserId: string; characters: Character[]; npcs: NPC[]; tokenPositions: Record<string, { col: number; row: number }>; campaignId: string; combatSessionId: string | null;
   onNextTurn: () => void; onEndCombat: () => void;
   onActionUsed: (slot: "action" | "bonus" | "reaction", actionName?: string) => void;
   movementLeft: number;
@@ -601,6 +603,7 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
           order={order}
           characters={characters}
           npcs={npcs}
+          tokenPositions={tokenPositions}
           campaignId={campaignId}
           combatSessionId={combatSessionId}
           movementLeft={movementLeft}
@@ -706,6 +709,8 @@ interface ActionDef {
   healingDice?:   string;
   scalingDice?:   string;
   toHit?:         number;
+  rangeFeet?:     number | null;
+  rangeLabel?:    string | null;
   requiresTarget: boolean;
   isSpell?:       boolean;
   spellLevel?:    number;
@@ -713,12 +718,13 @@ interface ActionDef {
 
 // ── Action Roll Panel (inline, no modal) ────────────────────────────────────────────────────────
 
-function ActionRollPanel({ action, character, order, characters, npcs, campaignId, combatSessionId, onDone, onClose }: {
+function ActionRollPanel({ action, character, order, characters, npcs, tokenPositions, campaignId, combatSessionId, onDone, onClose }: {
   action: ActionDef;
   character: Character;
   order: InitiativeEntry[];
   characters: Character[];
   npcs: NPC[];
+  tokenPositions: Record<string, { col: number; row: number }>;
   campaignId: string;
   combatSessionId: string;
   onDone: (slot: "action" | "bonus" | "reaction") => void;
@@ -735,15 +741,26 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
   const needsAttack = action.type === "ATTACK" || (action.isSpell && action.toHit !== undefined && !!action.damageDice);
   const needsDamage = !!action.damageDice || !!action.healingDice;
   const needsTarget = action.requiresTarget;
+  const requiresTargetForRoll = needsTarget || needsAttack || needsDamage;
 
   // Build combined target list from initiative order, resolving names to AC
+  const actorKey = `char_${character.id}`;
+  const actorPos = tokenPositions[actorKey];
+  const inRangeFeet = (target: string) => {
+    if (!action.rangeFeet || action.rangeFeet <= 0 || !actorPos) return true;
+    const targetPos = tokenPositions[target];
+    if (!targetPos) return true;
+    const gridDistance = Math.max(Math.abs(actorPos.col - targetPos.col), Math.abs(actorPos.row - targetPos.row));
+    return gridDistance * 5 <= action.rangeFeet;
+  };
   const targetOptions = order
     .filter((e) => e.key !== `char_${character.id}`)
     .map((e) => {
       const char = characters.find((c) => `char_${c.id}` === e.key);
       const npc  = npcs.find((n) => `npc_${n.id}` === e.key);
       return { key: e.key, name: e.name, ac: char?.armorClass ?? npc?.armorClass ?? null };
-    });
+    })
+    .filter((t) => inRangeFeet(t.key));
 
   const selectedTarget = targetOptions.find((t) => t.key === targetKey) ?? null;
 
@@ -761,10 +778,16 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
     }
   }
 
-  const canSubmit = (!needsTarget || targetKey) &&
+  function handleDamageRoll(total: number, count: number) {
+    if (damageRoll !== null) return;
+    setDamageRoll(total * count);
+  }
+
+  const canSubmit = (!requiresTargetForRoll || targetKey) &&
                     (!needsAttack || attackRoll !== null) &&
                     (!needsDamage || damageRoll !== null || hitResult === "miss");
   const hasCommittedRoll = attackRoll !== null || damageRoll !== null;
+  const canRoll = !requiresTargetForRoll || !!selectedTarget;
 
   const slotKey = action.slot === "ACTION" ? "action" : action.slot === "BONUS_ACTION" ? "bonus" : "reaction";
 
@@ -824,12 +847,12 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
       </div>
 
       {/* Target selector */}
-      {needsTarget && (
+      {requiresTargetForRoll && (
         <div>
           <label className="block font-sans text-[0.6rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Target</label>
           <select
             value={targetKey ?? ""}
-            disabled={needsAttack && attackRoll !== null}
+            disabled={(needsAttack && attackRoll !== null) || (needsDamage && damageRoll !== null)}
             onChange={(e) => {
               setTargetKey(e.target.value || null);
               if (attackRoll === null) {
@@ -842,6 +865,14 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
               <option key={t.key} value={t.key}>{t.name}{t.ac !== null ? ` (AC ${t.ac})` : ""}</option>
             ))}
           </select>
+          {action.rangeFeet ? (
+            <p className="font-sans text-[0.55rem] text-ink-faded mt-0.5">
+              Range: {action.rangeLabel ?? `${action.rangeFeet} ft`}
+            </p>
+          ) : null}
+          {targetOptions.length === 0 && (
+            <p className="font-sans text-[0.55rem] text-blush mt-0.5">No valid targets in range.</p>
+          )}
           {selectedTarget && <p className="font-sans text-[0.55rem] text-ink-faded mt-0.5">🎯 {selectedTarget.name} · AC {selectedTarget.ac ?? "?"}</p>}
         </div>
       )}
@@ -858,6 +889,7 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
             modifier={action.toHit ?? 0}
             label="Roll to hit"
             lockAfterRoll
+            disabled={!canRoll}
             onRoll={(t) => handleAttackRoll(t)}
           />
           {hitResult && (
@@ -882,10 +914,15 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
             return (
               <DiceRoller sides={sides} modifier={mod}
                 label={`Roll ${count}d${sides}${mod !== 0 ? (mod > 0 ? `+${mod}` : mod) : ""}`}
-                onRoll={(t) => setDamageRoll(t * count)} />
+                lockAfterRoll
+                disabled={!canRoll}
+                onRoll={(t) => handleDamageRoll(t, count)} />
             );
           })()}
         </div>
+      )}
+      {!canRoll && requiresTargetForRoll && (
+        <p className="font-sans text-[0.62rem] text-ink-faded">Choose a target before rolling.</p>
       )}
 
       {!needsAttack && !needsDamage && !needsTarget && (
@@ -921,12 +958,13 @@ function ActionRollPanel({ action, character, order, characters, npcs, campaignI
 
 // ── Player Action Panel ───────────────────────────────────────────────────────
 
-function PlayerActionPanel({ character, entry, order, characters, npcs, campaignId, combatSessionId, movementLeft, onActionUsed, onEndTurn }: {
+function PlayerActionPanel({ character, entry, order, characters, npcs, tokenPositions, campaignId, combatSessionId, movementLeft, onActionUsed, onEndTurn }: {
   character: Character;
   entry: InitiativeEntry;
   order: InitiativeEntry[];
   characters: Character[];
   npcs: NPC[];
+  tokenPositions: Record<string, { col: number; row: number }>;
   campaignId: string;
   combatSessionId: string;
   movementLeft: number;
@@ -957,12 +995,22 @@ function PlayerActionPanel({ character, entry, order, characters, npcs, campaign
     const entry = slotState[String(level)];
     return !!entry && entry.used < entry.max;
   };
+  function parseRangeFeet(range?: string | null): { feet: number | null; label: string | null } {
+    if (!range) return { feet: null, label: null };
+    const trimmed = range.trim();
+    const lowered = trimmed.toLowerCase();
+    if (lowered === "self") return { feet: 0, label: "Self" };
+    if (lowered === "touch") return { feet: 5, label: "Touch (5 ft)" };
+    const match = lowered.match(/(\d+)\s*(?:ft|feet)/);
+    if (match) return { feet: Number(match[1]), label: trimmed };
+    return { feet: null, label: trimmed };
+  }
 
   const standardActions: ActionDef[] = [
-    { name: "Attack",    slot: "ACTION", type: "ATTACK", requiresTarget: true,  damageDice: "1d6", damageType: "bludgeoning", toHit: 0 },
+    { name: "Attack",    slot: "ACTION", type: "ATTACK", requiresTarget: true,  damageDice: "1d6", damageType: "bludgeoning", toHit: 0, rangeFeet: 5, rangeLabel: "Melee (5 ft)" },
     { name: "Dash",      slot: "ACTION", type: "DASH",   requiresTarget: false },
     { name: "Dodge",     slot: "ACTION", type: "DODGE",  requiresTarget: false },
-    { name: "Help",      slot: "ACTION", type: "HELP",   requiresTarget: true },
+    { name: "Help",      slot: "ACTION", type: "HELP",   requiresTarget: true, rangeFeet: 5, rangeLabel: "Melee (5 ft)" },
     { name: "Disengage", slot: "ACTION", type: "OTHER",  requiresTarget: false },
     { name: "Hide",      slot: "ACTION", type: "OTHER",  requiresTarget: false },
   ];
@@ -978,6 +1026,7 @@ function PlayerActionPanel({ character, entry, order, characters, npcs, campaign
 
   // Separate cantrips from leveled spells
   const cantrips:      ActionDef[] = character.spells.filter((s) => s.spell.level === 0).map((s) => ({
+    ...parseRangeFeet(s.spell.range),
     name: s.spell.name, slot: s.spell.castingTime?.toLowerCase().includes("bonus") ? "BONUS_ACTION" : "ACTION",
     type: "CAST",
     requiresTarget: !!s.spell.damageDice,
@@ -990,6 +1039,7 @@ function PlayerActionPanel({ character, entry, order, characters, npcs, campaign
     toHit: s.spell.damageDice ? spellAttackBonus : undefined,
   }));
   const leveledSpells: ActionDef[] = character.spells.filter((s) => s.spell.level > 0).map((s) => ({
+    ...parseRangeFeet(s.spell.range),
     name: s.spell.name, slot: s.spell.castingTime?.toLowerCase().includes("bonus") ? "BONUS_ACTION" : "ACTION",
     type: "CAST",
     requiresTarget: !!s.spell.damageDice,
@@ -1002,9 +1052,9 @@ function PlayerActionPanel({ character, entry, order, characters, npcs, campaign
     toHit: s.spell.damageDice ? spellAttackBonus : undefined,
   }));
 
-  const bonusStandard:    ActionDef[] = [{ name: "Off-hand Attack", slot: "BONUS_ACTION", type: "ATTACK", requiresTarget: true, damageDice: "1d6", damageType: "bludgeoning", toHit: 0 }];
+  const bonusStandard:    ActionDef[] = [{ name: "Off-hand Attack", slot: "BONUS_ACTION", type: "ATTACK", requiresTarget: true, damageDice: "1d6", damageType: "bludgeoning", toHit: 0, rangeFeet: 5, rangeLabel: "Melee (5 ft)" }];
   const reactionStandard: ActionDef[] = [
-    { name: "Opportunity Attack", slot: "REACTION", type: "ATTACK", requiresTarget: true, damageDice: "1d6", damageType: "bludgeoning", toHit: 0 },
+    { name: "Opportunity Attack", slot: "REACTION", type: "ATTACK", requiresTarget: true, damageDice: "1d6", damageType: "bludgeoning", toHit: 0, rangeFeet: 5, rangeLabel: "Melee (5 ft)" },
     { name: "Dodge (Reaction)",   slot: "REACTION", type: "DODGE",  requiresTarget: false },
   ];
 
@@ -1128,6 +1178,7 @@ function PlayerActionPanel({ character, entry, order, characters, npcs, campaign
           order={order}
           characters={characters}
           npcs={npcs}
+          tokenPositions={tokenPositions}
           campaignId={campaignId}
           combatSessionId={combatSessionId}
           onDone={(slot) => { onActionUsed(slot, activeAction.name); setActiveAction(null); }}
@@ -2270,6 +2321,7 @@ export default function CampaignBoardPage() {
                     round={round} isDM={isDM}
                     currentUserId={currentUser?.id ?? ""}
                     characters={characters} npcs={npcs} campaignId={campaignId}
+                    tokenPositions={((board?.boardState as BoardState | null)?.tokens ?? {})}
                     combatSessionId={combatSessionId}
                     onNextTurn={handleNextTurn} onEndCombat={handleEndCombat}
                     onActionUsed={handleActionUsed}
