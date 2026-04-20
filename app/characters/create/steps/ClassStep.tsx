@@ -3,6 +3,16 @@
 import { useEffect, useState } from "react";
 import { useWizard } from "@/context/WizardContext";
 import { Class } from "@/types/character-creation";
+import {
+  WizardDetailPanel,
+  WizardHintPanel,
+  WizardHintColumn,
+  WizardMainColumn,
+  WizardSideColumn,
+  WizardStepBody,
+  WizardStepHeader,
+  WizardThreeColumnGrid,
+} from "../wizard-layout";
 
 const CLASS_EMOJI: Record<string, string> = {
   barbarian: "🪓", bard: "🎵", cleric: "✝️", druid: "🌙",
@@ -55,36 +65,30 @@ export function ClassStep() {
   if (error)   return <ErrorState message={error} />;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-4xl text-ink mb-1">Choose your Class</h1>
-        <p className="font-sans text-sm text-ink-faded">
-          Your class is your character's calling — it defines their abilities, fighting style, and role in the party.
-        </p>
-      </div>
+    <WizardStepBody>
+      <WizardStepHeader
+        title="Choose your Class"
+        subtitle="Your class is your character's calling — it defines their abilities, fighting style, and role in the party."
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <WizardThreeColumnGrid>
 
-        {/* About Classes — left panel */}
-        <div className="lg:col-span-1 order-last lg:order-first">
-          <div className="bg-parchment border-2 border-sketch rounded-sketch p-5 sticky top-6 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">⚔️</span>
-              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">About Classes</p>
+        <WizardHintColumn>
+          <WizardHintPanel icon="⚔️" title="About Classes">
+            <p>Your class shapes everything about how you play — what weapons you use, whether you cast spells, and what role you fill in the party.</p>
+            <div className="border-t border-sketch">
+              <div className="space-y-1.5 p-3">
+                <p><span className="text-blush mr-1">✦</span><strong className="text-ink">Hit Die</strong> determines your HP each level</p>
+                <p><span className="text-sage mr-1">✦</span><strong className="text-sage">Beginner</strong> classes are simpler to learn</p>
+                <p><span className="text-[#D4A853] mr-1">✦</span><strong className="text-[#D4A853]">Intermediate</strong> classes have more complexity</p>
+                <p><span className="text-blush mr-1">✦</span><strong className="text-blush">Advanced</strong> classes reward careful planning</p>
+              </div>
             </div>
-            <p className="font-sans text-xs text-ink-soft leading-relaxed">Your class shapes everything about how you play — what weapons you use, whether you cast spells, and what role you fill in the party.</p>
-            <div className="space-y-1.5 border-t border-sketch p-3">
-              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Hit Die</strong> determines your HP each level</p>
-              <p className="font-sans text-xs text-ink-soft"><span className="text-sage mr-1">✦</span><strong className="text-sage">Beginner</strong> classes are simpler to learn</p>
-              <p className="font-sans text-xs text-ink-soft"><span className="text-[#D4A853] mr-1">✦</span><strong className="text-[#D4A853]">Intermediate</strong> classes have more complexity</p>
-              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-blush">Advanced</strong> classes reward careful planning</p>
-            </div>
-          </div>
-        </div>
+          </WizardHintPanel>
+        </WizardHintColumn>
 
-        {/* Class grid */}
-        <div className="lg:col-span-2">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <WizardMainColumn>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {classes.map((cls) => {
               const isSelected = state.classId === cls.id;
               const emoji      = CLASS_EMOJI[cls.index] ?? "⚔️";
@@ -96,33 +100,34 @@ export function ClassStep() {
                   onClick={() => dispatch({ type: "SET_CLASS", payload: { classId: cls.id } })}
                   onMouseEnter={() => setHovered(cls)}
                   onMouseLeave={() => setHovered(null)}
-                  className={`relative p-4 rounded-sketch border-2 text-left transition-all duration-150 ${
+                  className={`relative flex flex-col gap-1 rounded-sketch border-2 p-4 text-left transition-all duration-150 ${
                     isSelected
                       ? "bg-blush/10 border-blush shadow-sketch-accent"
-                      : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
+                      : "border-sketch bg-warm-white shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
                   }`}
                 >
-                  <div className="text-2xl mb-2">{emoji}</div>
+                  <div className="text-2xl">{emoji}</div>
                   <p className={`font-display text-lg leading-tight ${isSelected ? "text-blush" : "text-ink"}`}>{cls.name}</p>
-                  <p className="font-sans text-[0.65rem] text-ink-faded mt-1">{CLASS_ROLE[cls.index]}</p>
-                  {difficulty && <p className={`font-sans text-[0.6rem] font-semibold mt-1 ${difficulty.color}`}>{difficulty.label}</p>}
-                  <p className="font-mono text-[0.6rem] text-ink-faded mt-1">d{cls.hitDie} HP</p>
+                  <p className="font-sans text-[0.65rem] text-ink-faded">{CLASS_ROLE[cls.index]}</p>
+                  {difficulty && (
+                    <p className={`font-sans text-[0.6rem] font-semibold ${difficulty.color}`}>{difficulty.label}</p>
+                  )}
+                  <p className="font-mono text-[0.6rem] text-ink-faded">d{cls.hitDie} HP</p>
                   {isSelected && (
-                    <div className="absolute top-2 right-2 w-5 h-5 bg-blush rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
+                    <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-blush">
+                      <span className="text-xs text-white">✓</span>
                     </div>
                   )}
                 </button>
               );
             })}
           </div>
-        </div>
+        </WizardMainColumn>
 
-        {/* Help panel */}
-        <div className="lg:col-span-2">
-          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 sticky top-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <WizardSideColumn>
+          <WizardDetailPanel icon="⚔️" title="Class preview" sizing="content">
             {displayClass ? (
-              <div className="space-y-4">
+              <div className="space-y-4 transition-opacity duration-300">
                 <div className="flex items-center gap-3">
                   <span className="text-3xl">{CLASS_EMOJI[displayClass.index] ?? "⚔️"}</span>
                   <div>
@@ -134,26 +139,24 @@ export function ClassStep() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-parchment border border-sketch rounded-input p-3 text-center">
-                    <p className="font-mono text-lg text-ink font-bold">d{displayClass.hitDie}</p>
-                    <p className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">Hit Die</p>
+                  <div className="rounded-input border border-sketch bg-parchment p-3 text-center">
+                    <p className="font-mono text-lg font-bold text-ink">d{displayClass.hitDie}</p>
+                    <p className="font-sans text-[0.6rem] uppercase tracking-wider text-ink-faded">Hit Die</p>
                   </div>
-                  <div className="bg-parchment border border-sketch rounded-input p-3 text-center">
-                    <p className="font-mono text-lg text-ink font-bold">{displayClass.spellcastingAbility ?? "—"}</p>
-                    <p className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">Spellcasting</p>
+                  <div className="rounded-input border border-sketch bg-parchment p-3 text-center">
+                    <p className="font-mono text-lg font-bold text-ink">{displayClass.spellcastingAbility ?? "—"}</p>
+                    <p className="font-sans text-[0.6rem] uppercase tracking-wider text-ink-faded">Spellcasting</p>
                   </div>
                 </div>
 
                 {displayClass.features.length > 0 && (
-                  <div className="border-t border-sketch p-3">
-                    <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">
-                      Level 1 Features
-                    </p>
+                  <div className="flex flex-col gap-2 border-t border-sketch p-3">
+                    <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">Level 1 Features</p>
                     <ul className="space-y-2">
                       {displayClass.features.slice(0, 4).map((f) => (
-                        <li key={f.id} className="bg-parchment border border-sketch rounded-input p-3">
+                        <li key={f.id} className="rounded-input border border-sketch bg-parchment p-3">
                           <p className="font-sans text-xs font-bold text-ink">{f.name}</p>
-                          <p className="font-sans text-xs text-ink-faded mt-0.5 line-clamp-2">{f.description}</p>
+                          <p className="font-sans text-xs text-ink-faded line-clamp-2">{f.description}</p>
                         </li>
                       ))}
                     </ul>
@@ -161,16 +164,16 @@ export function ClassStep() {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 mb-2">
+              <div className="mb-2 flex items-center gap-2">
                 <span className="text-xl">⚔️</span>
-                <p className="font-sans text-sm text-ink-faded italic">Hover or select a class to see its details.</p>
+                <p className="font-sans text-sm italic text-ink-faded">Hover or select a class to see its details.</p>
               </div>
             )}
-          </div>
-        </div>
+          </WizardDetailPanel>
+        </WizardSideColumn>
 
-      </div>
-    </div>
+      </WizardThreeColumnGrid>
+    </WizardStepBody>
   );
 }
 

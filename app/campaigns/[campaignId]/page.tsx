@@ -66,6 +66,51 @@ interface CampaignDetail {
   sessions: Session[];
 }
 
+function SessionHistoryModal({
+  sessions,
+  onClose,
+}: {
+  sessions: Session[];
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full max-w-lg rounded-sketch border-2 border-sketch bg-warm-white shadow-[4px_4px_0_#C4B49A]">
+        <div className="flex items-center justify-between border-b border-sketch p-5">
+          <h2 className="font-display text-2xl text-ink">Session History</h2>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-input border-2 border-sketch bg-parchment text-sm text-ink-faded transition-all hover:border-blush"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="max-h-[60vh] space-y-2 overflow-y-auto p-5">
+          {sessions.map((session) => (
+            <div
+              key={session.id}
+              className="flex items-center gap-2 rounded-input border border-sketch bg-parchment p-2.5"
+            >
+              <div className={`h-2 w-2 shrink-0 rounded-full ${session.active ? "bg-sage" : "bg-sketch"}`} />
+              <p className="font-sans text-xs text-ink-soft">
+                Round {session.round} · {timeAgo(session.createdAt)}
+              </p>
+              {session.active && (
+                <span className="ml-auto rounded border border-sage/30 p-0.5 font-sans text-[0.6rem] text-sage">
+                  Active
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function timeAgo(dateStr: string) {
@@ -195,7 +240,7 @@ function CharacterCard({ character, currentUserId, clickable = true }: {
   const isMyChar     = character.user.id === currentUserId;
 
   const card = (
-    <div className={`group bg-warm-white border-2 rounded-sketch shadow-sketch p-4 transition-all duration-150 ${
+    <div className={`group h-full bg-warm-white border-2 rounded-sketch shadow-sketch p-4 transition-all duration-150 ${
       clickable ? "hover:-translate-x-px hover:-translate-y-px cursor-pointer" : "cursor-default"
     } ${
       isMyChar ? "border-blush/30 bg-blush/5" : "border-sketch hover:border-blush/40"
@@ -219,11 +264,9 @@ function CharacterCard({ character, currentUserId, clickable = true }: {
           <p className="font-sans text-xs text-ink-faded mt-0.5">
             {character.race?.name ?? "Unknown"}{primaryClass ? ` · ${primaryClass.class.name}` : ""}
           </p>
-          {!isMyChar && (
-            <p className="font-sans text-xs text-ink-faded/70 mt-0.5">
-              {character.user.displayName ?? character.user.name ?? "Player"}
-            </p>
-          )}
+          <p className="mt-0.5 font-sans text-xs text-ink-faded/70">
+            {isMyChar ? "You" : (character.user.displayName ?? character.user.name ?? "Player")}
+          </p>
           <div className="mt-2">
             <div className="flex justify-between mb-1">
               <span className="font-sans text-[0.6rem] text-ink-faded uppercase tracking-wider">HP</span>
@@ -233,13 +276,15 @@ function CharacterCard({ character, currentUserId, clickable = true }: {
               <div className={`h-full rounded-full ${hpColor}`} style={{ width: `${hpPercent}%` }} />
             </div>
           </div>
-          {(character.conditions?.length ?? 0) > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {character.conditions.slice(0, 2).map((c) => (
-                <span key={c} className="font-sans text-[0.5rem] font-bold uppercase text-blush border border-blush/30 bg-blush/5 rounded p-0.5">{c}</span>
-              ))}
-            </div>
-          )}
+          <div className="mt-1.5 min-h-5">
+            {(character.conditions?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {character.conditions.slice(0, 2).map((c) => (
+                  <span key={c} className="font-sans text-[0.5rem] font-bold uppercase text-blush border border-blush/30 bg-blush/5 rounded p-0.5">{c}</span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -247,7 +292,7 @@ function CharacterCard({ character, currentUserId, clickable = true }: {
 
   return (
     clickable
-      ? <Link href={`/characters/${character.id}`}>{card}</Link>
+      ? <Link href={`/characters/${character.id}`} className="block h-full">{card}</Link>
       : card
   );
 }
@@ -259,6 +304,7 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
   onEdit: () => void; onDelete: () => void; onRefresh: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [showSessionHistory, setShowSessionHistory] = useState(false);
   const myCharacters    = campaign.characters.filter((c) => c.user.id === currentUserId);
   const partyCharacters = campaign.characters.filter((c) => c.isActive);
 
@@ -359,21 +405,6 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
           )}
         </div>
 
-        {/* Session history */}
-        {campaign.sessions.length > 0 && (
-          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4">
-            <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-3">Session History</p>
-            <div className="space-y-2">
-              {campaign.sessions.map((session) => (
-                <div key={session.id} className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${session.active ? "bg-sage" : "bg-sketch"}`} />
-                  <p className="font-sans text-xs text-ink-soft">Round {session.round} · {timeAgo(session.createdAt)}</p>
-                  {session.active && <span className="font-sans text-[0.6rem] text-sage border border-sage/30 rounded p-0.5 ml-auto">Active</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── Right: members + stats + tools ── */}
@@ -392,6 +423,15 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
               <span className="font-mono text-sm font-bold text-ink">{stat.value}</span>
             </div>
           ))}
+          {campaign.sessions.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowSessionHistory(true)}
+              className="mt-3 w-full font-sans text-xs font-semibold text-ink-soft bg-parchment border-2 border-sketch rounded-sketch p-2 hover:bg-paper hover:border-blush/50 transition-all"
+            >
+              View Session History
+            </button>
+          )}
         </div>
 
         {/* Member management */}
@@ -467,6 +507,12 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
           </button>
         </div>
       </div>
+      {showSessionHistory && (
+        <SessionHistoryModal
+          sessions={campaign.sessions}
+          onClose={() => setShowSessionHistory(false)}
+        />
+      )}
     </div>
   );
 }
@@ -477,6 +523,7 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
 function PlayerView({ campaign, currentUserId, onRefresh }: {
   campaign: CampaignDetail; currentUserId: string; onRefresh: () => void;
 }) {
+  const [showSessionHistory, setShowSessionHistory] = useState(false);
   const myCharacters    = campaign.characters.filter((c) => c.user.id === currentUserId);
   const partyCharacters = campaign.characters.filter((c) => c.isActive);
 
@@ -596,19 +643,25 @@ function PlayerView({ campaign, currentUserId, onRefresh }: {
 
         {campaign.sessions.length > 0 && (
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4">
-            <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-3">Sessions</p>
-            <div className="space-y-2">
-              {campaign.sessions.slice(0, 5).map((session) => (
-                <div key={session.id} className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${session.active ? "bg-sage" : "bg-sketch"}`} />
-                  <p className="font-sans text-xs text-ink-soft">Round {session.round} · {timeAgo(session.createdAt)}</p>
-                  {session.active && <span className="font-sans text-[0.6rem] text-sage border border-sage/30 rounded p-0.5 ml-auto">Active</span>}
-                </div>
-              ))}
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">Sessions</p>
+              <button
+                type="button"
+                onClick={() => setShowSessionHistory(true)}
+                className="font-sans text-xs font-semibold text-ink-soft bg-parchment border-2 border-sketch rounded-sketch p-2 hover:bg-paper hover:border-blush/50 transition-all"
+              >
+                View Sessions ({campaign.sessions.length})
+              </button>
             </div>
           </div>
         )}
       </div>
+      {showSessionHistory && (
+        <SessionHistoryModal
+          sessions={campaign.sessions}
+          onClose={() => setShowSessionHistory(false)}
+        />
+      )}
     </div>
   );
 }

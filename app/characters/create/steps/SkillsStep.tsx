@@ -83,7 +83,7 @@ export function SkillsStep() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full min-h-0 flex-col space-y-4 overflow-hidden">
       <div>
         <h1 className="font-display text-4xl text-ink mb-1">Choose your Skills</h1>
         <p className="font-sans text-sm text-ink-faded">
@@ -92,10 +92,10 @@ export function SkillsStep() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-3">
 
         {/* ── Left: skill grid ── */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="min-h-0 space-y-4 overflow-y-auto pr-1 lg:col-span-2">
 
           {/* Pick counter */}
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-4 flex items-center justify-between">
@@ -195,7 +195,7 @@ export function SkillsStep() {
 
         {/* ── Right: explanation panel ── */}
         <div className="lg:col-span-1">
-          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 sticky top-6 space-y-4 transition-all duration-200">
+          <div className="space-y-4 rounded-sketch border-2 border-sketch bg-warm-white p-5 shadow-sketch transition-all duration-200">
 
             {displaySkill ? (
               <>

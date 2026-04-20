@@ -202,3 +202,5 @@
 .animate-fade-up-3  { animation: fade-up    0.5s ease-out 0.8s both; }
 .animate-fade-up-4  { animation: fade-up    0.5s ease-out 1.0s both; }
 .animate-wiggle     { animation: wiggle     3s ease-in-out infinite; }
+/* Character creation wizard — step content fade/slide */
+.animate-wizard-step { animation: fade-up 0.4s ease-out both; }

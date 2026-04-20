@@ -61,8 +61,8 @@ function ProgressBar({ classIndex, campaignId }: { classIndex: string; campaignI
   const { state, dispatch } = useWizard();
 
   return (
-    <div className="w-full bg-warm-white border-b-2 border-sketch px-4 py-3 sticky top-0 z-40">
-      <div className="max-w-4xl mx-auto">
+    <div className="w-full shrink-0 bg-warm-white border-b-2 border-sketch px-4 py-3 z-40">
+      <div className="mx-auto max-w-6xl px-2 md:px-4">
         {campaignId && (
           <a
             href={`/campaigns/${campaignId}`}
@@ -174,8 +174,8 @@ function NavBar({
   const totalSteps = isSpellcaster(classIndex) ? 8 : 7;
 
   return (
-    <div className="w-full bg-warm-white border-t-2 border-sketch px-6 py-4">
-      <div className="max-w-4xl mx-auto flex items-center justify-between">
+    <div className="w-full shrink-0 border-t-2 border-sketch bg-warm-white px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] z-30 shadow-[0_-4px_20px_-8px_rgba(44,36,28,0.12)]">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-2 md:px-4">
         <button
           onClick={handleBack}
           disabled={state.currentStep === 1}
@@ -295,11 +295,19 @@ function WizardInner() {
   }
 
   return (
-    <div className="min-h-screen bg-parchment bg-paper-texture flex flex-col font-sans antialiased">
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-parchment bg-paper-texture font-sans antialiased">
       <ProgressBar classIndex={classIndex} campaignId={campaignId} />
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <div
+          className={`mx-auto max-w-6xl px-4 md:px-8 ${
+            state.currentStep === 4 || state.currentStep === 6 || state.currentStep === 7 || state.currentStep === 8
+              ? "h-full min-h-0 py-3 md:py-4"
+              : state.currentStep === 2 || state.currentStep === 3 || state.currentStep === 5
+                ? "pb-12 py-4 md:py-6"
+                : "pb-12 py-10 md:py-12"
+          }`}
+        >
           {error && (
             <div className="mb-6 bg-blush/10 border border-blush/30 rounded-input px-4 py-3">
               <p className="font-display text-sm text-blush">✗ {error}</p>

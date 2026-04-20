@@ -56,16 +56,16 @@ export function PersonalityStep() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-4xl text-ink mb-1">Personality</h1>
+    <div className="flex h-full min-h-0 flex-col space-y-4 overflow-hidden">
+      <div className="shrink-0">
+        <h1 className="mb-1 font-display text-4xl text-ink">Personality</h1>
         <p className="font-sans text-sm text-ink-faded">
-          Give your character some depth. These details shape how they interact with the world
-          and make for richer roleplay. You can always update them later.
+          Give your character some depth. These details shape how they interact with the world and make for richer roleplay.
+          You can always update them later.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-2 overflow-y-auto pr-1">
         {FIELDS.map((field) => {
           const value         = personality[field.key];
           const isFilled      = !!value.trim();
@@ -75,39 +75,35 @@ export function PersonalityStep() {
           return (
             <div
               key={field.key}
-              className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-5 space-y-3 focus-within:border-blush transition-colors"
+              className="space-y-2.5 rounded-sketch border-2 border-sketch bg-warm-white p-4 shadow-sketch transition-colors focus-within:border-blush"
             >
-              {/* Label */}
               <label className="flex items-center gap-2 font-sans text-[0.7rem] font-bold uppercase tracking-widest text-ink-faded">
                 <span>{field.icon}</span>
                 {field.label}
-                {isFilled && <span className="text-sage text-xs normal-case tracking-normal font-semibold">✓</span>}
+                {isFilled && <span className="text-xs font-semibold normal-case tracking-normal text-sage">✓</span>}
               </label>
 
-              {/* Description */}
-              <p className="font-sans text-xs text-ink-faded leading-relaxed">{field.description}</p>
+              <p className="font-sans text-xs leading-relaxed text-ink-faded">{field.description}</p>
 
-              {/* Textarea */}
               <textarea
-                rows={3}
+                rows={4}
                 value={value}
                 placeholder={field.placeholder}
                 onChange={(e) => updateField(field.key, e.target.value)}
-                className="w-full font-sans text-sm bg-parchment text-ink border-2 border-sketch rounded-input p-3 outline-none focus:border-blush transition-colors placeholder:text-ink-faded resize-none leading-relaxed"
+                className="w-full resize-none rounded-input border-2 border-sketch bg-parchment p-3 font-sans text-sm leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-faded focus:border-blush"
               />
 
-              {/* Suggestion pill — hidden once user has typed something */}
               {hasSuggestion && !isFilled && (
                 <button
                   type="button"
                   onClick={() => updateField(field.key, suggestion!)}
-                  className="w-full text-left bg-blush/5 border border-blush/30 rounded-input p-3 group hover:bg-blush/10 hover:border-blush transition-all duration-150"
+                  className="group w-full rounded-input border border-blush/30 bg-blush/5 p-3 text-left transition-all duration-150 hover:border-blush hover:bg-blush/10"
                 >
-                  <p className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-blush mb-1">
-                    {selectedBg?.name ?? "Background"} Suggestion — click to use
+                  <p className="mb-1 font-sans text-[0.6rem] font-bold uppercase tracking-wider text-blush">
+                    {selectedBg?.name ?? "Background"} suggestion — click to use
                   </p>
-                  <p className="font-sans text-xs text-ink-soft italic leading-relaxed group-hover:text-ink transition-colors">
-                    &ldquo;{suggestion}&ldquo;
+                  <p className="font-sans text-xs italic leading-relaxed text-ink-soft transition-colors group-hover:text-ink">
+                    &ldquo;{suggestion}&rdquo;
                   </p>
                 </button>
               )}
@@ -116,9 +112,13 @@ export function PersonalityStep() {
         })}
       </div>
 
-      <div className="bg-parchment border border-sketch rounded-sketch p-4 space-y-1">
-        <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span>All fields are optional but make roleplay much richer</p>
-        <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span>You can edit these freely from your character sheet at any time</p>
+      <div className="shrink-0 space-y-1 rounded-sketch border border-sketch bg-parchment p-3">
+        <p className="font-sans text-xs text-ink-soft">
+          <span className="mr-1 text-blush">✦</span>All fields are optional but make roleplay much richer
+        </p>
+        <p className="font-sans text-xs text-ink-soft">
+          <span className="mr-1 text-blush">✦</span>You can edit these freely from your character sheet at any time
+        </p>
       </div>
     </div>
   );

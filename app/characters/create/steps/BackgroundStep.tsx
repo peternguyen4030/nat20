@@ -3,6 +3,16 @@
 import { useEffect, useState } from "react";
 import { useWizard } from "@/context/WizardContext";
 import { Background } from "@/types/character-creation";
+import {
+  WizardDetailPanel,
+  WizardHintPanel,
+  WizardHintColumn,
+  WizardMainColumn,
+  WizardSideColumn,
+  WizardStepBody,
+  WizardStepHeader,
+  WizardThreeColumnGrid,
+} from "../wizard-layout";
 
 const BACKGROUND_EMOJI: Record<string, string> = {
   acolyte: "🕯️", charlatan: "🃏", criminal: "🗝️", entertainer: "🎭",
@@ -10,81 +20,6 @@ const BACKGROUND_EMOJI: Record<string, string> = {
   knight: "🏰", noble: "👑", outlander: "🌲", sage: "📚",
   sailor: "⚓", soldier: "🪖", urchin: "🐀", pirate: "🏴‍☠️",
 };
-
-// ── Background detail modal ───────────────────────────────────────────────────
-
-function BackgroundModal({ bg, onClose }: { bg: Background; onClose: () => void }) {
-  const emoji = BACKGROUND_EMOJI[bg.index] ?? "📜";
-  return (
-    <div
-      className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-lg bg-warm-white border-2 border-sketch rounded-sketch shadow-[4px_4px_0_#C4B49A] overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-sketch">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{emoji}</span>
-            <h2 className="font-display text-2xl text-ink">{bg.name}</h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-input border-2 border-sketch bg-parchment text-ink-faded hover:border-blush transition-all flex items-center justify-center text-sm"
-          >✕</button>
-        </div>
-
-        {/* Body */}
-        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-          {bg.description && (
-            <p className="font-sans text-sm text-ink-soft leading-relaxed">{bg.description}</p>
-          )}
-          {bg.skillProficiencies.length > 0 && (
-            <div className="border-t border-sketch p-4">
-              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Skill Proficiencies</p>
-              <div className="flex flex-wrap gap-2">
-                {bg.skillProficiencies.map((skill) => (
-                  <span key={skill} className="font-sans text-xs capitalize bg-dusty-blue/10 text-dusty-blue border border-dusty-blue/30 rounded p-1">
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {bg.feature && (
-            <div className="border-t border-sketch p-4">
-              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Background Feature</p>
-              <div className="bg-parchment border border-sketch rounded-input p-3">
-                <p className="font-sans text-sm font-semibold text-ink">{bg.feature}</p>
-              </div>
-            </div>
-          )}
-          {bg.languages > 0 && (
-            <div className="border-t border-sketch p-4">
-              <p className="font-sans text-xs text-ink-soft leading-relaxed">
-                Grants <strong className="text-ink">{bg.languages}</strong> bonus language{bg.languages > 1 ? "s" : ""}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-sketch bg-parchment flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="font-sans font-semibold text-sm text-ink-faded border-2 border-sketch rounded-sketch p-2 bg-warm-white hover:bg-paper transition-all"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Main step ─────────────────────────────────────────────────────────────────
 
@@ -94,10 +29,22 @@ export function BackgroundStep() {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
   const [hovered, setHovered]         = useState<Background | null>(null);
-  const [modalBg, setModalBg]         = useState<Background | null>(null);
+  const [activePreviewTab, setActivePreviewTab] =
+    useState<"description" | "skills" | "feature" | "languages">("description");
 
   const selectedBg = backgrounds.find((b) => b.id === state.backgroundId) ?? null;
   const displayBg  = hovered ?? selectedBg;
+  const hasSkillsTab = (displayBg?.skillProficiencies.length ?? 0) > 0;
+  const hasFeatureTab = !!displayBg?.feature;
+  const hasLanguagesTab = (displayBg?.languages ?? 0) > 0;
+  const resolvedPreviewTab =
+    activePreviewTab === "skills" && !hasSkillsTab
+      ? "description"
+      : activePreviewTab === "feature" && !hasFeatureTab
+        ? "description"
+        : activePreviewTab === "languages" && !hasLanguagesTab
+          ? "description"
+          : activePreviewTab;
 
   useEffect(() => {
     fetch("/api/backgrounds")
@@ -110,34 +57,28 @@ export function BackgroundStep() {
   if (error)   return <ErrorState message={error} />;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-4xl text-ink mb-1">Choose your Background</h1>
-        <p className="font-sans text-sm text-ink-faded">
-          Your background is your character's history before they became an adventurer.
-        </p>
-      </div>
+    <WizardStepBody className="flex h-full min-h-0 flex-col overflow-hidden space-y-6">
+      <WizardStepHeader
+        title="Choose your Background"
+        subtitle="Your background is your character's history before they became an adventurer."
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <WizardThreeColumnGrid className="min-h-0 flex-1 items-stretch gap-8 lg:gap-10">
 
-        {/* ── About Backgrounds — left panel ── */}
-        <div className="lg:col-span-1 order-last lg:order-first">
-          <div className="bg-parchment border-2 border-sketch rounded-sketch p-5 sticky top-6 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">📜</span>
-              <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">About Backgrounds</p>
+        <WizardHintColumn>
+          <WizardHintPanel icon="📜" title="About Backgrounds" density="compact">
+            <p>Every adventurer has a past. Your background reflects your character&apos;s life before they took up adventuring.</p>
+            <div className="border-t border-sketch">
+              <div className="m-3 space-y-1.5">
+                <p><span className="text-blush mr-1">✦</span><strong className="text-ink">Skill Proficiencies</strong> automatically granted</p>
+                <p><span className="text-blush mr-1">✦</span><strong className="text-ink">Background Feature</strong> — a unique narrative ability</p>
+                <p><span className="text-blush mr-1">✦</span><strong className="text-ink">Languages</strong> — bonus tongues you can speak</p>
+              </div>
             </div>
-            <p className="font-sans text-xs text-ink-soft leading-relaxed">Every adventurer has a past. Your background reflects your character's life before they took up adventuring.</p>
-            <div className="space-y-1.5 border-t border-sketch p-3">
-              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Skill Proficiencies</strong> automatically granted</p>
-              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Background Feature</strong> — a unique narrative ability</p>
-              <p className="font-sans text-xs text-ink-soft"><span className="text-blush mr-1">✦</span><strong className="text-ink">Languages</strong> — bonus tongues you can speak</p>
-            </div>
-          </div>
-        </div>
+          </WizardHintPanel>
+        </WizardHintColumn>
 
-        {/* ── Background grid ── */}
-        <div className="lg:col-span-2">
+        <WizardMainColumn className="h-full min-h-0 overflow-y-auto pr-1">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {backgrounds.map((bg) => {
               const isSelected = state.backgroundId === bg.id;
@@ -171,82 +112,126 @@ export function BackgroundStep() {
               );
             })}
           </div>
-        </div>
+        </WizardMainColumn>
 
-        {/* ── Selected info panel ── */}
-        <div className="lg:col-span-1">
-          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-5 sticky top-6 space-y-3">
+        <WizardSideColumn>
+          <WizardDetailPanel icon="📜" title="Background preview" sizing="content">
             {displayBg ? (
-              <>
-                {/* Name + emoji */}
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">{BACKGROUND_EMOJI[displayBg.index] ?? "📜"}</span>
-                  <h2 className="font-display text-xl text-ink">{displayBg.name}</h2>
+              <div className="flex min-h-0 flex-1 flex-col transition-opacity duration-300">
+                <div className="sticky top-0 z-1 mb-3 shrink-0 space-y-2 border-b border-sketch/60 bg-warm-white pb-3 shadow-[0_10px_16px_-12px_rgba(44,36,28,0.2)]">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{BACKGROUND_EMOJI[displayBg.index] ?? "📜"}</span>
+                    <h2 className="font-display text-xl text-ink">{displayBg.name}</h2>
+                  </div>
                 </div>
 
-                {/* 2-line description preview + Read more */}
-                {displayBg.description && (
-                  <div>
-                    <p className="font-sans text-xs text-ink-soft leading-relaxed line-clamp-2">{displayBg.description}</p>
+                <div className="shrink-0">
+                  <div className="flex flex-wrap gap-1.5 border-b border-sketch/60 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setActivePreviewTab("description")}
+                    className={`rounded-input border px-2.5 py-1 font-sans text-[0.62rem] font-bold uppercase tracking-wide transition-colors ${
+                      resolvedPreviewTab === "description"
+                        ? "border-blush bg-blush/10 text-blush"
+                        : "border-sketch bg-parchment text-ink-faded hover:border-blush/40 hover:text-ink"
+                    }`}
+                  >
+                    Description
+                  </button>
+                  {hasSkillsTab && (
                     <button
                       type="button"
-                      onClick={() => setModalBg(displayBg)}
-                      className="font-sans text-[0.6rem] font-bold text-blush hover:text-ink transition-colors mt-1"
+                      onClick={() => setActivePreviewTab("skills")}
+                      className={`rounded-input border px-2.5 py-1 font-sans text-[0.62rem] font-bold uppercase tracking-wide transition-colors ${
+                        resolvedPreviewTab === "skills"
+                          ? "border-dusty-blue bg-dusty-blue/10 text-dusty-blue"
+                          : "border-sketch bg-parchment text-ink-faded hover:border-dusty-blue/40 hover:text-ink"
+                      }`}
                     >
-                      Read more →
+                      Skills
                     </button>
-                  </div>
-                )}
+                  )}
+                  {hasFeatureTab && (
+                    <button
+                      type="button"
+                      onClick={() => setActivePreviewTab("feature")}
+                      className={`rounded-input border px-2.5 py-1 font-sans text-[0.62rem] font-bold uppercase tracking-wide transition-colors ${
+                        resolvedPreviewTab === "feature"
+                          ? "border-sage bg-sage/10 text-sage"
+                          : "border-sketch bg-parchment text-ink-faded hover:border-sage/40 hover:text-ink"
+                      }`}
+                    >
+                      Feature
+                    </button>
+                  )}
+                  {hasLanguagesTab && (
+                    <button
+                      type="button"
+                      onClick={() => setActivePreviewTab("languages")}
+                      className={`rounded-input border px-2.5 py-1 font-sans text-[0.62rem] font-bold uppercase tracking-wide transition-colors ${
+                        resolvedPreviewTab === "languages"
+                          ? "border-[#D4A853] bg-[#D4A853]/10 text-[#A57D2E]"
+                          : "border-sketch bg-parchment text-ink-faded hover:border-[#D4A853]/50 hover:text-ink"
+                      }`}
+                    >
+                      Languages
+                    </button>
+                  )}
+                </div>
+                </div>
 
-                {/* Skill proficiencies — always visible */}
-                {displayBg.skillProficiencies.length > 0 && (
-                  <div className="border-t border-sketch p-3">
-                    <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">Skills</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {displayBg.skillProficiencies.map((skill) => (
-                        <span key={skill} className="font-sans text-xs capitalize bg-dusty-blue/10 text-dusty-blue border border-dusty-blue/30 rounded p-1">
-                          {skill}
-                        </span>
-                      ))}
+                <div className="pt-1">
+                  {resolvedPreviewTab === "description" && (
+                    <div>
+                      {displayBg.description ? (
+                        <p className="font-sans text-xs leading-relaxed text-ink-soft">{displayBg.description}</p>
+                      ) : (
+                        <p className="font-sans text-xs italic text-ink-faded">No description available yet.</p>
+                      )}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Background feature — always visible */}
-                {displayBg.feature && (
-                  <div className="border-t border-sketch p-3">
-                    <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Feature</p>
-                    <div className="bg-parchment border border-sketch rounded-input p-2">
-                      <p className="font-sans text-xs font-semibold text-ink">{displayBg.feature}</p>
+                  {resolvedPreviewTab === "skills" && hasSkillsTab && (
+                    <div className="space-y-2">
+                      <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">Skill proficiencies</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {displayBg.skillProficiencies.map((skill) => (
+                          <span key={skill} className="rounded border border-dusty-blue/30 bg-dusty-blue/10 p-1 font-sans text-xs capitalize text-dusty-blue">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Languages — always visible */}
-                {displayBg.languages > 0 && (
-                  <div className="border-t border-sketch p-3">
+                  {resolvedPreviewTab === "feature" && hasFeatureTab && (
+                    <div className="space-y-2">
+                      <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">Background feature</p>
+                      <div className="rounded-input border border-sketch bg-parchment p-2">
+                        <p className="font-sans text-xs font-semibold text-ink">{displayBg.feature}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {resolvedPreviewTab === "languages" && hasLanguagesTab && (
                     <p className="font-sans text-xs text-ink-soft">
                       +<strong className="text-ink">{displayBg.languages}</strong> language{displayBg.languages > 1 ? "s" : ""}
                     </p>
-                  </div>
-                )}
-                            </>
+                  )}
+                </div>
+              </div>
             ) : (
               <div className="flex items-center gap-2">
                 <span className="text-xl">📜</span>
                 <p className="font-sans text-sm text-ink-faded italic">Hover or select a background to see its details.</p>
               </div>
             )}
-          </div>
-        </div>
+          </WizardDetailPanel>
+        </WizardSideColumn>
 
-      </div>
+      </WizardThreeColumnGrid>
 
-      {/* Background detail modal */}
-      {modalBg && (
-        <BackgroundModal bg={modalBg} onClose={() => setModalBg(null)} />
-      )}
-    </div>
+    </WizardStepBody>
   );
 }
 
@@ -264,7 +249,7 @@ function ErrorState({ message }: { message: string }) {
   return (
     <div className="bg-blush/10 border border-blush/30 rounded-sketch p-6 text-center">
       <p className="font-display text-lg text-blush">✗ {message}</p>
-      <p className="font-sans text-sm text-ink-faded mt-1">Try refreshing the page.</p>
+      <p className="font-sans text-sm text-ink-faded m-1">Try refreshing the page.</p>
     </div>
   );
 }

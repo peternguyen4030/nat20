@@ -85,7 +85,7 @@ function SpellCard({
               </p>
               <div className="flex items-center gap-1 shrink-0">
                 {spell.category && (
-                  <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider p-1.5 p-0.5 rounded border ${
+                  <span className={`font-sans text-[0.6rem] font-bold uppercase tracking-wider p-0.5 rounded border ${
                     CATEGORY_CONFIG[spell.category as SpellCategory]?.color ?? "text-ink-faded border-sketch bg-parchment"
                   }`}>
                     {CATEGORY_CONFIG[spell.category as SpellCategory]?.emoji}{" "}
@@ -201,17 +201,6 @@ export function SpellsStep() {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-16 bg-warm-white border-2 border-sketch rounded-sketch animate-pulse" />
-        ))}
-      </div>
-    );
-  }
-
-
   function toggleCategory(cat: SpellCategory) {
     setActiveCategories((prev) => {
       const next = new Set(prev);
@@ -254,7 +243,7 @@ export function SpellsStep() {
   const spellsFull   = selectedSpells.length >= spellLimit;
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full min-h-0 flex-col space-y-4 overflow-hidden">
       <div>
         <h1 className="font-display text-4xl text-ink mb-1">Choose your Spells</h1>
         <p className="font-sans text-sm text-ink-faded">
@@ -263,13 +252,13 @@ export function SpellsStep() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-3">
 
         {/* ── Left: spell list ── */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="min-h-0 space-y-4 lg:col-span-2 flex flex-col">
 
           {/* Tabs + counters */}
-          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch overflow-hidden">
+          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch overflow-hidden shrink-0">
             <div className="flex border-b border-sketch">
               {(["cantrips", "spells"] as const).map((tab) => {
                 const count = tab === "cantrips" ? selectedCantrips.length : selectedSpells.length;
@@ -279,14 +268,14 @@ export function SpellsStep() {
                     key={tab}
                     type="button"
                     onClick={() => setActiveTab(tab)}
-                    className={`flex-1 p-3 font-sans font-semibold text-sm flex items-center justify-center gap-2 transition-colors duration-150 ${
+                    className={`flex-1 p-2.5 font-sans font-semibold text-sm flex items-center justify-center gap-2 transition-colors duration-150 ${
                       activeTab === tab
                         ? "bg-parchment text-blush border-b-2 border-blush"
                         : "text-ink-faded hover:text-ink"
                     }`}
                   >
                     {tab === "cantrips" ? "✨ Cantrips" : "📖 Level 1 Spells"}
-                    <span className={`font-mono text-xs p-1.5 p-0.5 rounded border ${
+                    <span className={`font-mono text-xs p-0.5 rounded border ${
                       count >= limit
                         ? "bg-sage/10 text-sage border-sage/30"
                         : "bg-parchment text-ink-faded border-sketch"
@@ -299,22 +288,22 @@ export function SpellsStep() {
             </div>
 
             {/* Search */}
-            <div className="p-3 border-b border-sketch">
+            <div className="p-2.5 border-b border-sketch">
               <input
                 type="text"
                 placeholder="Search spells..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full font-sans text-sm bg-parchment text-ink border-2 border-sketch rounded-input p-3 outline-none focus:border-blush transition-colors placeholder:text-ink-faded"
+                className="w-full font-sans text-sm bg-parchment text-ink border-2 border-sketch rounded-input p-2.5 outline-none focus:border-blush transition-colors placeholder:text-ink-faded"
               />
             </div>
 
             {/* Category filters — multi-select */}
-            <div className="p-3 flex flex-wrap gap-1.5">
+            <div className="p-2.5 flex flex-wrap gap-1.5">
               <button
                 type="button"
                 onClick={() => setActiveCategories(new Set())}
-                className={`font-sans text-xs font-semibold p-2.5 p-1 rounded-badge border-2 transition-all duration-150 ${
+                className={`font-sans text-xs font-semibold p-1 rounded-badge border-2 transition-all duration-150 ${
                   activeCategories.size === 0
                     ? "bg-ink text-warm-white border-ink shadow-sketch-accent"
                     : "bg-parchment text-ink-faded border-sketch hover:border-ink/40"
@@ -330,7 +319,7 @@ export function SpellsStep() {
                     key={cat}
                     type="button"
                     onClick={() => toggleCategory(cat)}
-                    className={`font-sans text-xs font-semibold p-2.5 p-1 rounded-badge border-2 transition-all duration-150 ${
+                    className={`font-sans text-xs font-semibold p-1 rounded-badge border-2 transition-all duration-150 ${
                       isActive
                         ? `${cfg.color} border-current font-bold shadow-sketch-accent scale-105`
                         : "bg-warm-white text-ink-soft border-sketch hover:border-ink/40 hover:bg-paper"
@@ -353,7 +342,7 @@ export function SpellsStep() {
           </div>
 
           {/* Spell cards */}
-          <div className="space-y-2 max-h-[500px] overflow-y-auto p-1">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-1">
             {filtered.length === 0 ? (
               <div className="text-center p-6 space-y-2">
                 <p className="font-display text-sm text-ink-faded">No spells match your filters.</p>
@@ -390,7 +379,7 @@ export function SpellsStep() {
 
         {/* ── Right: help panel ── */}
         <div className="lg:col-span-1">
-          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 sticky top-6 space-y-4">
+          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-5 space-y-4">
             <div className="flex items-center gap-2">
               <span className="text-xl">✨</span>
               <h2 className="font-display text-xl text-ink">About Spells</h2>

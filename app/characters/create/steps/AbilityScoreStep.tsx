@@ -1,7 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useWizard } from "@/context/WizardContext";
+import {
+  WizardDetailPanel,
+  WizardHintPanel,
+  WizardHintColumn,
+  WizardMainColumn,
+  WizardSideColumn,
+  WizardStepBody,
+  WizardStepHeader,
+  WizardThreeColumnGrid,
+} from "../wizard-layout";
 import {
   AbilityScoreMethod,
   AbilityScores,
@@ -33,6 +43,51 @@ const CLASS_STAT_PRIORITY: Record<string, {
 function modifier(score: number) {
   const mod = Math.floor((score - 10) / 2);
   return mod >= 0 ? `+${mod}` : `${mod}`;
+}
+
+type AbilityNameEntry = (typeof ABILITY_NAMES)[number];
+type StatPriority = { primary: string[]; secondary: string[] } | null;
+
+/** Line 1: name + abbreviation together, optional modifier (Standard / Roll). Line 2: Primary / Secondary. */
+function AbilityCardHeading({
+  ability,
+  priority,
+  trailing,
+}: {
+  ability: AbilityNameEntry;
+  priority: StatPriority;
+  trailing: ReactNode;
+}) {
+  const showPrimary   = priority?.primary.includes(ability.label) ?? false;
+  const showSecondary = priority?.secondary.includes(ability.label) ?? false;
+
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <div className="flex min-w-0 items-baseline justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+          <p className="font-display text-lg leading-snug text-ink">{ability.label}</p>
+          <span className="shrink-0 font-mono text-sm text-ink-faded">{ability.abbr}</span>
+        </div>
+        {trailing != null && trailing !== false && (
+          <div className="shrink-0 text-right">{trailing}</div>
+        )}
+      </div>
+      {(showPrimary || showSecondary) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {showPrimary && (
+            <span className="rounded border border-blush/30 bg-blush/10 p-0.5 font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush">
+              Primary
+            </span>
+          )}
+          {showSecondary && (
+            <span className="rounded border border-[#D4A853]/30 bg-[#D4A853]/10 p-0.5 font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853]">
+              Secondary
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Method selector ───────────────────────────────────────────────────────────
@@ -128,7 +183,7 @@ function StandardArrayPanel({ priority }: {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {ABILITY_NAMES.map((ability) => {
           const assigned = assignments[ability.key];
           return (
@@ -136,7 +191,7 @@ function StandardArrayPanel({ priority }: {
               key={ability.key}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => { if (dragging) assignValue(ability.key, dragging); }}
-              className={`bg-warm-white border-2 rounded-sketch p-4 flex items-center gap-4 transition-all duration-150 ${
+              className={`flex items-center gap-4 rounded-sketch border-2 bg-warm-white p-4 transition-all duration-150 ${
                 dragging ? "border-blush/50 bg-blush/5" : "border-sketch"
               }`}
             >
@@ -157,23 +212,17 @@ function StandardArrayPanel({ priority }: {
                 ))}
               </select>
 
-              <div className="flex-1">
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <p className="font-display text-lg text-ink">{ability.label}</p>
-                  <span className="font-mono text-sm text-ink-faded">{ability.abbr}</span>
-                  {priority?.primary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-0.5">Primary</span>
-                  )}
-                  {priority?.secondary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-0.5">Secondary</span>
-                  )}
-                  {assigned && (
-                    <span className="font-mono text-sm text-sage ml-auto">
-                      {modifier(assigned)}
-                    </span>
-                  )}
-                </div>
-                <p className="font-sans text-xs text-ink-faded leading-tight mt-0.5">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <AbilityCardHeading
+                  ability={ability}
+                  priority={priority}
+                  trailing={
+                    assigned ? (
+                      <span className="font-mono text-sm tabular-nums text-sage">{modifier(assigned)}</span>
+                    ) : null
+                  }
+                />
+                <p className="wrap-break-word font-sans text-xs leading-snug text-ink-faded">
                   {ability.description}
                 </p>
               </div>
@@ -195,7 +244,7 @@ function StandardArrayPanel({ priority }: {
 function PointBuyPanel({ priority }: {
   priority: { primary: string[]; secondary: string[] } | null;
 }) {
-  const { state, dispatch } = useWizard();
+  const { dispatch } = useWizard();
   const [scores, setScores] = useState<AbilityScores>({
     strength: 8, dexterity: 8, constitution: 8,
     intelligence: 8, wisdom: 8, charisma: 8,
@@ -256,52 +305,48 @@ function PointBuyPanel({ priority }: {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {ABILITY_NAMES.map((ability) => {
           const score   = scores[ability.key as keyof AbilityScores];
           const canUp   = score < 15 && remaining >= (POINT_BUY_COSTS[score + 1] ?? 0) - (POINT_BUY_COSTS[score] ?? 0);
           const canDown = score > 8;
 
           return (
-            <div key={ability.key} className="bg-warm-white border-2 border-sketch rounded-sketch p-4 flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => adjust(ability.key as keyof AbilityScores, -1)}
-                  disabled={!canDown}
-                  className="w-7 h-7 rounded-input border-2 border-sketch bg-parchment text-ink font-bold text-sm flex items-center justify-center disabled:opacity-30 hover:border-blush transition-colors"
-                >−</button>
-                <div className="w-10 text-center">
-                  <p className="font-mono font-bold text-xl text-ink">{score}</p>
-                  <p className="font-mono text-xs text-sage">{modifier(score)}</p>
+            <div
+              key={ability.key}
+              className="flex items-start gap-4 rounded-sketch border-2 border-sketch bg-warm-white p-4 transition-all duration-150"
+            >
+              <div className="flex shrink-0 flex-col items-center gap-2">
+                <div className="min-w-14 rounded-input border-2 border-sketch bg-parchment px-2 py-2 text-center">
+                  <p className="font-mono text-lg font-bold leading-none text-ink">{score}</p>
+                  <p className="font-mono text-xs leading-tight text-sage">{modifier(score)}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => adjust(ability.key as keyof AbilityScores, 1)}
-                  disabled={!canUp}
-                  className="w-7 h-7 rounded-input border-2 border-sketch bg-parchment text-ink font-bold text-sm flex items-center justify-center disabled:opacity-30 hover:border-blush transition-colors"
-                >+</button>
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => adjust(ability.key as keyof AbilityScores, -1)}
+                    disabled={!canDown}
+                    className="flex h-8 w-8 items-center justify-center rounded-input border-2 border-sketch bg-parchment text-sm font-bold text-ink transition-colors hover:border-blush disabled:opacity-30"
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => adjust(ability.key as keyof AbilityScores, 1)}
+                    disabled={!canUp}
+                    className="flex h-8 w-8 items-center justify-center rounded-input border-2 border-sketch bg-parchment text-sm font-bold text-ink transition-colors hover:border-blush disabled:opacity-30"
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="text-center font-sans text-[0.6rem] tabular-nums leading-tight text-ink-faded">
+                  Cost: {POINT_BUY_COSTS[score]}
+                </p>
               </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-1.5">
-                  <p className="font-display text-base text-ink">{ability.label}</p>
-                  <span className="font-mono text-xs text-ink-faded">{ability.abbr}</span>
-                  <span className="font-sans text-[0.6rem] text-ink-faded ml-auto shrink-0">
-                    Cost: {POINT_BUY_COSTS[score]}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  {priority?.primary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-0.5">Primary</span>
-                  )}
-                  {priority?.secondary.includes(ability.label) && (
-                    <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-0.5">Secondary</span>
-                  )}
-                  <p className="font-sans text-xs text-ink-faded leading-tight">
-                    {ability.description}
-                  </p>
-                </div>
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <AbilityCardHeading ability={ability} priority={priority} trailing={null} />
+                <p className="wrap-break-word font-sans text-xs leading-snug text-ink-faded">{ability.description}</p>
               </div>
             </div>
           );
@@ -408,7 +453,7 @@ function RollPanel({ priority }: {
       </div>
 
       {rolled && rolls.length > 0 && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-5">
             <p className="font-sans text-[0.7rem] font-bold uppercase tracking-widest text-ink-faded mb-3">
               Your Rolls — drag or use the dropdown to assign
@@ -448,7 +493,7 @@ function RollPanel({ priority }: {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {ABILITY_NAMES.map((ability) => {
               const assignedIndex = assignments[ability.key];
               const assignedScore = assignedIndex !== null ? statTotal(rolls[assignedIndex]) : null;
@@ -464,13 +509,13 @@ function RollPanel({ priority }: {
                       setDragging(null);
                     }
                   }}
-                  className={`bg-warm-white border-2 rounded-sketch p-4 flex items-center gap-3 transition-all duration-150 ${
+                  className={`flex items-center gap-4 rounded-sketch border-2 bg-warm-white p-4 transition-all duration-150 ${
                     isDragTarget ? "border-blush/50 bg-blush/5"
                     : assignedIndex !== null ? "border-sage/50"
                     : "border-sketch"
                   }`}
                 >
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <select
                       value={assignedIndex !== null ? assignedIndex : ""}
                       onChange={(e) => assignRoll(ability.key, e.target.value !== "" ? Number(e.target.value) : null)}
@@ -489,23 +534,23 @@ function RollPanel({ priority }: {
                     </select>
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-1.5 flex-wrap">
-                      <p className="font-display text-base text-ink">{ability.label}</p>
-                      <span className="font-mono text-xs text-ink-faded">{ability.abbr}</span>
-                      {priority?.primary.includes(ability.label) && (
-                        <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-blush border border-blush/30 bg-blush/10 rounded p-0.5">Primary</span>
-                      )}
-                      {priority?.secondary.includes(ability.label) && (
-                        <span className="font-sans text-[0.55rem] font-bold uppercase tracking-wider text-[#D4A853] border border-[#D4A853]/30 bg-[#D4A853]/10 rounded p-0.5">Secondary</span>
-                      )}
-                      {assignedScore !== null && (
-                        <span className={`font-mono text-sm ml-auto ${parseInt(modifier(assignedScore)) >= 0 ? "text-sage" : "text-blush"}`}>
-                          {modifier(assignedScore)}
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-sans text-xs text-ink-faded leading-tight mt-0.5">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <AbilityCardHeading
+                      ability={ability}
+                      priority={priority}
+                      trailing={
+                        assignedScore !== null ? (
+                          <span
+                            className={`font-mono text-sm tabular-nums ${
+                              parseInt(modifier(assignedScore), 10) >= 0 ? "text-sage" : "text-blush"
+                            }`}
+                          >
+                            {modifier(assignedScore)}
+                          </span>
+                        ) : null
+                      }
+                    />
+                    <p className="wrap-break-word font-sans text-xs leading-snug text-ink-faded">
                       {ability.description}
                     </p>
                   </div>
@@ -538,114 +583,193 @@ export function AbilityScoreStep({ classIndex = "", className = "" }: {
   const { state, dispatch } = useWizard();
   const method   = state.abilityScoreMethod;
   const priority = CLASS_STAT_PRIORITY[classIndex] ?? null;
+  const [activeInfoTab, setActiveInfoTab] = useState<"modifiers" | "tips" | "basics">("basics");
+  const [activeMethodTab, setActiveMethodTab] = useState<AbilityScoreMethod>("standard_array");
+  const selectedMethodTab = method ?? activeMethodTab;
+  const methodTabInfo = METHODS.find((entry) => entry.id === selectedMethodTab) ?? METHODS[0];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-4xl text-ink mb-1">Ability Scores</h1>
-        <p className="font-sans text-sm text-ink-faded">
-          Your six ability scores define your character's raw capabilities. Choose how you want to generate them.
-        </p>
-      </div>
+    <WizardStepBody>
+      <WizardStepHeader
+        title="Ability Scores"
+        subtitle="Your six ability scores define your character's raw capabilities. Choose how you want to generate them."
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <WizardThreeColumnGrid>
 
-        {/* ── Left: method selector + active panel ── */}
-        <div className="lg:col-span-2 space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {METHODS.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => dispatch({ type: "SET_ABILITY_METHOD", payload: { method: m.id } })}
-                className={`p-4 rounded-sketch border-2 text-left transition-all duration-150 ${
-                  method === m.id
-                    ? "bg-blush/10 border-blush shadow-sketch-accent"
-                    : "bg-warm-white border-sketch shadow-sketch hover:border-blush/50 hover:bg-paper hover:-translate-x-px hover:-translate-y-px"
-                }`}
-              >
-                <div className="text-2xl mb-2">{m.emoji}</div>
-                <p className={`font-display text-base leading-tight ${method === m.id ? "text-blush" : "text-ink"}`}>
-                  {m.label}
-                </p>
-                <p className="font-sans text-xs text-ink-faded mt-1 leading-snug">
-                  {m.description}
-                </p>
-              </button>
-            ))}
-          </div>
+        <WizardHintColumn>
+          <div className="space-y-3">
+            <WizardHintPanel icon="📚" title="Method guide" density="compact" sticky={false}>
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-1 border-b border-sketch/60 pb-2">
+                  {METHODS.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      onClick={() => setActiveMethodTab(entry.id)}
+                      className={`rounded-input border px-2 py-0.5 font-sans text-[0.55rem] font-bold uppercase tracking-wide transition-colors ${
+                        selectedMethodTab === entry.id
+                          ? "border-blush bg-blush/10 text-blush"
+                          : "border-sketch bg-parchment text-ink-faded hover:border-blush/40 hover:text-ink"
+                      }`}
+                    >
+                      {entry.label}
+                    </button>
+                  ))}
+                </div>
 
-          {method === "standard_array" && <StandardArrayPanel priority={priority} />}
-          {method === "point_buy"      && <PointBuyPanel priority={priority} />}
-          {method === "roll"           && <RollPanel priority={priority} />}
-        </div>
-
-        {/* ── Right: help panel ── */}
-        <div className="lg:col-span-1">
-          <div className="bg-warm-white border-2 border-sketch rounded-sketch shadow-sketch p-6 sticky top-6">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xl">🎲</span>
-              <h2 className="font-display text-xl text-ink">About Ability Scores</h2>
-            </div>
-            <div className="space-y-3 font-sans text-sm text-ink-soft leading-relaxed">
-
-              {priority && className && (
-                <div className="bg-blush/5 border border-blush/20 rounded-sketch p-3 space-y-2">
-                  <p className="font-sans text-xs text-ink-faded">
-                    You've chosen: <span className="font-bold text-ink">{className}</span>
+                <div className="rounded-input border border-sketch bg-parchment p-2.5">
+                  <p className="mb-1 font-display text-xs text-ink">
+                    <span className="mr-1.5">{methodTabInfo.emoji}</span>
+                    {methodTabInfo.label}
                   </p>
-                  <div className="space-y-1.5">
-                    <div className="flex items-start gap-2">
-                      <span className="text-blush shrink-0 mt-0.5">✦</span>
-                      <p className="font-sans text-xs text-ink-soft">
-                        <strong className="text-ink">Primary:</strong> {priority.primary.join(", ")}
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-[#D4A853] shrink-0 mt-0.5">✦</span>
-                      <p className="font-sans text-xs text-ink-soft">
-                        <strong className="text-ink">Secondary:</strong> {priority.secondary.join(", ")}
-                      </p>
-                    </div>
-                    <p className="font-sans text-xs text-ink-faded leading-relaxed border-t border-sketch/50 p-2">
-                      {priority.notes}
+                  <p className="font-sans text-[0.7rem] leading-snug text-ink-soft">
+                    {methodTabInfo.description}
+                  </p>
+                </div>
+              </div>
+            </WizardHintPanel>
+
+            <WizardHintPanel icon="🧭" title="Class stat guide" density="compact" sticky={false}>
+              {priority && className ? (
+                <div className="space-y-2">
+                  <p className="font-sans text-xs text-ink-faded">
+                    You&apos;ve chosen: <span className="font-bold text-ink">{className}</span>
+                  </p>
+                  <div className="flex items-start gap-2">
+                    <span className="mt-0.5 shrink-0 text-blush">✦</span>
+                    <p className="font-sans text-xs text-ink-soft">
+                      <strong className="text-ink">Primary:</strong> {priority.primary.join(", ")}
                     </p>
                   </div>
+                  <div className="flex items-start gap-2">
+                    <span className="mt-0.5 shrink-0 text-[#D4A853]">✦</span>
+                    <p className="font-sans text-xs text-ink-soft">
+                      <strong className="text-ink">Secondary:</strong> {priority.secondary.join(", ")}
+                    </p>
+                  </div>
+                  <p className="pt-1 font-sans text-xs leading-relaxed text-ink-faded">
+                    {priority.notes}
+                  </p>
+                </div>
+              ) : (
+                <p className="font-sans text-xs leading-relaxed text-ink-soft">
+                  Choose your class first to see recommended primary and secondary stats here.
+                </p>
+              )}
+            </WizardHintPanel>
+          </div>
+        </WizardHintColumn>
+
+        <WizardMainColumn>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              {METHODS.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveMethodTab(m.id);
+                    dispatch({ type: "SET_ABILITY_METHOD", payload: { method: m.id } });
+                  }}
+                  className={`rounded-sketch border-2 p-2.5 text-left transition-all duration-150 ${
+                    method === m.id
+                      ? "bg-blush/10 border-blush shadow-sketch-accent"
+                      : "border-sketch bg-warm-white shadow-sketch transition-transform duration-150 hover:-translate-x-px hover:-translate-y-px hover:border-blush/50 hover:bg-paper"
+                  }`}
+                >
+                  <div className="mb-1 text-lg">{m.emoji}</div>
+                  <p className={`font-display text-sm leading-tight ${method === m.id ? "text-blush" : "text-ink"}`}>
+                    {m.label}
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            <div key={method} className="animate-wizard-step">
+              {method === "standard_array" && <StandardArrayPanel priority={priority} />}
+              {method === "point_buy"      && <PointBuyPanel priority={priority} />}
+              {method === "roll"           && <RollPanel priority={priority} />}
+            </div>
+          </div>
+        </WizardMainColumn>
+
+        <WizardSideColumn>
+          <WizardDetailPanel icon="🎲" title="Scores & modifiers" sizing="content">
+            <div className="space-y-3 font-sans text-sm leading-relaxed text-ink-soft">
+              <div className="flex flex-wrap gap-1.5 border-b border-sketch/60 pb-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveInfoTab("basics")}
+                  className={`rounded-input border px-2.5 py-1 font-sans text-[0.62rem] font-bold uppercase tracking-wide transition-colors ${
+                    activeInfoTab === "basics"
+                      ? "border-sage bg-sage/10 text-sage"
+                      : "border-sketch bg-parchment text-ink-faded hover:border-sage/40 hover:text-ink"
+                  }`}
+                >
+                  Basics
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveInfoTab("modifiers")}
+                  className={`rounded-input border px-2.5 py-1 font-sans text-[0.62rem] font-bold uppercase tracking-wide transition-colors ${
+                    activeInfoTab === "modifiers"
+                      ? "border-dusty-blue bg-dusty-blue/10 text-dusty-blue"
+                      : "border-sketch bg-parchment text-ink-faded hover:border-dusty-blue/40 hover:text-ink"
+                  }`}
+                >
+                  Modifiers
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveInfoTab("tips")}
+                  className={`rounded-input border px-2.5 py-1 font-sans text-[0.62rem] font-bold uppercase tracking-wide transition-colors ${
+                    activeInfoTab === "tips"
+                      ? "border-blush bg-blush/10 text-blush"
+                      : "border-sketch bg-parchment text-ink-faded hover:border-blush/40 hover:text-ink"
+                  }`}
+                >
+                  Tips
+                </button>
+              </div>
+
+              {activeInfoTab === "basics" && (
+                <p className="font-sans text-xs leading-relaxed text-ink-soft">
+                  Each score usually ranges from 3 to 20. Higher scores grant better modifiers, and those modifiers are what get added to your rolls.
+                </p>
+              )}
+
+              {activeInfoTab === "modifiers" && (
+                <div className="overflow-hidden rounded-input border border-sketch">
+                  <div className="grid grid-cols-2 bg-parchment">
+                    <div className="border-b border-sketch px-2.5 py-2 font-sans text-[0.55rem] font-bold uppercase tracking-wider text-ink-faded">Score</div>
+                    <div className="border-b border-sketch px-2.5 py-2 font-sans text-[0.55rem] font-bold uppercase tracking-wider text-ink-faded">Modifier</div>
+                  </div>
+                  {[
+                    [8, 9], [10, 11], [12, 13], [14, 15], [16, 17], [18, 18]
+                  ].map(([lo, hi]) => (
+                    <div key={lo} className="grid grid-cols-2 border-b border-sketch last:border-0">
+                      <div className="px-2.5 py-2 font-mono text-[0.7rem] text-ink">{lo === hi ? lo : `${lo}–${hi}`}</div>
+                      <div className={`px-2.5 py-2 font-mono text-[0.7rem] ${Math.floor((lo - 10) / 2) >= 0 ? "text-sage" : "text-blush"}`}>
+                        {modifier(lo)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              <p>
-                Each score ranges from 3 to 20 for most characters. The higher the score,
-                the better your modifier — which is what actually gets added to your dice rolls.
-              </p>
-
-              <div className="border border-sketch rounded-input overflow-hidden">
-                <div className="grid grid-cols-2 bg-parchment">
-                  <div className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded p-3 border-b border-sketch">Score</div>
-                  <div className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded p-3 border-b border-sketch">Modifier</div>
+              {activeInfoTab === "tips" && (
+                <div className="space-y-1.5 rounded-input border border-sketch bg-parchment p-3">
+                  <p className="font-sans text-xs leading-relaxed text-ink-soft"><span className="mr-1 text-blush">✦</span><strong className="text-ink">Not sure?</strong> Use Standard Array — it&apos;s balanced and fast</p>
+                  <p className="font-sans text-xs leading-relaxed text-ink-soft"><span className="mr-1 text-blush">✦</span><strong className="text-ink">Want control?</strong> Point Buy lets you plan your stats precisely</p>
+                  <p className="font-sans text-xs leading-relaxed text-ink-soft"><span className="mr-1 text-blush">✦</span><strong className="text-ink">Feeling lucky?</strong> Rolling is exciting but results vary wildly</p>
                 </div>
-                {[
-                  [8, 9], [10, 11], [12, 13], [14, 15], [16, 17], [18, 18]
-                ].map(([lo, hi]) => (
-                  <div key={lo} className="grid grid-cols-2 border-b border-sketch last:border-0">
-                    <div className="font-mono text-xs text-ink p-3">{lo === hi ? lo : `${lo}–${hi}`}</div>
-                    <div className={`font-mono text-xs p-3 ${Math.floor((lo - 10) / 2) >= 0 ? "text-sage" : "text-blush"}`}>
-                      {modifier(lo)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-sketch p-3 space-y-1.5">
-                <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Not sure?</strong> Use Standard Array — it's balanced and fast</p>
-                <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Want control?</strong> Point Buy lets you plan your stats precisely</p>
-                <p className="font-sans text-xs text-ink-soft leading-relaxed"><span className="text-blush mr-1">✦</span><strong className="text-ink">Feeling lucky?</strong> Rolling is exciting but results vary wildly</p>
-              </div>
+              )}
             </div>
-          </div>
-        </div>
+          </WizardDetailPanel>
+        </WizardSideColumn>
 
-      </div>
-    </div>
+      </WizardThreeColumnGrid>
+    </WizardStepBody>
   );
 }
