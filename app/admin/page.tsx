@@ -279,7 +279,20 @@ export default function AdminPage() {
       method: "DELETE", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ campaignId }),
     });
-    if (res.ok) { setCampaigns((prev) => prev.filter((c) => c.id !== campaignId)); flash("Campaign deleted"); }
+    if (res.ok) {
+      setCampaigns((prev) => prev.filter((c) => c.id !== campaignId));
+      flash("Campaign deleted");
+      return;
+    }
+
+    let msg = `Failed to delete campaign (${res.status})`;
+    try {
+      const body = (await res.json()) as { error?: string };
+      if (body?.error) msg = body.error;
+    } catch {
+      // Keep fallback status message when body is not valid JSON.
+    }
+    setError(msg);
   }
 
   const filteredUsers = users.filter((u) => {
