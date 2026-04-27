@@ -32,9 +32,33 @@ export async function GET(
       });
     }
 
-    // Fetch active characters with full stats
-    const characters = await prisma.character.findMany({
-      where: { campaignId: campaignId, isActive: true },
+    const campaignMembers = await prisma.campaignMember.findMany({
+      where: { campaignId: campaignId },
+      select: { userId: true, role: true },
+    });
+    const dmUserIds = new Set(
+      campaignMembers
+        .filter((m) => m.role === "DM")
+        .map((m) => m.userId)
+    );
+
+    const rawState = (board.boardState as Record<string, unknown> | null) ?? {};
+    const visibleNpcIds = Array.isArray(rawState.visibleNpcIds)
+      ? rawState.visibleNpcIds.filter((id): id is string => typeof id === "string")
+      : [];
+    const visibleDmCharacterIds = Array.isArray(rawState.visibleDmCharacterIds)
+      ? rawState.visibleDmCharacterIds.filter((id): id is string => typeof id === "string")
+      : [];
+
+    // Active player characters + all DM characters so DMs can manage visibility for board use.
+    const allCharacters = await prisma.character.findMany({
+      where: {
+        campaignId: campaignId,
+        OR: [
+          { isActive: true },
+          { userId: { in: Array.from(dmUserIds) } },
+        ],
+      },
       select: {
         id: true,
         name: true,
@@ -57,8 +81,11 @@ export async function GET(
         speed: true,
         initiative: true,
         avatarUrl: true,
+        pronouns: true,
         conditions: true,
         inspiration: true,
+        isActive: true,
+        userId: true,
         user: { select: { id: true, displayName: true, name: true } },
         race: { select: { name: true } },
         classes: { select: { level: true, class: { select: { name: true, spellcastingAbility: true } } } },
@@ -83,6 +110,23 @@ export async function GET(
       },
     });
 
+    const isRequesterDM = member.role === "DM";
+    const characters = isRequesterDM
+      ? allCharacters
+      : allCharacters.filter((c) => {
+          const ownerIsDM = dmUserIds.has(c.userId);
+          if (!ownerIsDM) return c.isActive;
+          return visibleDmCharacterIds.includes(c.id);
+        });
+
+    const allNpcs = await prisma.nPC.findMany({
+      where: { campaignId: campaignId },
+      orderBy: { createdAt: "asc" },
+    });
+    const npcs = isRequesterDM
+      ? allNpcs
+      : allNpcs.filter((n) => visibleNpcIds.includes(n.id));
+
     // Fetch campaign assets for map picker (DM only — safe to include, UI controls visibility)
     const assets = await prisma.campaignAsset.findMany({
       where: { campaignId: campaignId, type: "MAP" },
@@ -90,7 +134,7 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ board, characters, assets });
+    return NextResponse.json({ board, characters, npcs, assets });
   } catch (error) {
     console.error("Board fetch error:", error);
     return NextResponse.json({ error: "Failed to load board" }, { status: 500 });

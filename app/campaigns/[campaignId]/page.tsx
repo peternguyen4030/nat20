@@ -299,8 +299,9 @@ function CharacterCard({ character, currentUserId, clickable = true }: {
 
 // ── DM View ───────────────────────────────────────────────────────────────────
 
-function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
+function DMView({ campaign, currentUserId, canDeleteCampaign, onEdit, onDelete, onRefresh }: {
   campaign: CampaignDetail; currentUserId: string;
+  canDeleteCampaign: boolean;
   onEdit: () => void; onDelete: () => void; onRefresh: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -501,10 +502,16 @@ function DMView({ campaign, currentUserId, onEdit, onDelete, onRefresh }: {
             className="w-full font-sans font-semibold text-sm text-ink-soft bg-parchment border-2 border-sketch rounded-sketch p-2 hover:bg-paper hover:border-blush/50 hover:-translate-x-px hover:-translate-y-px transition-all shadow-sketch flex items-center gap-2">
             <span>✏️</span> Edit Campaign
           </button>
-          <button onClick={onDelete}
-            className="w-full font-sans font-semibold text-sm text-blush bg-blush/5 border-2 border-blush/30 rounded-sketch p-2 hover:bg-blush/10 hover:border-blush hover:-translate-x-px hover:-translate-y-px transition-all flex items-center gap-2">
-            <span>🗑️</span> Delete Campaign
-          </button>
+          {canDeleteCampaign ? (
+            <button onClick={onDelete}
+              className="w-full font-sans font-semibold text-sm text-blush bg-blush/5 border-2 border-blush/30 rounded-sketch p-2 hover:bg-blush/10 hover:border-blush hover:-translate-x-px hover:-translate-y-px transition-all flex items-center gap-2">
+              <span>🗑️</span> Delete Campaign
+            </button>
+          ) : (
+            <p className="font-sans text-xs text-ink-faded">
+              Only the campaign owner (the account that created it) can delete a campaign. If you are DM by promotion, ask the original owner to delete it.
+            </p>
+          )}
         </div>
       </div>
       {showSessionHistory && (
@@ -795,7 +802,16 @@ export default function CampaignPage() {
           </div>
         ) : campaign && currentUser && (
           isDM
-            ? <DMView campaign={campaign} currentUserId={currentUser.id} onEdit={() => setShowEdit(true)} onDelete={() => setShowDelete(true)} onRefresh={refresh} />
+            ? (
+              <DMView
+                campaign={campaign}
+                currentUserId={currentUser.id}
+                canDeleteCampaign={currentUser.id === campaign.ownerId}
+                onEdit={() => setShowEdit(true)}
+                onDelete={() => setShowDelete(true)}
+                onRefresh={refresh}
+              />
+            )
             : <PlayerView campaign={campaign} currentUserId={currentUser.id} onRefresh={refresh} />
         )}
       </div>
@@ -814,10 +830,19 @@ export default function CampaignPage() {
         <DeleteModal
           label="Campaign"
           confirmText={campaign.name}
-          warning="This will permanently delete the campaign, all sessions, and remove all members. Characters will not be deleted."
+          warning="This removes the campaign, sessions, board data, and NPCs. All character sheets in this campaign are deleted; player user accounts are not removed."
           onClose={() => setShowDelete(false)}
           onConfirm={async () => {
-            await fetch(`/api/campaigns/${campaign.id}`, { method: "DELETE" });
+            const res = await fetch(`/api/campaigns/${campaign.id}`, { method: "DELETE" });
+            if (!res.ok) {
+              let message = "Failed to delete campaign";
+              try {
+                const data = (await res.json()) as { error?: string };
+                if (data.error) message = data.error;
+              } catch { /* use default */ }
+              throw new Error(message);
+            }
+            setShowDelete(false);
             router.push("/dashboard");
           }}
         />

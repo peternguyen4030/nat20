@@ -21,7 +21,9 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { initiativeOrder } = await req.json();
+    const { initiativeOrder } = await req.json() as {
+      initiativeOrder: Array<{ key: string; initiative: number; type: "character" | "npc"; controlledByDM?: boolean; [k: string]: unknown }>;
+    };
     if (!initiativeOrder?.length) {
       return NextResponse.json({ error: "Initiative order is required" }, { status: 400 });
     }
@@ -69,7 +71,7 @@ export async function POST(
         return {
           ...e,
           initiative:      preRolled ? preRolled.initiative : e.initiative,
-          rolled:          e.type === "npc" || !!preRolled,
+          rolled:          e.type === "npc" || !!e.controlledByDM || !!preRolled,
           actionUsed:      false,
           bonusActionUsed: false,
           reactionUsed:    false,

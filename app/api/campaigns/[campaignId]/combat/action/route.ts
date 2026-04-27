@@ -22,6 +22,7 @@ export async function POST(
     const {
       sessionId,
       actorId,
+      npcActorId,
       targetKey,
       actionType,
       actionSlot,
@@ -37,8 +38,8 @@ export async function POST(
     });
     if (!combatSession) return NextResponse.json({ error: "No active combat session" }, { status: 400 });
 
-    // Consume spell slot for leveled spell casts
-    if (actionType === "CAST" && typeof spellLevel === "number" && spellLevel > 0) {
+    // Consume spell slot for leveled spell casts (characters only)
+    if (!npcActorId && actionType === "CAST" && typeof spellLevel === "number" && spellLevel > 0) {
       const actor = await prisma.character.findUnique({
         where: { id: actorId },
         select: { id: true, spellSlots: true },
@@ -88,26 +89,29 @@ export async function POST(
       }
     }
 
-    // Record the action
-    const action = await prisma.combatAction.create({
-      data: {
-        sessionId,
-        actorId,
-        actionType: actionType ?? "OTHER",
-        actionSlot: actionSlot ?? "ACTION",
-        attackRoll:  attackRoll  ?? null,
-        damageDealt: damageDealt ?? null,
-        notes:       notes ?? null,
-      },
-    });
+    // Record the action. NPC actions do not currently map cleanly to required character actorId,
+    // so we still log and apply effects but skip CombatAction row creation for NPC actor turns.
+    const action = npcActorId
+      ? { id: `npc-${Date.now()}` }
+      : await prisma.combatAction.create({
+          data: {
+            sessionId,
+            actorId,
+            actionType: actionType ?? "OTHER",
+            actionSlot: actionSlot ?? "ACTION",
+            attackRoll:  attackRoll  ?? null,
+            damageDealt: damageDealt ?? null,
+            notes:       notes ?? null,
+          },
+        });
 
     await prisma.actionLog.create({
       data: {
         campaignId,
         sessionId,
         userId:      session.user.id,
-        characterId: actorId,
-        actionType:  "COMBAT_ATTACK",
+        ...(npcActorId ? {} : { characterId: actorId }),
+        actionType:  actionType === "CAST" ? "COMBAT_SPELL" : actionType === "ATTACK" ? "COMBAT_ATTACK" : "COMBAT_OTHER",
         description: description ?? "Action taken",
         result:      attackRoll ? `Roll: ${attackRoll}${damageDealt ? `, Damage: ${damageDealt}` : ""}` : undefined,
       },

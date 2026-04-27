@@ -31,6 +31,8 @@ interface BoardState {
   round?:            number;
   combatSessionId?:  string | null;
   initiativeOrder?:  InitiativeEntry[];
+  visibleNpcIds?: string[];
+  visibleDmCharacterIds?: string[];
 }
 
 interface Board {
@@ -50,7 +52,9 @@ interface Character {
     wisdom: number;
     charisma: number;
   } | null;
-  avatarUrl: string | null; conditions: string[]; inspiration: boolean;
+  avatarUrl: string | null; pronouns: string | null; conditions: string[]; inspiration: boolean;
+  isActive: boolean;
+  userId: string;
   user: { id: string; displayName: string | null; name: string | null };
   race: { name: string } | null;
   classes: { level: number; class: { name: string; spellcastingAbility?: string | null } }[];
@@ -351,11 +355,12 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
 }) {
   type Entry = {
     key: string; name: string; type: "character" | "npc";
+    controlledByDM?: boolean;
     modifier: number; initiative: number; excluded: boolean;
   };
 
   const [entries,   setEntries]   = useState<Entry[]>(() => [
-    ...characters.map((c) => ({ key: `char_${c.id}`, name: c.name, type: "character" as const, modifier: c.initiative, initiative: 0, excluded: false })),
+    ...characters.map((c) => ({ key: `char_${c.id}`, name: c.name, type: "character" as const, controlledByDM: !c.isActive, modifier: c.initiative, initiative: 0, excluded: false })),
     ...npcs.map((n) => ({ key: `npc_${n.id}`, name: n.name, type: "npc" as const, modifier: n.initiativeModifier, initiative: 0, excluded: false })),
   ]);
 
@@ -363,7 +368,7 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
   useEffect(() => {
     if (Object.keys(externalRolls).length === 0) return;
     setEntries((prev) => prev.map((e) =>
-      e.type === "character" && externalRolls[e.key] !== undefined
+      e.type === "character" && !e.controlledByDM && externalRolls[e.key] !== undefined
         ? { ...e, initiative: externalRolls[e.key] }
         : e
     ));
@@ -372,9 +377,9 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
   const [notified,  setNotified]  = useState(false);
   const [notifying, setNotifying] = useState(false);
 
-  function rollAllNPCs() {
+  function rollAllDMControlled() {
     setEntries((prev) => prev.map((e) =>
-      e.type === "npc" && !e.excluded
+      (e.type === "npc" || e.controlledByDM) && !e.excluded
         ? { ...e, initiative: Math.floor(Math.random() * 20) + 1 + e.modifier }
         : e
     ));
@@ -392,8 +397,8 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
 
   const active     = entries.filter((e) => !e.excluded);
   const sorted     = [...active].sort((a, b) => b.initiative - a.initiative);
-  const npcsDone   = entries.filter((e) => e.type === "npc" && !e.excluded).every((e) => e.initiative > 0);
-  const playerKeys = active.filter((e) => e.type === "character").map((e) => e.key);
+  const dmSideDone = entries.filter((e) => (e.type === "npc" || e.controlledByDM) && !e.excluded).every((e) => e.initiative > 0);
+  const playerKeys = active.filter((e) => e.type === "character" && !e.controlledByDM).map((e) => e.key);
 
   async function handleNotify() {
     setNotifying(true);
@@ -414,7 +419,7 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
       const res = await fetch(`/api/campaigns/${campaignId}/combat/start`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          initiativeOrder: active.map((e) => ({ key: e.key, name: e.name, initiative: e.initiative, type: e.type })),
+          initiativeOrder: active.map((e) => ({ key: e.key, name: e.name, initiative: e.initiative, type: e.type, controlledByDM: !!e.controlledByDM })),
         }),
       });
       const data = await res.json();
@@ -434,10 +439,10 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
 
         <div className="p-5 flex-1 overflow-y-auto space-y-2">
           <div className="flex items-center justify-between mb-3">
-            <p className="font-sans text-xs text-ink-faded">Roll NPCs below. Use &quot;Notify Players&quot; to prompt players to roll. Use ✕ to exclude a combatant.</p>
-            <button onClick={rollAllNPCs}
+            <p className="font-sans text-xs text-ink-faded">Roll NPCs and DM characters below. Use &quot;Notify Players&quot; to prompt players to roll. Use ✕ to exclude a combatant.</p>
+            <button onClick={rollAllDMControlled}
               className="font-sans font-semibold text-xs text-white bg-ink border border-ink rounded p-1.5 hover:bg-ink/80 transition-all flex items-center gap-1 shrink-0 ml-2">
-              🎲 Roll all NPCs
+              🎲 Roll all DM/NPC
             </button>
           </div>
 
@@ -445,19 +450,21 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
             <div key={entry.key} className={`flex items-center gap-3 p-3 rounded-sketch border-2 transition-all ${
               entry.excluded
                 ? "border-sketch/30 bg-parchment opacity-40"
-                : entry.type === "npc" ? "border-blush/20 bg-blush/5" : "border-sketch bg-parchment"
+                : entry.type === "npc" ? "border-blush/20 bg-blush/5" : entry.controlledByDM ? "border-gold/20 bg-gold/5" : "border-sketch bg-parchment"
             }`}>
-              <span className="text-lg shrink-0">{entry.type === "npc" ? "👹" : "🧙"}</span>
+              <span className="text-lg shrink-0">{entry.type === "npc" ? "👹" : entry.controlledByDM ? "🎭" : "🧙"}</span>
               <div className="flex-1 min-w-0">
                 <p className="font-sans text-sm font-semibold text-ink truncate">{entry.name}</p>
                 <p className="font-sans text-xs text-ink-faded">
                   {entry.type === "character"
-                    ? notified ? "🔔 Prompted to roll" : "Player — click Notify to prompt"
+                    ? entry.controlledByDM
+                      ? `DM-controlled · Mod: ${entry.modifier >= 0 ? "+" : ""}${entry.modifier}`
+                      : notified ? "🔔 Prompted to roll" : "Player — click Notify to prompt"
                     : `Mod: ${entry.modifier >= 0 ? "+" : ""}${entry.modifier}`}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {entry.type === "npc" && !entry.excluded && (
+                {(entry.type === "npc" || entry.controlledByDM) && !entry.excluded && (
                   <>
                     <button onClick={() => rollOne(entry.key, entry.modifier)}
                       className="font-sans text-xs border border-sketch rounded p-1 hover:bg-parchment transition-colors">🎲</button>
@@ -466,7 +473,7 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
                     </span>
                   </>
                 )}
-                {entry.type === "character" && !entry.excluded && (
+                {entry.type === "character" && !entry.controlledByDM && !entry.excluded && (
                   entry.initiative > 0
                     ? <span className="font-mono text-sm font-bold text-sage">{entry.initiative}</span>
                     : <span className={`font-sans text-[0.6rem] italic ${notified ? "text-gold" : "text-ink-faded"}`}>
@@ -504,7 +511,7 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
             Cancel
           </button>
           <div className="flex-1" />
-          <button type="button" onClick={handleNotify} disabled={notifying}
+          <button type="button" onClick={handleNotify} disabled={notifying || playerKeys.length === 0}
             className={`font-sans font-semibold text-sm rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${
               notified
                 ? "text-sage border-sage/40 bg-sage/10"
@@ -514,9 +521,9 @@ function StartCombatModal({ characters, npcs, campaignId, onStarted, onClose, ex
               ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Notifying...</>
               : notified ? "🔔 Players Notified" : "🔔 Notify Players"}
           </button>
-          <button type="button" onClick={handleStart} disabled={loading || !npcsDone}
+          <button type="button" onClick={handleStart} disabled={loading || !dmSideDone}
             className={`font-sans font-bold text-sm text-white rounded-sketch p-2 border-2 transition-all flex items-center gap-2 ${
-              !loading && npcsDone
+              !loading && dmSideDone
                 ? "bg-blush border-blush shadow-sketch-accent hover:-translate-x-px hover:-translate-y-px"
                 : "bg-tan border-sketch opacity-60 cursor-not-allowed"
             }`}>
@@ -536,7 +543,7 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
   order: InitiativeEntry[]; currentIndex: number; round: number; isDM: boolean;
   currentUserId: string; characters: Character[]; npcs: NPC[]; tokenPositions: Record<string, { col: number; row: number }>; campaignId: string; combatSessionId: string | null;
   onNextTurn: () => void; onEndCombat: () => void;
-  onActionUsed: (slot: "action" | "bonus" | "reaction", actionName?: string) => void;
+  onActionUsed: (slot: "action" | "bonus" | "reaction", actionName?: string, actorKey?: string) => void;
   movementLeft: number;
   selectedTargetKey: string | null;
   selectedTargetName: string | null;
@@ -546,6 +553,9 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
   const myChar       = characters.find((c) => c.user.id === currentUserId);
   const myEntry      = myChar ? order.find((e) => e.key === `char_${myChar.id}`) : null;
   const isMyTurn     = currentEntry?.key === `char_${myChar?.id}`;
+  const currentNpc   = currentEntry?.type === "npc"
+    ? npcs.find((n) => `npc_${n.id}` === currentEntry.key)
+    : null;
 
   return (
     <div className="space-y-2">
@@ -608,6 +618,20 @@ function InitiativeTracker({ order, currentIndex, round, isDM, currentUserId, ch
           combatSessionId={combatSessionId}
           movementLeft={movementLeft}
           onActionUsed={(slot, actionName) => onActionUsed(slot, actionName)}
+          onEndTurn={onEndTurn}
+        />
+      )}
+      {isDM && currentEntry?.type === "npc" && currentEntry?.rolled && combatSessionId && currentNpc && (
+        <NpcActionPanel
+          npc={currentNpc}
+          entry={currentEntry}
+          order={order}
+          characters={characters}
+          npcs={npcs}
+          tokenPositions={tokenPositions}
+          campaignId={campaignId}
+          combatSessionId={combatSessionId}
+          onActionUsed={(slot, actionName) => onActionUsed(slot, actionName, currentEntry.key)}
           onEndTurn={onEndTurn}
         />
       )}
@@ -714,6 +738,16 @@ interface ActionDef {
   requiresTarget: boolean;
   isSpell?:       boolean;
   spellLevel?:    number;
+}
+
+interface NpcActionDef {
+  name: string;
+  slot: "ACTION" | "BONUS_ACTION" | "REACTION";
+  type: string;
+  damageDice?: string;
+  damageType?: string;
+  toHit?: number;
+  requiresTarget: boolean;
 }
 
 // ── Action Roll Panel (inline, no modal) ────────────────────────────────────────────────────────
@@ -952,6 +986,137 @@ function ActionRollPanel({ action, character, order, characters, npcs, tokenPosi
           Action is locked after rolling. Confirm to continue.
         </p>
       )}
+    </div>
+  );
+}
+
+function NpcActionRollPanel({ action, npc, order, characters, npcs, tokenPositions, campaignId, combatSessionId, onDone, onClose }: {
+  action: NpcActionDef;
+  npc: NPC;
+  order: InitiativeEntry[];
+  characters: Character[];
+  npcs: NPC[];
+  tokenPositions: Record<string, { col: number; row: number }>;
+  campaignId: string;
+  combatSessionId: string;
+  onDone: (slot: "action" | "bonus" | "reaction") => void;
+  onClose: () => void;
+}) {
+  const [targetKey,  setTargetKey]  = useState<string | null>(null);
+  const [attackRoll, setAttackRoll] = useState<number | null>(null);
+  const [damageRoll, setDamageRoll] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted,  setSubmitted]  = useState(false);
+  const [hitResult,  setHitResult]  = useState<"hit" | "miss" | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const needsAttack = action.type === "ATTACK" && action.toHit !== undefined;
+  const needsDamage = !!action.damageDice;
+  const actorKey = `npc_${npc.id}`;
+  const actorPos = tokenPositions[actorKey];
+  const inRangeFeet = (target: string) => {
+    if (!actorPos) return true;
+    const targetPos = tokenPositions[target];
+    if (!targetPos) return true;
+    const gridDistance = Math.max(Math.abs(actorPos.col - targetPos.col), Math.abs(actorPos.row - targetPos.row));
+    return gridDistance * 5 <= 5;
+  };
+  const targetOptions = order
+    .filter((e) => e.key !== actorKey)
+    .map((e) => {
+      const char = characters.find((c) => `char_${c.id}` === e.key);
+      const targetNpc  = npcs.find((n) => `npc_${n.id}` === e.key);
+      return { key: e.key, name: e.name, ac: char?.armorClass ?? targetNpc?.armorClass ?? null };
+    })
+    .filter((t) => inRangeFeet(t.key));
+  const selectedTarget = targetOptions.find((t) => t.key === targetKey) ?? null;
+
+  function parseDice(dice: string): { count: number; sides: number; mod: number } {
+    const m = dice.match(/(\d+)d(\d+)([+-]\d+)?/);
+    if (!m) return { count: 1, sides: 6, mod: 0 };
+    return { count: parseInt(m[1]), sides: parseInt(m[2]), mod: parseInt(m[3] ?? "0") };
+  }
+  function handleAttack(total: number) {
+    setAttackRoll(total);
+    if (selectedTarget?.ac !== null && selectedTarget?.ac !== undefined) {
+      setHitResult(total >= selectedTarget.ac ? "hit" : "miss");
+    }
+  }
+  function handleDamage(total: number, count: number) {
+    setDamageRoll(total * count);
+  }
+
+  const canSubmit = (!action.requiresTarget || targetKey) &&
+    (!needsAttack || attackRoll !== null) &&
+    (!needsDamage || damageRoll !== null || hitResult === "miss");
+  const slotKey = action.slot === "ACTION" ? "action" : action.slot === "BONUS_ACTION" ? "bonus" : "reaction";
+
+  async function handleSubmit() {
+    setSubmitError(null);
+    setSubmitting(true);
+    const desc = selectedTarget
+      ? `${npc.name} used ${action.name} on ${selectedTarget.name}${hitResult ? ` — ${hitResult}!` : ""}`
+      : `${npc.name} used ${action.name}`;
+    const res = await fetch(`/api/campaigns/${campaignId}/combat/action`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: combatSessionId,
+        npcActorId: npc.id,
+        targetKey: selectedTarget?.key ?? null,
+        actionType: action.type,
+        actionSlot: action.slot,
+        description: desc,
+        attackRoll,
+        damageDealt: hitResult === "miss" ? 0 : damageRoll,
+        notes: selectedTarget ? `Target: ${selectedTarget.name} (AC ${selectedTarget.ac ?? "?"})` : undefined,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setSubmitError(data?.error ?? "Failed to record action");
+      setSubmitting(false);
+      return;
+    }
+    setSubmitted(true);
+    setSubmitting(false);
+    onDone(slotKey as "action" | "bonus" | "reaction");
+  }
+
+  if (submitted) return (
+    <div className="bg-sage/10 border border-sage/30 rounded-sketch p-3">
+      <p className="font-sans text-xs font-bold text-sage">✓ {action.name} used!</p>
+      <button onClick={onClose} className="font-sans text-xs text-ink-faded underline mt-1">Dismiss</button>
+    </div>
+  );
+
+  return (
+    <div className="bg-blush/5 border border-blush/40 rounded-sketch p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="font-sans text-xs font-bold text-ink">👹 {action.name}</p>
+        <button onClick={onClose} className="font-sans text-xs text-ink-faded hover:text-blush">✕</button>
+      </div>
+      {action.requiresTarget && (
+        <select
+          value={targetKey ?? ""}
+          onChange={(e) => { setTargetKey(e.target.value || null); if (attackRoll === null) setHitResult(null); }}
+          className="w-full font-sans text-xs bg-parchment text-ink border-2 border-sketch rounded p-1.5 outline-none focus:border-blush">
+          <option value="">— Select target —</option>
+          {targetOptions.map((t) => <option key={t.key} value={t.key}>{t.name}{t.ac !== null ? ` (AC ${t.ac})` : ""}</option>)}
+        </select>
+      )}
+      {needsAttack && (
+        <DiceRoller sides={20} modifier={action.toHit ?? 0} label="Roll to hit" lockAfterRoll onRoll={(t) => handleAttack(t)} disabled={action.requiresTarget && !targetKey} />
+      )}
+      {needsDamage && hitResult !== "miss" && action.damageDice && (() => {
+        const { count, sides, mod } = parseDice(action.damageDice);
+        return <DiceRoller sides={sides} modifier={mod} label={`Roll ${action.damageDice}`} lockAfterRoll onRoll={(t) => handleDamage(t, count)} disabled={action.requiresTarget && !targetKey} />;
+      })()}
+      <button onClick={handleSubmit} disabled={!canSubmit || submitting}
+        className={`w-full font-sans font-bold text-xs text-white rounded p-1.5 border transition-all ${canSubmit && !submitting ? "bg-blush border-blush" : "bg-tan border-sketch opacity-50 cursor-not-allowed"}`}>
+        {submitting ? "..." : "Confirm ✦"}
+      </button>
+      {submitError && <p className="font-sans text-[0.62rem] text-blush">{submitError}</p>}
     </div>
   );
 }
@@ -1220,6 +1385,80 @@ function PlayerActionPanel({ character, entry, order, characters, npcs, tokenPos
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+function NpcActionPanel({ npc, entry, order, characters, npcs, tokenPositions, campaignId, combatSessionId, onActionUsed, onEndTurn }: {
+  npc: NPC;
+  entry: InitiativeEntry;
+  order: InitiativeEntry[];
+  characters: Character[];
+  npcs: NPC[];
+  tokenPositions: Record<string, { col: number; row: number }>;
+  campaignId: string;
+  combatSessionId: string;
+  onActionUsed: (slot: "action" | "bonus" | "reaction", actionName?: string) => void;
+  onEndTurn: () => void;
+}) {
+  const [activeAction, setActiveAction] = useState<NpcActionDef | null>(null);
+  const attacks = (npc.attacks ?? []).map((a) => ({
+    name: a.name,
+    slot: "ACTION" as const,
+    type: "ATTACK",
+    damageDice: a.damageDice,
+    damageType: a.damageType,
+    toHit: a.toHit,
+    requiresTarget: true,
+  }));
+  const defaultActions: NpcActionDef[] = [
+    { name: "Strike", slot: "ACTION", type: "ATTACK", damageDice: "1d6", damageType: "bludgeoning", toHit: 0, requiresTarget: true },
+    { name: "Dash", slot: "ACTION", type: "DASH", requiresTarget: false },
+    { name: "Dodge", slot: "ACTION", type: "DODGE", requiresTarget: false },
+  ];
+  const actions = attacks.length > 0 ? attacks : defaultActions;
+
+  return (
+    <div className="bg-blush/5 border-2 border-blush/30 rounded-sketch p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-sans text-xs font-bold text-ink">DM Turn — {npc.name}</p>
+          <p className="font-sans text-[0.6rem] text-ink-faded">
+            HP {npc.currentHp}/{npc.maxHp} · AC {npc.armorClass}
+          </p>
+        </div>
+        <button onClick={onEndTurn} className="font-sans font-bold text-xs text-white bg-sage border border-sage rounded p-1.5 hover:bg-sage/80 transition-all shrink-0">
+          End Turn →
+        </button>
+      </div>
+
+      {activeAction ? (
+        <NpcActionRollPanel
+          action={activeAction}
+          npc={npc}
+          order={order}
+          characters={characters}
+          npcs={npcs}
+          tokenPositions={tokenPositions}
+          campaignId={campaignId}
+          combatSessionId={combatSessionId}
+          onDone={(slot) => { onActionUsed(slot, activeAction.name); setActiveAction(null); }}
+          onClose={() => setActiveAction(null)}
+        />
+      ) : (
+        <div className="grid grid-cols-2 gap-1">
+          {actions.map((a) => (
+            <button
+              key={a.name}
+              onClick={() => setActiveAction(a)}
+              disabled={entry.actionUsed}
+              className={`font-sans text-xs rounded p-1.5 border transition-all text-left truncate ${entry.actionUsed ? "text-ink-faded bg-parchment border-sketch/50 opacity-50 cursor-not-allowed" : "text-ink bg-parchment border border-sketch hover:bg-paper hover:border-blush/40"}`}>
+              👹 {a.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {entry.actionUsed && <p className="font-sans text-xs text-ink-faded italic">Action slot used this turn.</p>}
     </div>
   );
 }
@@ -1882,7 +2121,11 @@ function CharacterStatusCard({ character, isCurrentUser }: { character: Characte
             {character.inspiration && <span className="font-sans text-[0.5rem] font-bold uppercase bg-gold/20 text-gold border border-gold/40 rounded p-0.5 shrink-0">✦</span>}
           </div>
           <p className="font-sans text-[0.6rem] text-ink-faded mb-1.5">
-            {character.race?.name ?? "?"}{primaryClass ? ` · ${primaryClass.class.name}` : ""} · {character.user.displayName ?? character.user.name ?? "Player"}
+            {character.race?.name ?? "?"}
+            {primaryClass ? ` · ${primaryClass.class.name}` : ""}
+            {character.pronouns ? ` · ${character.pronouns}` : ""}
+            {" · "}
+            {character.user.displayName ?? character.user.name ?? "Player"}
           </p>
           <HpBar current={character.currentHp} max={character.maxHp} temporary={character.temporaryHp} />
           <div className="flex gap-3 mt-1.5">
@@ -1928,7 +2171,8 @@ export default function CampaignBoardPage() {
   const [campaignName,    setCampaignName]    = useState("");
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState<string | null>(null);
-  const [sidebarTab,      setSidebarTab]      = useState<"party" | "log">("party");
+  const [sidebarTab,      setSidebarTab]      = useState<"party" | "npcs" | "log">("party");
+  const [memberRoles,     setMemberRoles]     = useState<Record<string, "DM" | "PLAYER">>({});
   const [showStartCombat, setShowStartCombat] = useState(false);
   const [showInitiativeModal, setShowInitiativeModal] = useState(false);
   const [movementLeft,       setMovementLeft]       = useState(0);
@@ -1937,14 +2181,18 @@ export default function CampaignBoardPage() {
   const [selectedTargetName, setSelectedTargetName] = useState<string | null>(null);
   const [externalRolls,      setExternalRolls]      = useState<Record<string, number>>({});
   const [notifyPendingKeys,   setNotifyPendingKeys]   = useState<string[]>([]);
+  const [dmToolTarget, setDmToolTarget] = useState<string>("");
+  const [dmToolAmount, setDmToolAmount] = useState<number>(5);
+  const [dmToolBusy,   setDmToolBusy]   = useState(false);
+  const [dmToolError,  setDmToolError]  = useState<string | null>(null);
+  const [dmCharacterPreview, setDmCharacterPreview] = useState<Character | null>(null);
   const isDMRef   = useRef(false);
 
   const loadData = useCallback(async () => {
-    const [sessionRes, boardRes, campaignRes, npcsRes] = await Promise.all([
+    const [sessionRes, boardRes, campaignRes] = await Promise.all([
       authClient.getSession(),
       fetch(`/api/campaigns/${campaignId}/board`).then((r) => { if (!r.ok) throw new Error("Failed to load board"); return r.json(); }),
       fetch(`/api/campaigns/${campaignId}`).then((r) => { if (!r.ok) throw new Error("Not found"); return r.json(); }),
-      fetch(`/api/campaigns/${campaignId}/npcs`).then((r) => r.ok ? r.json() : []),
     ]);
     if (!sessionRes?.data?.user) { router.push("/login"); return null; }
     const user       = sessionRes.data.user as SessionUser;
@@ -1956,7 +2204,10 @@ export default function CampaignBoardPage() {
       board:       boardRes.board,
       characters:  boardRes.characters,
       assets:      boardRes.assets,
-      npcs:        npcsRes,
+      npcs:        boardRes.npcs,
+      memberRoles: Object.fromEntries(
+        (campaignRes.members ?? []).map((m: { user: { id: string }; role: "DM" | "PLAYER" }) => [m.user.id, m.role])
+      ) as Record<string, "DM" | "PLAYER">,
     };
   }, [campaignId, router]);
 
@@ -1966,6 +2217,7 @@ export default function CampaignBoardPage() {
       .then((r) => {
         if (!active || !r) return;
         setCurrentUser(r.user); setIsDM(r.isDM); setCampaignName(r.campaignName);
+        setMemberRoles(r.memberRoles);
         setBoard(r.board); setCharacters(r.characters); setAssets(r.assets); setNpcs(r.npcs);
       })
       .catch((err) => { if (active) setError(err.message); })
@@ -1990,12 +2242,9 @@ export default function CampaignBoardPage() {
   useEffect(() => {
     // 30s background refresh for HP/conditions and NPC state
     const charInterval = setInterval(() => {
-      Promise.all([
-        fetch(`/api/campaigns/${campaignId}/board`).then((r) => r.ok ? r.json() : null),
-        fetch(`/api/campaigns/${campaignId}/npcs`).then((r) => r.ok ? r.json() : null),
-      ]).then(([boardData, npcsData]) => {
+      fetch(`/api/campaigns/${campaignId}/board`).then((r) => r.ok ? r.json() : null).then((boardData) => {
         if (boardData) setCharacters(boardData.characters);
-        if (npcsData)  setNpcs(npcsData);
+        if (boardData) setNpcs(boardData.npcs);
       }).catch(() => { /* silent */ });
     }, 30000);
 
@@ -2041,15 +2290,17 @@ export default function CampaignBoardPage() {
           },
         };
       });
+      // Keep character/NPC visibility in sync after DM visibility changes.
+      fetch(`/api/campaigns/${campaignId}/board`).then((r) => r.ok ? r.json() : null).then((boardData) => {
+        if (boardData) setCharacters(boardData.characters);
+        if (boardData) setNpcs(boardData.npcs);
+      }).catch(() => {});
     });
     channel.bind(PUSHER_EVENTS.ACTION_TAKEN, () => {
       // Re-fetch characters and NPCs so HP bars update immediately
-      Promise.all([
-        fetch(`/api/campaigns/${campaignId}/board`).then((r) => r.ok ? r.json() : null),
-        fetch(`/api/campaigns/${campaignId}/npcs`).then((r) => r.ok ? r.json() : null),
-      ]).then(([boardData, npcsData]) => {
+      fetch(`/api/campaigns/${campaignId}/board`).then((r) => r.ok ? r.json() : null).then((boardData) => {
         if (boardData) setCharacters(boardData.characters);
-        if (npcsData)  setNpcs(npcsData);
+        if (boardData) setNpcs(boardData.npcs);
       }).catch(() => {});
     });
     channel.bind(PUSHER_EVENTS.COMBAT_STARTED, (data: { board: Board }) => {
@@ -2083,12 +2334,9 @@ export default function CampaignBoardPage() {
     });
     channel.bind(PUSHER_EVENTS.ACTION_TAKEN, () => {
       // Refresh characters and NPCs so HP bars update after damage
-      Promise.all([
-        fetch(`/api/campaigns/${campaignId}/board`).then((r) => r.ok ? r.json() : null),
-        fetch(`/api/campaigns/${campaignId}/npcs`).then((r) => r.ok ? r.json() : null),
-      ]).then(([boardData, npcsData]) => {
+      fetch(`/api/campaigns/${campaignId}/board`).then((r) => r.ok ? r.json() : null).then((boardData) => {
         if (boardData) setCharacters(boardData.characters);
-        if (npcsData)  setNpcs(npcsData);
+        if (boardData) setNpcs(boardData.npcs);
       }).catch(() => {});
     });
     channel.bind(PUSHER_EVENTS.INITIATIVE_NOTIFY, (data: { pendingKeys: string[] }) => {
@@ -2161,9 +2409,9 @@ export default function CampaignBoardPage() {
     if (data.boardState) handleBoardUpdate(data.boardState);
   }
 
-  async function handleActionUsed(slot: "action" | "bonus" | "reaction", actionName?: string) {
-    if (!myChar) return;
-    const key = `char_${myChar.id}`;
+  async function handleActionUsed(slot: "action" | "bonus" | "reaction", actionName?: string, actorKey?: string) {
+    const key = actorKey ?? (myChar ? `char_${myChar.id}` : null);
+    if (!key) return;
 
     // Optimistic local update
     setBoard((prev) => {
@@ -2185,7 +2433,7 @@ export default function CampaignBoardPage() {
     });
 
     // Dash adds movement equal to speed
-    if (actionName === "Dash" && myChar) {
+    if (actionName === "Dash" && myChar && key === `char_${myChar.id}`) {
       setMovementLeft((prev) => prev + myChar.speed);
     }
   }
@@ -2196,6 +2444,125 @@ export default function CampaignBoardPage() {
   const currentTurnIndex = boardState?.currentTurnIndex ?? 0;
   const round            = boardState?.round ?? 1;
   const combatSessionId  = boardState?.combatSessionId ?? null;
+  const visibleNpcIds = useMemo(() => boardState?.visibleNpcIds ?? [], [boardState?.visibleNpcIds]);
+  const visibleDmCharacterIds = useMemo(() => boardState?.visibleDmCharacterIds ?? [], [boardState?.visibleDmCharacterIds]);
+
+  const dmCharacters = useMemo(
+    () => characters.filter((c) => memberRoles[c.user.id] === "DM"),
+    [characters, memberRoles]
+  );
+  const partyCharacters = useMemo(
+    () => characters.filter((c) => c.isActive && memberRoles[c.user.id] !== "DM"),
+    [characters, memberRoles]
+  );
+  const boardCharacters = useMemo(
+    () => characters.filter((c) => memberRoles[c.user.id] !== "DM" || visibleDmCharacterIds.includes(c.id)),
+    [characters, memberRoles, visibleDmCharacterIds]
+  );
+  const boardNpcs = useMemo(
+    () => npcs.filter((n) => visibleNpcIds.includes(n.id)),
+    [npcs, visibleNpcIds]
+  );
+
+  async function toggleVisibleNpc(npcId: string) {
+    const current = board?.boardState?.visibleNpcIds ?? [];
+    const has = current.includes(npcId);
+    const next = has
+      ? current.filter((id) => id !== npcId)
+      : Array.from(new Set([...current, npcId]));
+    const nextTokens = { ...((board?.boardState?.tokens ?? {}) as Record<string, { col: number; row: number }>) };
+    if (has) delete nextTokens[`npc_${npcId}`];
+    const nextState: BoardState = {
+      ...(boardState ?? { tokens: {} }),
+      visibleNpcIds: next,
+      tokens: nextTokens,
+    };
+    setBoard((prev) => prev ? { ...prev, boardState: nextState } : prev);
+    const res = await fetch(`/api/campaigns/${campaignId}/board`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ boardState: nextState }),
+    });
+    if (!res.ok) refresh();
+  }
+
+  async function toggleVisibleDmCharacter(characterId: string) {
+    const current = board?.boardState?.visibleDmCharacterIds ?? [];
+    const has = current.includes(characterId);
+    const next = has
+      ? current.filter((id) => id !== characterId)
+      : Array.from(new Set([...current, characterId]));
+    const nextTokens = { ...((board?.boardState?.tokens ?? {}) as Record<string, { col: number; row: number }>) };
+    if (has) delete nextTokens[`char_${characterId}`];
+    const nextState: BoardState = {
+      ...(boardState ?? { tokens: {} }),
+      visibleDmCharacterIds: next,
+      tokens: nextTokens,
+    };
+    setBoard((prev) => prev ? { ...prev, boardState: nextState } : prev);
+    const res = await fetch(`/api/campaigns/${campaignId}/board`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ boardState: nextState }),
+    });
+    if (!res.ok) refresh();
+  }
+
+  const dmToolTargets = useMemo(() => ([
+    ...characters.map((c) => ({ key: `char_${c.id}`, label: `${c.name} (Character)`, type: "character" as const, id: c.id })),
+    ...npcs.map((n) => ({ key: `npc_${n.id}`, label: `${n.name} (NPC)`, type: "npc" as const, id: n.id })),
+  ]), [characters, npcs]);
+
+  async function promptRest(restType: "short" | "long") {
+    setDmToolBusy(true);
+    setDmToolError(null);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/dm-tools`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "rest_prompt", restType }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? "Failed to prompt rest");
+      }
+    } catch (err) {
+      setDmToolError(err instanceof Error ? err.message : "Failed to prompt rest");
+    } finally {
+      setDmToolBusy(false);
+    }
+  }
+
+  async function adjustHp(mode: "damage" | "heal") {
+    if (!dmToolTarget) return;
+    const target = dmToolTargets.find((t) => t.key === dmToolTarget);
+    if (!target) return;
+    const amount = Math.max(1, Math.floor(Math.abs(dmToolAmount || 0)));
+    const delta = mode === "heal" ? amount : -amount;
+    setDmToolBusy(true);
+    setDmToolError(null);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/dm-tools`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "hp_adjust",
+          targetType: target.type,
+          targetId: target.id,
+          delta,
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? "Failed to adjust HP");
+      }
+      refresh();
+    } catch (err) {
+      setDmToolError(err instanceof Error ? err.message : "Failed to adjust HP");
+    } finally {
+      setDmToolBusy(false);
+    }
+  }
 
   const myChar   = characters.find((c) => c.user.id === currentUser?.id);
   const myEntry  = myChar ? initiativeOrder.find((e) => e.key === `char_${myChar.id}`) : null;
@@ -2287,7 +2654,7 @@ export default function CampaignBoardPage() {
         {/* Canvas */}
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           {loading ? <Skeleton className="w-full h-full" /> : board ? (
-            <CanvasBoard board={board} characters={characters} npcs={npcs}
+            <CanvasBoard board={board} characters={boardCharacters} npcs={boardNpcs}
               currentUserId={currentUser?.id ?? ""} isDM={isDM}
               campaignId={campaignId} onBoardUpdate={handleBoardUpdate}
               combatActive={combatActive} isMyTurn={isMyTurn}
@@ -2303,10 +2670,10 @@ export default function CampaignBoardPage() {
         {/* Sidebar */}
         <div className="flex w-72 min-h-0 shrink-0 flex-col border-l-2 border-sketch bg-warm-white">
           <div className="flex shrink-0 border-b-2 border-sketch">
-            {(["party", "log"] as const).map((tab) => (
+            {(["party", ...(isDM ? (["npcs"] as const) : []), "log"] as const).map((tab) => (
               <button key={tab} onClick={() => setSidebarTab(tab)}
                 className={`flex-1 font-sans font-semibold text-xs uppercase tracking-wider p-3 transition-colors ${sidebarTab === tab ? "bg-parchment text-ink border-b-2 border-blush" : "text-ink-faded hover:text-ink"}`}>
-                {tab === "party" ? "⚔️ Party" : "📜 Log"}
+                {tab === "party" ? "⚔️ Party" : tab === "npcs" ? "👹 NPCs" : "📜 Log"}
               </button>
             ))}
           </div>
@@ -2320,7 +2687,7 @@ export default function CampaignBoardPage() {
                     order={initiativeOrder} currentIndex={currentTurnIndex}
                     round={round} isDM={isDM}
                     currentUserId={currentUser?.id ?? ""}
-                    characters={characters} npcs={npcs} campaignId={campaignId}
+                    characters={boardCharacters} npcs={boardNpcs} campaignId={campaignId}
                     tokenPositions={((board?.boardState as BoardState | null)?.tokens ?? {})}
                     combatSessionId={combatSessionId}
                     onNextTurn={handleNextTurn} onEndCombat={handleEndCombat}
@@ -2337,46 +2704,21 @@ export default function CampaignBoardPage() {
                   <>
                     <div className="flex items-center justify-between">
                       <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">Party Status</p>
-                      <span className="font-mono text-xs text-ink-faded">{characters.length} active</span>
+                      <span className="font-mono text-xs text-ink-faded">{partyCharacters.length} active</span>
                     </div>
                     {loading ? (
                       Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)
-                    ) : characters.length === 0 ? (
+                    ) : partyCharacters.length === 0 ? (
                       <div className="bg-parchment border-2 border-dashed border-sketch rounded-sketch p-4 text-center">
                         <p className="text-xl mb-1">🧙</p>
-                        <p className="font-sans text-xs text-ink-faded">No active characters.</p>
+                        <p className="font-sans text-xs text-ink-faded">No party members are active.</p>
                       </div>
                     ) : (
-                      characters.map((c) => (
+                      partyCharacters.map((c) => (
                         <CharacterCardWithModal key={c.id} character={c} isCurrentUser={c.user.id === currentUser?.id} />
                       ))
                     )}
                   </>
-                )}
-
-                {/* NPC list (DM only, exploration mode) */}
-                {isDM && npcs.length > 0 && !combatActive && (
-                  <div className="border-t border-sketch p-2">
-                    <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded mb-2">NPCs</p>
-                    <div className="space-y-1">
-                      {npcs.map((n) => {
-                        const pct   = Math.min(100, Math.round((n.currentHp / n.maxHp) * 100));
-                        const color = pct > 60 ? "bg-sage" : pct > 30 ? "bg-gold" : "bg-blush";
-                        return (
-                          <div key={n.id} className="bg-parchment border border-sketch rounded p-2 flex items-center gap-2">
-                            <span className="text-sm shrink-0">👹</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-sans text-xs text-ink truncate">{n.name}</p>
-                              <div className="h-1 bg-warm-white border border-sketch rounded-full overflow-hidden mt-0.5">
-                                <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-                              </div>
-                            </div>
-                            <span className="font-mono text-[0.6rem] text-ink-faded shrink-0">{n.currentHp}/{n.maxHp}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
                 )}
 
                 {/* DM Tools */}
@@ -2396,10 +2738,146 @@ export default function CampaignBoardPage() {
               </>
             )}
 
+            {sidebarTab === "npcs" && isDM && (
+              <div className="space-y-3">
+                <p className="font-sans text-[0.65rem] font-bold uppercase tracking-widest text-ink-faded">Board Visibility</p>
+                <p className="font-sans text-xs text-ink-faded">
+                  Choose which DM characters and NPCs are shown to players on the board.
+                </p>
+
+                <div className="border border-sketch rounded-sketch p-2 space-y-1 bg-parchment/50">
+                  <p className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded">DM Characters</p>
+                  {dmCharacters.length === 0 ? (
+                    <p className="font-sans text-xs text-ink-faded">No DM characters found.</p>
+                  ) : dmCharacters.map((c) => (
+                    <div key={c.id} className="flex items-center gap-2 bg-warm-white border-2 border-sketch rounded-sketch p-2 shadow-sketch-sm">
+                      <input
+                        type="checkbox"
+                        checked={visibleDmCharacterIds.includes(c.id)}
+                        onChange={() => toggleVisibleDmCharacter(c.id)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setDmCharacterPreview(c)}
+                        className="flex items-center gap-2 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+                      >
+                        <Avatar src={c.avatarUrl} size={28} className="border border-sketch shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-sans text-xs text-ink truncate">{c.name}</p>
+                          <p className="font-sans text-[0.55rem] text-ink-faded truncate">
+                            {c.race?.name ?? "Unknown"}{c.pronouns ? ` · ${c.pronouns}` : ""}
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border border-sketch rounded-sketch p-2 space-y-1 bg-parchment/50">
+                  <p className="font-sans text-[0.6rem] font-bold uppercase tracking-wider text-ink-faded">NPCs</p>
+                  {npcs.length === 0 ? (
+                    <p className="font-sans text-xs text-ink-faded">No NPCs found.</p>
+                  ) : npcs.map((n) => (
+                    <label key={n.id} className="flex items-center gap-2 bg-warm-white border-2 border-sketch rounded-sketch p-2 cursor-pointer shadow-sketch-sm">
+                      <input
+                        type="checkbox"
+                        checked={visibleNpcIds.includes(n.id)}
+                        onChange={() => toggleVisibleNpc(n.id)}
+                      />
+                      <Avatar src={n.avatarUrl} size={28} className="border border-sketch shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-sans text-xs text-ink truncate">{n.name}</p>
+                        <p className="font-sans text-[0.55rem] text-ink-faded">{n.currentHp}/{n.maxHp} HP · AC {n.armorClass}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {sidebarTab === "log" && <ActionLogTab campaignId={campaignId} />}
           </div>
         </div>
       </div>
+
+      {isDM && !combatActive && (
+        <div className="shrink-0 border-t-2 border-sketch bg-warm-white px-3 py-2">
+          <div className="flex flex-wrap items-end gap-2">
+            <div>
+              <p className="font-sans text-[0.55rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Campaign Tools</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled
+                  className="font-sans text-xs font-semibold text-ink-faded bg-parchment border border-sketch rounded p-1.5 opacity-60 cursor-not-allowed"
+                  title="Level-up flow coming soon"
+                >
+                  ⬆️ Initiate Level Up
+                </button>
+                <button
+                  type="button"
+                  disabled={dmToolBusy}
+                  onClick={() => promptRest("short")}
+                  className="font-sans text-xs font-semibold text-ink-soft bg-parchment border border-sketch rounded p-1.5 hover:bg-paper transition-all disabled:opacity-60"
+                >
+                  🛌 Prompt Short Rest
+                </button>
+                <button
+                  type="button"
+                  disabled={dmToolBusy}
+                  onClick={() => promptRest("long")}
+                  className="font-sans text-xs font-semibold text-ink-soft bg-parchment border border-sketch rounded p-1.5 hover:bg-paper transition-all disabled:opacity-60"
+                >
+                  🌙 Prompt Long Rest
+                </button>
+              </div>
+            </div>
+
+            <div className="ml-auto flex items-end gap-2">
+              <div>
+                <label className="block font-sans text-[0.55rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Target</label>
+                <select
+                  value={dmToolTarget}
+                  onChange={(e) => setDmToolTarget(e.target.value)}
+                  className="font-sans text-xs bg-parchment text-ink border border-sketch rounded p-1.5 min-w-52"
+                >
+                  <option value="">Select character/NPC</option>
+                  {dmToolTargets.map((t) => (
+                    <option key={t.key} value={t.key}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-sans text-[0.55rem] font-bold uppercase tracking-widest text-ink-faded mb-1">Amount</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={dmToolAmount}
+                  onChange={(e) => setDmToolAmount(Number(e.target.value || 1))}
+                  className="w-20 font-sans text-xs bg-parchment text-ink border border-sketch rounded p-1.5"
+                />
+              </div>
+              <button
+                type="button"
+                disabled={dmToolBusy || !dmToolTarget}
+                onClick={() => adjustHp("damage")}
+                className="font-sans text-xs font-bold text-white bg-blush border border-blush rounded p-1.5 disabled:opacity-60"
+              >
+                Damage
+              </button>
+              <button
+                type="button"
+                disabled={dmToolBusy || !dmToolTarget}
+                onClick={() => adjustHp("heal")}
+                className="font-sans text-xs font-bold text-white bg-sage border border-sage rounded p-1.5 disabled:opacity-60"
+              >
+                Heal
+              </button>
+            </div>
+          </div>
+          {dmToolError && <p className="font-sans text-[0.62rem] text-blush mt-1">✗ {dmToolError}</p>}
+        </div>
+      )}
 
       {showInitiativeModal && myChar && (
         <InitiativeRollModal
@@ -2411,7 +2889,7 @@ export default function CampaignBoardPage() {
 
       {showStartCombat && (
         <StartCombatModal
-          characters={characters} npcs={npcs} campaignId={campaignId}
+          characters={boardCharacters} npcs={boardNpcs} campaignId={campaignId}
           externalRolls={externalRolls}
           onStarted={(bs) => {
             setBoard((prev) => prev ? { ...prev, combatActive: true, boardState: bs } : prev);
@@ -2422,6 +2900,12 @@ export default function CampaignBoardPage() {
             setExternalRolls({});
           }}
           onClose={() => { setShowStartCombat(false); setExternalRolls({}); }}
+        />
+      )}
+      {dmCharacterPreview && (
+        <CharacterSheetModal
+          character={dmCharacterPreview}
+          onClose={() => setDmCharacterPreview(null)}
         />
       )}
     </div>
